@@ -15,17 +15,26 @@ async function sendLog(guild, payload) {
         detailLine = payload;
     } else if (payload && payload.components && payload.components[0] && payload.components[0].components) {
         let fields = [];
+        let extraContent = [];
         for (const comp of payload.components[0].components) {
             if (comp.data && comp.data.content) {
                 let c = comp.data.content;
                 if (c.startsWith('#') || c.startsWith('###')) {
                     actionName = c.replace(/#/g, '').trim();
                 } else if (c.includes('**')) {
-                    fields.push(c.replace(/\n/g, ' '));
+                    if (c.includes('**Silinen İçerik:**') || c.includes('**Eski İçerik:**') || c.includes('**Yeni İçerik:**')) {
+                        // Keep these fields on a new line, and don't strip their spaces as aggressively
+                        extraContent.push(c);
+                    } else {
+                        fields.push(c.replace(/\n/g, ' '));
+                    }
                 }
             }
         }
         detailLine = fields.join(' | ');
+        if (extraContent.length > 0) {
+            detailLine += '\n' + extraContent.join('\n');
+        }
     }
 
     const lockKey = `${guild.id}-${actionName}`;
@@ -56,8 +65,8 @@ async function sendLog(guild, payload) {
         const now = new Date();
         const timeStr = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         
-        let cleanDesc = detailLine.replace(/\s+/g, ' ').trim();
-        if (cleanDesc.length > 500) cleanDesc = cleanDesc.substring(0, 500) + '...';
+        let cleanDesc = detailLine.trim();
+        if (cleanDesc.length > 1000) cleanDesc = cleanDesc.substring(0, 1000) + '...';
 
         const newEvent = `\`[${timeStr}]\` ${cleanDesc}`;
 
