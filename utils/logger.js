@@ -1,5 +1,6 @@
 const { pool } = require('../db');
-const { MessageFlags } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
+const { COLORS, EMOJIS } = require('./uiBuilder');
 
 const activeLogMessages = new Map();
 
@@ -22,11 +23,68 @@ async function sendLog(guild, payload) {
         const botPerms = logChannel.permissionsFor(guild.members.me);
         if (!botPerms || !botPerms.has('SendMessages')) return;
 
+        let actionName = 'Sistem İşlemi';
+        let detailLine = '';
+
         if (typeof payload === 'string') {
-            const { createContainerMessage } = require('./uiBuilder');
-            payload = createContainerMessage('Sistem Kaydı', payload, '#808080');
+            detailLine = payload;
+        } else if (payload && payload.components && payload.components[0] && payload.components[0].components) {
+            let fields = [];
+            for (const comp of payload.components[0].components) {
+                if (comp.data && comp.data.content) {
+                    let c = comp.data.content;
+                    if (c.startsWith('#') || c.startsWith('###')) {
+                        actionName = c.replace(/#/g, '').trim();
+                    } else if (c.includes('**')) {
+                        fields.push(c.replace(/\n/g, ' '));
+                    }
+                }
+            }
+            detailLine = fields.join(' | ');
         }
-        await logChannel.send(payload).catch(()=>{});
+
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        
+        let cleanDesc = detailLine.replace(/\s+/g, ' ').trim();
+        if (cleanDesc.length > 500) cleanDesc = cleanDesc.substring(0, 500) + '...';
+
+        const newEvent = `\`[${timeStr}]\` **${actionName}**\n${cleanDesc}\n`;
+
+        let logData = activeLogMessages.get(guild.id);
+        let existingMsg = null;
+        let currentText = '';
+
+        if (logData) {
+            try {
+                existingMsg = await logChannel.messages.fetch(logData.id);
+                currentText = logData.text;
+            } catch (err) {
+                existingMsg = null;
+            }
+        }
+
+        if (currentText.length + newEvent.length > 3800 || !existingMsg) {
+            currentText = newEvent;
+            const embed = new EmbedBuilder()
+                .setTitle(`${EMOJIS.settings || '⚙️'} Sunucu Denetim Kayıtları`)
+                .setDescription(currentText)
+                .setColor(COLORS.PRIMARY || '#2B2D31')
+                .setTimestamp();
+
+            const newMsg = await logChannel.send({ embeds: [embed] }).catch(()=>{});
+            if (newMsg) activeLogMessages.set(guild.id, { id: newMsg.id, text: currentText });
+        } else {
+            currentText += '\n' + newEvent;
+            const embed = new EmbedBuilder()
+                .setTitle(`${EMOJIS.settings || '⚙️'} Sunucu Denetim Kayıtları`)
+                .setDescription(currentText)
+                .setColor(COLORS.PRIMARY || '#2B2D31')
+                .setTimestamp();
+                
+            await existingMsg.edit({ embeds: [embed] }).catch(()=>{});
+            activeLogMessages.set(guild.id, { id: existingMsg.id, text: currentText });
+        }
 
     } catch (err) {
         console.error('[Logger] Hata:', err.message);
