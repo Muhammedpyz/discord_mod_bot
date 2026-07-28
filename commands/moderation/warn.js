@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { pool } = require('../../db');
-const { createContainerMessage } = require('../../utils/uiBuilder');
+const { createContainerMessage, EMOJIS } = require('../../utils/uiBuilder');
 const { validateModTarget } = require('../../utils/permissions');
 const { issueWarning } = require('../../utils/warningManager');
 const { sendLog } = require('../../utils/logger');
@@ -50,7 +50,7 @@ module.exports = {
             const extraActionText = result.extraAction ? `\n${result.extraAction}` : '';
 
             const payload = createContainerMessage(
-                'Kullanici Uyarildi', 
+                `${EMOJIS.warning} Kullanici Uyarildi`, 
                 `<@${targetUser.id}> uyarildi.\n**Sebep:** ${reason}\n**Toplam Aktif Uyari:** ${result.totalWarns}\n*(Bu uyari ${result.daysToAdd} gun sonra pasiflesecek)*${extraActionText}${fallbackMsg}`,
                 '#F1C40F'
             );
@@ -58,7 +58,7 @@ module.exports = {
             await interaction.editReply(payload);
 
             const logPayload = createContainerMessage(
-                'Kullanici Uyarildi',
+                `${EMOJIS.warning} Kullanici Uyarildi`,
                 '',
                 '#FFFF00',
                 [],

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { createContainerMessage } = require('../../utils/uiBuilder');
+const { createContainerMessage, EMOJIS } = require('../../utils/uiBuilder');
 const { sendLog } = require('../../utils/logger');
 
 module.exports = {
@@ -38,7 +38,7 @@ module.exports = {
             const deleted = await interaction.channel.bulkDelete(messages, true);
 
             const payload = createContainerMessage(
-                'Temizlik Tamamlandi',
+                `${EMOJIS.delete} Temizlik Tamamlandi`,
                 `Basariyla **${deleted.size}** adet mesaj silindi.` + (targetUser ? `\n*(Yalnizca <@${targetUser.id}> adli kullanicinin mesajlari)*` : '') + '\n\n*Not: 14 gunden eski mesajlar Discord API kisitlamalari geregi toplu olarak silinememektedir.*',
                 '#2ECC71'
             );
@@ -46,7 +46,7 @@ module.exports = {
             await interaction.editReply(payload);
 
             const logPayload = createContainerMessage(
-                'Toplu Mesaj Silindi',
+                `${EMOJIS.delete} Toplu Mesaj Silindi`,
                 '',
                 '#FF8800',
                 [],

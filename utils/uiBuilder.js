@@ -45,6 +45,11 @@ const MONO_EMOJIS = {
     web: "1530917521174302840"
 };
 
+const EMOJIS = {};
+for (const [name, id] of Object.entries(MONO_EMOJIS)) {
+    EMOJIS[name] = `<:${name}:${id}>`;
+}
+
 const COLORS = {
     PRIMARY: 0x2B2D31,
     BRAND: 0xC0392B
@@ -178,5 +183,6 @@ module.exports = {
     COLORS, 
     resolveColor, 
     DEFAULT_BANNER_URL,
-    MONO_EMOJIS
+    MONO_EMOJIS,
+    EMOJIS
 };
