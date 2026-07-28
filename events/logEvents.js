@@ -115,22 +115,28 @@ module.exports = [
  },
  {
  name: Events.GuildMemberUpdate,
- execute(oldMember, newMember) {
+ async execute(oldMember, newMember) {
  if (!oldMember.guild) return;
 
  // Nickname değişimi
  if (oldMember.nickname !== newMember.nickname) {
- const payload = createContainerMessage(
- 'İsim (Nickname) Değiştirildi',
- '',
- '#00AAFF',
- [],
- [
+ let executorId = 'Bilinmiyor';
+ try {
+ const fetchedLogs = await newMember.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberUpdate });
+ const log = fetchedLogs.entries.first();
+ if (log && log.target.id === newMember.id && Date.now() - log.createdTimestamp < 10000) {
+ executorId = `<@${log.executor.id}>`;
+ }
+ } catch (e) {}
+
+ const fields = [
  { name: 'Üye', value: `<@${newMember.id}>`, inline: true },
  { name: 'Eski İsim', value: `\`${oldMember.nickname || oldMember.user.username}\``, inline: true },
  { name: 'Yeni İsim', value: `\`${newMember.nickname || newMember.user.username}\``, inline: true }
- ]
- );
+ ];
+ if (executorId !== 'Bilinmiyor') fields.push({ name: 'Yetkili', value: executorId, inline: true });
+
+ const payload = createContainerMessage('İsim (Nickname) Değiştirildi', '', '#00AAFF', [], fields);
  sendLog(newMember.guild, payload);
  }
 
@@ -181,7 +187,7 @@ module.exports = [
  },
  {
  name: Events.VoiceStateUpdate,
- execute(oldState, newState) {
+ async execute(oldState, newState) {
  if (!oldState.guild) return;
  const member = newState.member || oldState.member;
  if (!member || member.user.bot) return;
@@ -214,18 +220,42 @@ module.exports = [
 
  // Sunucu Tarafından Mute/Deafen Uygulanması
  if (oldState.serverMute !== newState.serverMute) {
- const payload = createContainerMessage(newState.serverMute ? 'Seste Susturuldu (Server Mute)' : 'Sesteki Susturması Kaldırıldı', '', newState.serverMute ? '#FF5555' : '#55FF55', [], [
+ let executorId = 'Bilinmiyor';
+ try {
+ const fetchedLogs = await newState.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberUpdate });
+ const log = fetchedLogs.entries.first();
+ if (log && log.target.id === member.id && Date.now() - log.createdTimestamp < 10000) {
+ executorId = `<@${log.executor.id}>`;
+ }
+ } catch(e) {}
+
+ const fields = [
  { name: 'Üye', value: `<@${member.id}>`, inline: true },
  { name: 'Kanal', value: newState.channelId ? `<#${newState.channelId}>` : 'Bilinmiyor', inline: true }
- ]);
+ ];
+ if (executorId !== 'Bilinmiyor') fields.push({ name: 'Yetkili', value: executorId, inline: true });
+
+ const payload = createContainerMessage(newState.serverMute ? 'Seste Susturuldu (Server Mute)' : 'Sesteki Susturması Kaldırıldı', '', newState.serverMute ? '#FF5555' : '#55FF55', [], fields);
  sendLog(newState.guild, payload);
  }
 
  if (oldState.serverDeaf !== newState.serverDeaf) {
- const payload = createContainerMessage(newState.serverDeaf ? 'Seste Sağırlaştırıldı (Server Deafen)' : 'Sesteki Sağırlaştırılması Kaldırıldı', '', newState.serverDeaf ? '#FF5555' : '#55FF55', [], [
+ let executorId = 'Bilinmiyor';
+ try {
+ const fetchedLogs = await newState.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberUpdate });
+ const log = fetchedLogs.entries.first();
+ if (log && log.target.id === member.id && Date.now() - log.createdTimestamp < 10000) {
+ executorId = `<@${log.executor.id}>`;
+ }
+ } catch(e) {}
+
+ const fields = [
  { name: 'Üye', value: `<@${member.id}>`, inline: true },
  { name: 'Kanal', value: newState.channelId ? `<#${newState.channelId}>` : 'Bilinmiyor', inline: true }
- ]);
+ ];
+ if (executorId !== 'Bilinmiyor') fields.push({ name: 'Yetkili', value: executorId, inline: true });
+
+ const payload = createContainerMessage(newState.serverDeaf ? 'Seste Sağırlaştırıldı (Server Deafen)' : 'Sesteki Sağırlaştırılması Kaldırıldı', '', newState.serverDeaf ? '#FF5555' : '#55FF55', [], fields);
  sendLog(newState.guild, payload);
  }
  }
