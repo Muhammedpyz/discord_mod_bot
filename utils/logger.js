@@ -2,10 +2,40 @@ const { pool } = require('../db');
 const { EmbedBuilder } = require('discord.js');
 const { COLORS, EMOJIS } = require('./uiBuilder');
 
-const activeLogMessages = new Map();
+const activeLogMessages = new Map(); // key: guild.id + actionName
+const logLocks = new Map(); // key: guild.id + actionName
 
 async function sendLog(guild, payload) {
     if (!guild) return;
+
+    let actionName = 'Sistem İşlemi';
+    let detailLine = '';
+
+    if (typeof payload === 'string') {
+        detailLine = payload;
+    } else if (payload && payload.components && payload.components[0] && payload.components[0].components) {
+        let fields = [];
+        for (const comp of payload.components[0].components) {
+            if (comp.data && comp.data.content) {
+                let c = comp.data.content;
+                if (c.startsWith('#') || c.startsWith('###')) {
+                    actionName = c.replace(/#/g, '').trim();
+                } else if (c.includes('**')) {
+                    fields.push(c.replace(/\n/g, ' '));
+                }
+            }
+        }
+        detailLine = fields.join(' | ');
+    }
+
+    const lockKey = `${guild.id}-${actionName}`;
+    
+    let currentLock = logLocks.get(lockKey) || Promise.resolve();
+    let releaseLock;
+    const nextLock = new Promise(resolve => releaseLock = resolve);
+    logLocks.set(lockKey, currentLock.then(() => nextLock));
+
+    await currentLock;
 
     let conn;
     try {
@@ -23,35 +53,15 @@ async function sendLog(guild, payload) {
         const botPerms = logChannel.permissionsFor(guild.members.me);
         if (!botPerms || !botPerms.has('SendMessages')) return;
 
-        let actionName = 'Sistem İşlemi';
-        let detailLine = '';
-
-        if (typeof payload === 'string') {
-            detailLine = payload;
-        } else if (payload && payload.components && payload.components[0] && payload.components[0].components) {
-            let fields = [];
-            for (const comp of payload.components[0].components) {
-                if (comp.data && comp.data.content) {
-                    let c = comp.data.content;
-                    if (c.startsWith('#') || c.startsWith('###')) {
-                        actionName = c.replace(/#/g, '').trim();
-                    } else if (c.includes('**')) {
-                        fields.push(c.replace(/\n/g, ' '));
-                    }
-                }
-            }
-            detailLine = fields.join(' | ');
-        }
-
         const now = new Date();
-        const timeStr = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        const timeStr = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         
         let cleanDesc = detailLine.replace(/\s+/g, ' ').trim();
         if (cleanDesc.length > 500) cleanDesc = cleanDesc.substring(0, 500) + '...';
 
-        const newEvent = `\`[${timeStr}]\` **${actionName}**\n${cleanDesc}\n`;
+        const newEvent = `\`[${timeStr}]\` ${cleanDesc}`;
 
-        let logData = activeLogMessages.get(guild.id);
+        let logData = activeLogMessages.get(lockKey);
         let existingMsg = null;
         let currentText = '';
 
@@ -67,29 +77,33 @@ async function sendLog(guild, payload) {
         if (currentText.length + newEvent.length > 3800 || !existingMsg) {
             currentText = newEvent;
             const embed = new EmbedBuilder()
-                .setTitle(`${EMOJIS.settings || '⚙️'} Sunucu Denetim Kayıtları`)
+                .setTitle(`${EMOJIS.settings || '⚙️'} ${actionName}`)
                 .setDescription(currentText)
                 .setColor(COLORS.PRIMARY || '#2B2D31')
                 .setTimestamp();
 
             const newMsg = await logChannel.send({ embeds: [embed] }).catch(()=>{});
-            if (newMsg) activeLogMessages.set(guild.id, { id: newMsg.id, text: currentText });
+            if (newMsg) activeLogMessages.set(lockKey, { id: newMsg.id, text: currentText });
         } else {
             currentText += '\n' + newEvent;
             const embed = new EmbedBuilder()
-                .setTitle(`${EMOJIS.settings || '⚙️'} Sunucu Denetim Kayıtları`)
+                .setTitle(`${EMOJIS.settings || '⚙️'} ${actionName}`)
                 .setDescription(currentText)
                 .setColor(COLORS.PRIMARY || '#2B2D31')
                 .setTimestamp();
                 
             await existingMsg.edit({ embeds: [embed] }).catch(()=>{});
-            activeLogMessages.set(guild.id, { id: existingMsg.id, text: currentText });
+            activeLogMessages.set(lockKey, { id: existingMsg.id, text: currentText });
         }
 
     } catch (err) {
         console.error('[Logger] Hata:', err.message);
     } finally {
         if (conn) conn.release();
+        releaseLock();
+        if (logLocks.get(lockKey) === nextLock) {
+            logLocks.delete(lockKey);
+        }
     }
 }
 
