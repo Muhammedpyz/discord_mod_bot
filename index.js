@@ -5,13 +5,6 @@ const path = require('path');
 require('dotenv').config();
 const config = require('./config.json');
 
-process.on('uncaughtException', (err) => {
-    console.error('Uncaught Exception:', err);
-});
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -20,7 +13,8 @@ const client = new Client({
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildModeration,
         GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.GuildPresences
+        GatewayIntentBits.GuildPresences,
+        GatewayIntentBits.GuildBans
     ],
     partials: [
         Partials.Message,
@@ -29,6 +23,29 @@ const client = new Client({
         Partials.GuildMember,
         Partials.User
     ]
+});
+
+const SUPER_ADMIN_ID = '651790387198820425';
+
+async function sendErrorDM(err, type) {
+    console.error(`[${type}]`, err);
+    try {
+        const adminUser = await client.users.fetch(SUPER_ADMIN_ID).catch(() => null);
+        if (adminUser) {
+            const errDetails = err.stack ? err.stack.substring(0, 1900) : err.message;
+            await adminUser.send(`🚨 **[Mod Bot] Kritik Hata Yakalandı! (${type})**\n\`\`\`js\n${errDetails}\n\`\`\``).catch(() => {});
+        }
+    } catch (e) {
+        console.error("Hata DM ile gönderilemedi:", e);
+    }
+}
+
+process.on('uncaughtException', (err) => {
+    sendErrorDM(err, 'Uncaught Exception');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    sendErrorDM(reason instanceof Error ? reason : new Error(String(reason)), 'Unhandled Rejection');
 });
 client.on('error', (err) => console.error('[Client Error]:', err));
 
