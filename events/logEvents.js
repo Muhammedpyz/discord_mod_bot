@@ -1,6 +1,8 @@
-const { Events } = require('discord.js');
+const { Events, AuditLogEvent } = require('discord.js');
 const { sendLog } = require('../utils/logger');
 const { createContainerMessage } = require('../utils/uiBuilder');
+
+const memberRoleDebounce = new Map();
 
 module.exports = [
  {
@@ -28,7 +30,6 @@ module.exports = [
  let deleteReason = 'Kullanıcı Kendi Sildi';
 
  try {
- const { AuditLogEvent } = require('discord.js');
  const fetchedLogs = await message.guild.fetchAuditLogs({
  limit: 1,
  type: AuditLogEvent.MessageDelete,
@@ -123,31 +124,47 @@ module.exports = [
  sendLog(newMember.guild, payload);
  }
 
- // Rol Ekleme/Çıkarma
+ // Rol Ekleme/Çıkarma (Debounced)
  if (oldMember.roles.cache.size !== newMember.roles.cache.size) {
  const addedRoles = newMember.roles.cache.filter(role => !oldMember.roles.cache.has(role.id));
  const removedRoles = oldMember.roles.cache.filter(role => !newMember.roles.cache.has(role.id));
 
- if (addedRoles.size > 0) {
- const payload = createContainerMessage(
- 'Rol Eklendi',
- '',
- '#00FF00',
- [],
- [
- { name: 'Üye', value: `<@${newMember.id}>`, inline: true },
- { name: 'Verilen Rol(ler)', value: addedRoles.map(r => `<@&${r.id}>`).join(', '), inline: true }
- ]
- );
- sendLog(newMember.guild, payload);
+ if (addedRoles.size > 0 || removedRoles.size > 0) {
+ if (!memberRoleDebounce.has(newMember.id)) {
+ memberRoleDebounce.set(newMember.id, { added: new Set(), removed: new Set(), timeout: null });
+ }
+ const data = memberRoleDebounce.get(newMember.id);
+ 
+ addedRoles.forEach(r => data.added.add(r.id));
+ removedRoles.forEach(r => data.removed.add(r.id));
+ 
+ if (data.timeout) clearTimeout(data.timeout);
+ data.timeout = setTimeout(async () => {
+ memberRoleDebounce.delete(newMember.id);
+ 
+ let executorId = 'Bilinmiyor';
+ try {
+ const fetchedLogs = await newMember.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberRoleUpdate });
+ const log = fetchedLogs.entries.first();
+ if (log && log.target.id === newMember.id && Date.now() - log.createdTimestamp < 10000) {
+ executorId = `<@${log.executor.id}>`;
+ }
+ } catch (e) {}
+
+ const fields = [{ name: 'Üye', value: `<@${newMember.id}>`, inline: true }];
+ if (data.added.size > 0) {
+ fields.push({ name: 'Verilen Rol(ler)', value: Array.from(data.added).map(id => `<@&${id}>`).join(', '), inline: true });
+ }
+ if (data.removed.size > 0) {
+ fields.push({ name: 'Alınan Rol(ler)', value: Array.from(data.removed).map(id => `<@&${id}>`).join(', '), inline: true });
+ }
+ if (executorId !== 'Bilinmiyor') {
+ fields.push({ name: 'Yetkili', value: executorId, inline: true });
  }
 
- if (removedRoles.size > 0) {
- const payload = createContainerMessage('Rol Alındı', '', '#FF5555', [], [
- { name: 'Üye', value: `<@${newMember.id}>`, inline: true },
- { name: 'Alınan Rol(ler)', value: removedRoles.map(r => `<@&${r.id}>`).join(', '), inline: true }
- ]);
+ const payload = createContainerMessage('Rol(ler) Güncellendi', '', data.added.size > 0 ? '#00FF00' : '#FF5555', [], fields);
  sendLog(newMember.guild, payload);
+ }, 2000);
  }
  }
  }
@@ -205,94 +222,192 @@ module.exports = [
  },
  {
  name: Events.ChannelCreate,
- execute(channel) {
+ async execute(channel) {
  if (!channel.guild) return;
- const payload = createContainerMessage('Yeni Kanal Oluşturuldu', '', '#00FF00', [], [
+ let executorId = 'Bilinmiyor';
+ try {
+ const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelCreate });
+ const log = fetchedLogs.entries.first();
+ if (log && log.target.id === channel.id && Date.now() - log.createdTimestamp < 10000) {
+ executorId = `<@${log.executor.id}>`;
+ }
+ } catch(e) {}
+ 
+ const fields = [
  { name: 'Kanal', value: `<#${channel.id}>`, inline: true },
  { name: 'İsim', value: `\`${channel.name}\``, inline: true },
  { name: 'Tür', value: `\`${channel.type}\``, inline: true }
- ]);
+ ];
+ if (executorId !== 'Bilinmiyor') fields.push({ name: 'Yetkili', value: executorId, inline: true });
+ 
+ const payload = createContainerMessage('Yeni Kanal Oluşturuldu', '', '#00FF00', [], fields);
  sendLog(channel.guild, payload);
  }
  },
  {
  name: Events.ChannelDelete,
- execute(channel) {
+ async execute(channel) {
  if (!channel.guild) return;
- const payload = createContainerMessage('Kanal Silindi', '', '#FF0000', [], [
+ let executorId = 'Bilinmiyor';
+ try {
+ const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelDelete });
+ const log = fetchedLogs.entries.first();
+ if (log && log.target.id === channel.id && Date.now() - log.createdTimestamp < 10000) {
+ executorId = `<@${log.executor.id}>`;
+ }
+ } catch(e) {}
+
+ const fields = [
  { name: 'İsim', value: `\`${channel.name}\``, inline: true },
  { name: 'Tür', value: `\`${channel.type}\``, inline: true }
- ]);
+ ];
+ if (executorId !== 'Bilinmiyor') fields.push({ name: 'Yetkili', value: executorId, inline: true });
+
+ const payload = createContainerMessage('Kanal Silindi', '', '#FF0000', [], fields);
  sendLog(channel.guild, payload);
  }
  },
  {
  name: Events.GuildRoleCreate,
- execute(role) {
- const payload = createContainerMessage('Yeni Rol Oluşturuldu', '', '#00FF00', [], [
+ async execute(role) {
+ let executorId = 'Bilinmiyor';
+ try {
+ const fetchedLogs = await role.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleCreate });
+ const log = fetchedLogs.entries.first();
+ if (log && log.target.id === role.id && Date.now() - log.createdTimestamp < 10000) {
+ executorId = `<@${log.executor.id}>`;
+ }
+ } catch(e) {}
+
+ const fields = [
  { name: 'Rol', value: `<@&${role.id}>`, inline: true },
  { name: 'İsim', value: `\`${role.name}\``, inline: true },
  { name: 'Renk Kodu', value: `\`${role.hexColor}\``, inline: true }
- ]);
+ ];
+ if (executorId !== 'Bilinmiyor') fields.push({ name: 'Yetkili', value: executorId, inline: true });
+
+ const payload = createContainerMessage('Yeni Rol Oluşturuldu', '', '#00FF00', [], fields);
  sendLog(role.guild, payload);
  }
  },
  {
  name: Events.GuildRoleDelete,
- execute(role) {
- const payload = createContainerMessage('Rol Silindi', '', '#FF0000', [], [
+ async execute(role) {
+ let executorId = 'Bilinmiyor';
+ try {
+ const fetchedLogs = await role.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleDelete });
+ const log = fetchedLogs.entries.first();
+ if (log && log.target.id === role.id && Date.now() - log.createdTimestamp < 10000) {
+ executorId = `<@${log.executor.id}>`;
+ }
+ } catch(e) {}
+
+ const fields = [
  { name: 'İsim', value: `\`${role.name}\``, inline: true },
  { name: 'Renk Kodu', value: `\`${role.hexColor}\``, inline: true }
- ]);
+ ];
+ if (executorId !== 'Bilinmiyor') fields.push({ name: 'Yetkili', value: executorId, inline: true });
+
+ const payload = createContainerMessage('Rol Silindi', '', '#FF0000', [], fields);
  sendLog(role.guild, payload);
  }
  },
  {
  name: Events.ChannelUpdate,
- execute(oldChannel, newChannel) {
+ async execute(oldChannel, newChannel) {
  if (!oldChannel.guild) return;
  if (oldChannel.name !== newChannel.name) {
- const payload = createContainerMessage('Kanal İsim Değişikliği', '', '#00AAFF', [], [
+ let executorId = 'Bilinmiyor';
+ try {
+ const fetchedLogs = await newChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelUpdate });
+ const log = fetchedLogs.entries.first();
+ if (log && log.target.id === newChannel.id && Date.now() - log.createdTimestamp < 10000) {
+ executorId = `<@${log.executor.id}>`;
+ }
+ } catch(e) {}
+ 
+ const fields = [
  { name: 'Kanal', value: `<#${newChannel.id}>`, inline: true },
  { name: 'Eski İsim', value: `\`${oldChannel.name}\``, inline: true },
  { name: 'Yeni İsim', value: `\`${newChannel.name}\``, inline: true }
- ]);
+ ];
+ if (executorId !== 'Bilinmiyor') fields.push({ name: 'Yetkili', value: executorId, inline: true });
+
+ const payload = createContainerMessage('Kanal İsim Değişikliği', '', '#00AAFF', [], fields);
  sendLog(newChannel.guild, payload);
  }
  }
  },
  {
  name: Events.GuildBanRemove,
- execute(ban) {
- const payload = createContainerMessage('Yasaklama (Ban) Kaldırıldı', '', '#00FF00', [], [
+ async execute(ban) {
+ let executorId = 'Bilinmiyor';
+ try {
+ const fetchedLogs = await ban.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.BanRemove });
+ const log = fetchedLogs.entries.first();
+ if (log && log.target.id === ban.user.id && Date.now() - log.createdTimestamp < 10000) {
+ executorId = `<@${log.executor.id}>`;
+ }
+ } catch(e) {}
+
+ const fields = [
  { name: 'Kullanıcı', value: `<@${ban.user.id}> (\`${ban.user.tag}\`)`, inline: true },
  { name: 'ID', value: `\`${ban.user.id}\``, inline: true }
- ]);
+ ];
+ if (executorId !== 'Bilinmiyor') fields.push({ name: 'Yetkili', value: executorId, inline: true });
+
+ const payload = createContainerMessage('Yasaklama (Ban) Kaldırıldı', '', '#00FF00', [], fields);
  sendLog(ban.guild, payload);
  }
  },
  {
  name: Events.InviteCreate,
- execute(invite) {
+ async execute(invite) {
  if (!invite.guild) return;
  const inviter = invite.inviter ? `<@${invite.inviter.id}>` : 'Bilinmiyor';
- const payload = createContainerMessage('Yeni Davet Bağlantısı Oluşturuldu', '', '#00FFaa', [], [
+ 
+ let executorId = 'Bilinmiyor';
+ try {
+ const fetchedLogs = await invite.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.InviteCreate });
+ const log = fetchedLogs.entries.first();
+ if (log && log.target?.code === invite.code && Date.now() - log.createdTimestamp < 10000) {
+ executorId = `<@${log.executor.id}>`;
+ }
+ } catch(e) {}
+
+ const fields = [
  { name: 'Kanal', value: `<#${invite.channel?.id}>`, inline: true },
  { name: 'Oluşturan', value: inviter, inline: true },
  { name: 'Kod', value: `\`${invite.code}\``, inline: true },
  { name: 'Süre/Kullanım', value: `${invite.maxAge ? `${invite.maxAge}sn` : 'Süresiz'} / ${invite.maxUses ? `${invite.maxUses} kullanım` : 'Sınırsız'}`, inline: true }
- ]);
+ ];
+ if (executorId !== 'Bilinmiyor' && inviter === 'Bilinmiyor') fields.push({ name: 'Yetkili', value: executorId, inline: true });
+
+ const payload = createContainerMessage('Yeni Davet Bağlantısı Oluşturuldu', '', '#00FFaa', [], fields);
  sendLog(invite.guild, payload);
  }
  },
  {
  name: Events.InviteDelete,
- execute(invite) {
+ async execute(invite) {
  if (!invite.guild) return;
- const payload = createContainerMessage('Davet Bağlantısı Silindi', '', '#FFaa00', [], [
+ 
+ let executorId = 'Bilinmiyor';
+ try {
+ const fetchedLogs = await invite.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.InviteDelete });
+ const log = fetchedLogs.entries.first();
+ if (log && log.target?.code === invite.code && Date.now() - log.createdTimestamp < 10000) {
+ executorId = `<@${log.executor.id}>`;
+ }
+ } catch(e) {}
+
+ const fields = [
  { name: 'Kanal', value: invite.channel ? `<#${invite.channel.id}>` : 'Bilinmiyor', inline: true },
  { name: 'Kod', value: `\`${invite.code}\``, inline: true }
- ]);
+ ];
+ if (executorId !== 'Bilinmiyor') fields.push({ name: 'Yetkili', value: executorId, inline: true });
+
+ const payload = createContainerMessage('Davet Bağlantısı Silindi', '', '#FFaa00', [], fields);
  sendLog(invite.guild, payload);
  }
  }
