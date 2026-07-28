@@ -2,7 +2,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('disc
 const { sendLog } = require('../../utils/logger');
 const { validateModTarget } = require('../../utils/permissions');
 const { pool } = require('../../db');
-const { createContainerMessage, EMOJIS } = require('../../utils/uiBuilder');
+const { createContainerMessage } = require('../../utils/uiBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -54,7 +54,7 @@ module.exports = {
             }
 
             const logPayload = createContainerMessage(
-                `${EMOJIS.unlock} Sunucu Yasagi Kaldirildi`,
+                'Sunucu Yasagi Kaldirildi',
                 '',
                 '#2ECC71',
                 [],

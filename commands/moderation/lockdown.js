@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { createContainerMessage, EMOJIS } = require('../../utils/uiBuilder');
+const { createContainerMessage } = require('../../utils/uiBuilder');
 const { sendLog } = require('../../utils/logger');
 
 module.exports = {
@@ -35,7 +35,7 @@ module.exports = {
                 await interaction.channel.permissionOverwrites.edit(role, { SendMessages: false });
                 
                 const payload = createContainerMessage(
-                    `${EMOJIS.lock} Kanal Kilitlendi`,
+                    'Kanal Kilitlendi',
                     'Sunucu guvenligi sebebiyle bu kanala mesaj gonderimi yetkililer tarafindan gecici olarak durdurulmustur.',
                     '#E74C3C'
                 );
@@ -45,7 +45,7 @@ module.exports = {
                 await interaction.channel.permissionOverwrites.edit(role, { SendMessages: null });
                 
                 const payload = createContainerMessage(
-                    `${EMOJIS.unlock} Kanal Erisime Acildi`,
+                    'Kanal Erisime Acildi',
                     'Kanal kısıtlaması kaldirilmis olup, sohbet erisimi tekrar aktif edilmistir.',
                     '#2ECC71'
                 );
@@ -54,7 +54,7 @@ module.exports = {
             }
 
             const logPayload = createContainerMessage(
-                state === 'lock' ? `${EMOJIS.lock} Kanal Kilitlendi` : `${EMOJIS.unlock} Kanal Kilidi Acildi`,
+                state === 'lock' ? 'Kanal Kilitlendi' : 'Kanal Kilidi Acildi',
                 '',
                 state === 'lock' ? '#E74C3C' : '#2ECC71',
                 [],

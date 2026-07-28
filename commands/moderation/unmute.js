@@ -2,7 +2,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('disc
 const { sendLog } = require('../../utils/logger');
 const { validateModTarget } = require('../../utils/permissions');
 const { pool } = require('../../db');
-const { createContainerMessage, EMOJIS } = require('../../utils/uiBuilder');
+const { createContainerMessage } = require('../../utils/uiBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -52,7 +52,7 @@ module.exports = {
             await pool.query('UPDATE mutes SET is_active = FALSE WHERE user_id = ? AND guild_id = ? AND is_active = TRUE', [targetUser.id, interaction.guild.id]);
 
             const logPayload = createContainerMessage(
-                `${EMOJIS.unlock} Susturma Kaldirildi`,
+                'Susturma Kaldirildi',
                 '',
                 '#00FF00',
                 [],

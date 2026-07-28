@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { createContainerMessage, EMOJIS } = require('../../utils/uiBuilder');
+const { createContainerMessage } = require('../../utils/uiBuilder');
 const { validateModTarget } = require('../../utils/permissions');
 const { sendLog } = require('../../utils/logger');
 
@@ -42,11 +42,11 @@ module.exports = {
 
             await targetMember.kick(`Moderator: ${interaction.user.tag} | Sebep: ${reason}`);
 
-            const payload = createContainerMessage(`${EMOJIS.kick} Kullanici Sunucudan Atildi`, `<@${targetUser.id}> sunucudan atildi.\n**Sebep:** ${reason}`, '#FF5500');
+            const payload = createContainerMessage('Kullanici Sunucudan Atildi', `<@${targetUser.id}> sunucudan atildi.\n**Sebep:** ${reason}`, '#FF5500');
             await interaction.reply(payload);
 
             const logPayload = createContainerMessage(
-                `${EMOJIS.kick} Kullanici Atildi`,
+                'Kullanici Atildi',
                 '',
                 '#FF5500',
                 [],
