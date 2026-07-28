@@ -236,4 +236,32 @@ function updateConfigCache(guildId, key, value) {
     guildConfigCache.set(guildId, config);
 }
 
-module.exports = { pool, initDB, getGuildConfig, updateConfigCache };
+const filteredWordsCache = new Map();
+
+async function getFilteredWords(guildId) {
+    if (filteredWordsCache.has(guildId)) {
+        return filteredWordsCache.get(guildId);
+    }
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT word, match_type, action FROM filtered_words WHERE guild_id = ?', [guildId]);
+        filteredWordsCache.set(guildId, rows);
+        return rows;
+    } catch (e) {
+        console.error("Cache fetch error:", e);
+        return [];
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+function updateFilteredWordsCache(guildId, words) {
+    filteredWordsCache.set(guildId, words);
+}
+
+function clearFilteredWordsCache(guildId) {
+    filteredWordsCache.delete(guildId);
+}
+
+module.exports = { pool, initDB, getGuildConfig, updateConfigCache, getFilteredWords, updateFilteredWordsCache, clearFilteredWordsCache };

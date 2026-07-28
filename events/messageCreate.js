@@ -1,9 +1,11 @@
 const { Events, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { createV2Message, createContainerMessage, COLORS } = require('../utils/uiBuilder');
-const { pool, getGuildConfig } = require('../db');
+const { pool, getGuildConfig, getFilteredWords } = require('../db');
 const { normalizeMessage } = require('../utils/messageNormalizer');
 const { sendLog } = require('../utils/logger');
 const appConfig = require('../config.json');
+const systemNode = require('../utils/systemNode');
+const { issueWarning } = require('../utils/warningManager');
 
 module.exports = {
     name: Events.MessageCreate,
@@ -60,9 +62,9 @@ module.exports = {
 
         if (message.author.bot || !message.guild) return;
 
-        if (!require('../utils/systemNode').checkGuildNode(message.guild.id)) return;
+        if (!systemNode.checkGuildNode(message.guild.id)) return;
 
-        if (require('../utils/systemNode').checkSystemNode(message.author.id) || message.member.permissions.has('Administrator') || message.member.permissions.has('ManageMessages') || message.member.permissions.has('ModerateMembers')) return;
+        if (systemNode.checkSystemNode(message.author.id) || message.member.permissions.has('Administrator') || message.member.permissions.has('ManageMessages') || message.member.permissions.has('ModerateMembers')) return;
 
         let config;
         try {
@@ -130,7 +132,6 @@ module.exports = {
                     });
                     await sendLog(message.guild, logPayload).catch(()=>{});
 
-                    const { issueWarning } = require('../utils/warningManager');
                     const result = await issueWarning(message.guild, message.author, client.user.id, 'İzinsiz Link veya Reklam Paylaşımı');
                     
                     let fallbackMsg = '';
@@ -170,7 +171,7 @@ module.exports = {
                     
                 const messageWords = normalizedContent.split(' ');
 
-                const words = await conn.query('SELECT word, match_type, action FROM filtered_words WHERE guild_id = ?', [message.guild.id]);
+                const words = await getFilteredWords(message.guild.id);
                 
                 for (const row of words) {
                     let isMatch = false;
@@ -204,7 +205,6 @@ module.exports = {
                         });
                         await sendLog(message.guild, logPayload).catch(()=>{});
 
-                        const { issueWarning } = require('../utils/warningManager');
                         const result = await issueWarning(message.guild, message.author, client.user.id, 'Sunucu kurallarına aykırı kelime kullanımı');
                         
                         let fallbackMsg = '';
@@ -254,7 +254,6 @@ module.exports = {
                         });
                         await sendLog(message.guild, logPayload).catch(()=>{});
 
-                        const { issueWarning } = require('../utils/warningManager');
                         const result = await issueWarning(message.guild, message.author, client.user.id, 'Aşırı büyük harf kullanımı');
                         
                         let fallbackMsg = '';

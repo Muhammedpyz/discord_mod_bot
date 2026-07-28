@@ -3,11 +3,17 @@ const { COLORS } = require('../utils/embeds');
 const { pool, updateConfigCache } = require('../db');
 const config = require('../config.json');
 const { createContainerMessage, buildModBResponse, buildModAPanel } = require('../utils/uiBuilder');
+const systemNode = require('../utils/systemNode');
+const { createTicket, checkTicketLimits, closeTicketChannel } = require('../utils/ticketManager');
+const { handleSorguSelect, handleExport } = require('../utils/sorguHelpers');
+const { generateDiscordTranscriptHtml, generateDiscordTranscriptText } = require('../utils/discordHtmlExporter');
+const { helpEmbedHome, createHelpComponents } = require('../commands/moderation/yardim');
+const { getSettingsPage, handleSettingsSelect } = require('../commands/moderation/settings');
 
 module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction, client) {
-        if (interaction.guildId && !require('../utils/systemNode').checkGuildNode(interaction.guildId)) {
+        if (interaction.guildId && !systemNode.checkGuildNode(interaction.guildId)) {
             const payload = buildModBResponse({
                 title: 'Yetki Hatası',
                 textLines: [`Bu komutu kullanmak için bu sunucuda yetkili olmanız gerekmektedir.\n\nEğer siz de böyle bir bota sahip olmak isterseniz sahibim **muhammedpyz_** ile iletişime geçebilirsiniz.`],
@@ -55,7 +61,6 @@ module.exports = {
 
         // TICKET NAMESPACE
         if (namespace === 'ticket' || action.startsWith('ticket_')) {
-            const { createTicket, checkTicketLimits, closeTicketChannel } = require('../utils/ticketManager');
             
             if (action === 'create' || action === 'ticket_create_btn') {
                 const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageChannels);
@@ -118,7 +123,6 @@ module.exports = {
 
         // SORGU NAMESPACE
         if (namespace === 'sorgu') {
-            const { handleSorguSelect, handleExport } = require('../utils/sorguHelpers');
             if (action === 'select') {
                 return handleSorguSelect(interaction, interaction.values[0], targetId);
             }
@@ -136,7 +140,6 @@ module.exports = {
                     const rows = await conn.query('SELECT * FROM tickets WHERE id = ?', [ticketId]);
                     if (rows.length === 0) return interaction.reply({ content: 'Transcript bulunamadı.', ephemeral: true });
                     const ticket = rows[0];
-                    const { generateDiscordTranscriptHtml, generateDiscordTranscriptText } = require('../utils/discordHtmlExporter');
                     const dbMsgs = await conn.query('SELECT * FROM ticket_messages WHERE channel_id = ? OR ticket_owner_id = ? ORDER BY created_at ASC', [ticket.channel_id, ticket.owner_id]);
                     const htmlContent = await generateDiscordTranscriptHtml({ guild: interaction.guild, channel: { name: `destek-${ticket.owner_tag || 'kullanici'}` }, messages: dbMsgs || [], ticketData: ticket });
                     const textContent = generateDiscordTranscriptText({ guild: interaction.guild, channel: { name: `destek-${ticket.owner_tag || 'kullanici'}` }, messages: dbMsgs || [], ticketData: ticket });
@@ -159,7 +162,6 @@ module.exports = {
         // YARDIM / SETTINGS (Legacy fallback until settings is rewritten)
         if (action === 'help_category_select') {
             const val = interaction.values[0];
-            const { helpEmbedHome, createHelpComponents } = require('../commands/moderation/yardim');
             if (val === 'help_home') return interaction.update(helpEmbedHome(interaction.guild, interaction.user, [createHelpComponents('home')]));
             
             const getCmd = (name) => {
@@ -168,7 +170,6 @@ module.exports = {
             };
 
             const getHelpPayload = (title, lines, fields, selected) => {
-                const { buildModAPanel } = require('../utils/uiBuilder');
                 return buildModAPanel({ 
                     title, 
                     description: lines.join('\n\n') + '\n\n' + fields.map(f => `**${f.name}**\n${f.value}`).join('\n\n'), 
@@ -183,7 +184,7 @@ module.exports = {
         }
 
         if (action.startsWith('toggle_')) {
-            if (!interaction.member.permissions.has('Administrator') && !require('../../utils/systemNode').checkSystemNode(interaction.user.id)) return interaction.reply({ content: 'Yönetici izniniz yok.', ephemeral: true });
+            if (!interaction.member.permissions.has('Administrator') && !systemNode.checkSystemNode(interaction.user.id)) return interaction.reply({ content: 'Yönetici izniniz yok.', ephemeral: true });
             try { await interaction.deferUpdate(); } catch (e) { return; }
             let conn;
             try {
@@ -201,7 +202,6 @@ module.exports = {
                     if (rows.length > 0) { newValue = !rows[0][field]; await conn.query(`UPDATE guild_config SET ${field} = ? WHERE guild_id = ?`, [newValue, interaction.guild.id]); } 
                     else { newValue = false; await conn.query(`INSERT INTO guild_config (guild_id, ${field}) VALUES (?, ?)`, [interaction.guild.id, newValue]); }
                     updateConfigCache(interaction.guild.id, field, newValue);
-                    const { getSettingsPage } = require('../commands/moderation/settings');
                     const pageData = await getSettingsPage(interaction.guild.id, 'page_filters');
                     if (pageData) await interaction.editReply(pageData);
                     await interaction.followUp({ content: `Ayar güncellendi: ${field} = ${newValue ? 'Açık' : 'Kapalı'}`, ephemeral: true });
@@ -210,7 +210,6 @@ module.exports = {
         }
 
         if (interaction.isRoleSelectMenu() || interaction.isChannelSelectMenu() || action === 'settings_menu') {
-            const { handleSettingsSelect } = require('../commands/moderation/settings');
             if (handleSettingsSelect) {
                 return handleSettingsSelect(interaction);
             }
