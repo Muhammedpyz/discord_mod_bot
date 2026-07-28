@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { COLORS } = require('../../utils/uiBuilder'); // Fixed to uiBuilder if COLORS is exported there, wait, prompt says utils/uiBuilder.js has COLORS.
-const { createContainerMessage, createV2Message } = require('../../utils/uiBuilder');
+const { createContainerMessage, createV2Message, EMOJIS } = require('../../utils/uiBuilder');
 const { pool } = require('../../db');
 const { validateModTarget } = require('../../utils/permissions');
 const { sendLog } = require('../../utils/logger');
@@ -84,7 +84,7 @@ module.exports = {
                 await targetMember.roles.set(rolesToKeep, `Moderator: ${interaction.user.tag} | Sebep: ${reason}`);
 
                 const payload = createContainerMessage(
-                    'Kullanici Yasaklandi',
+                    `${EMOJIS.ban} Kullanici Yasaklandi`,
                     `<@${targetUser.id}> adli kullaniciya yasakli rolu verildi ve diger rolleri alindi.\n**Sebep:** ${reason}`,
                     '#FF0000'
                 );
