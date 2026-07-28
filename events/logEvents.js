@@ -28,6 +28,7 @@ module.exports = [
  // Audit Logs ile mesajı sileyini tespit et
  let deletedById = authorId;
  let deleteReason = 'Kullanıcı Kendi Sildi';
+ let realAuthorId = authorId;
 
  try {
  const fetchedLogs = await message.guild.fetchAuditLogs({
@@ -38,9 +39,15 @@ module.exports = [
  if (fetchedLogs) {
  const deletionLog = fetchedLogs.entries.first();
  if (deletionLog) {
- const { executor, target, createdTimestamp, reason } = deletionLog;
- if (target?.id === authorId && (Date.now() - createdTimestamp < 5000)) {
+ const { executor, target, extra, createdTimestamp, reason } = deletionLog;
+ 
+ let isMatch = false;
+ if (authorId && target?.id === authorId) isMatch = true;
+ else if (!authorId && extra?.channel?.id === message.channel.id) isMatch = true;
+
+ if (isMatch && (Date.now() - createdTimestamp < 10000)) {
  deletedById = executor.id;
+ realAuthorId = target.id;
  deleteReason = reason ? `Yetkili Silme: ${reason}` : 'Yetkili Tarafından Silindi';
  }
  }
@@ -49,20 +56,23 @@ module.exports = [
 
  // DB'ye kaydet (Panel ve Sorgu için)
  const { pool } = require('../db');
- if (authorId && message.content && message.content.trim().length > 0) {
+ if (realAuthorId && message.content && message.content.trim().length > 0) {
  pool.query(
  'INSERT INTO deleted_messages (guild_id, channel_id, user_id, deleted_by, reason, content) VALUES (?, ?, ?, ?, ?, ?)',
- [message.guild.id, message.channel.id, authorId, deletedById, deleteReason, message.content.substring(0, 2000)]
+ [message.guild.id, message.channel.id, realAuthorId, deletedById, deleteReason, message.content.substring(0, 2000)]
  ).catch(err => console.error("Deleted message DB insert error:", err));
  }
 
  let contentText = message.content || '*[İçerik Geçmişte Önbelleğe Alınmamış veya Sadece Medya]*';
  if (contentText.length > 1024) contentText = contentText.slice(0, 1021) + '...';
  
+ const finalAuthorMention = realAuthorId ? `<@${realAuthorId}>` : 'Bilinmeyen Kullanıcı';
+ const finalDeleter = (deletedById === realAuthorId && realAuthorId) ? 'Kullanıcı Kendi Sildi' : (deletedById ? `<@${deletedById}>` : 'Bilinmiyor (Kendi Silmiş Olabilir)');
+
  const fields = [
  { name: 'Kanal', value: `<#${message.channel.id}> (\`${message.channel.name || 'Bilinmiyor'}\`)`, inline: true },
- { name: 'Mesaj Sahibi', value: authorMention, inline: true },
- { name: 'Silen Yetkili / Kişi', value: deletedById === authorId ? 'Kullanıcı Kendi Sildi' : `<@${deletedById}>`, inline: true },
+ { name: 'Mesaj Sahibi', value: finalAuthorMention, inline: true },
+ { name: 'Silen Yetkili / Kişi', value: finalDeleter, inline: true },
  { name: 'Silinme Sebebi', value: deleteReason, inline: true },
  { name: 'Mesaj ID', value: `\`${message.id}\``, inline: true },
  { name: 'Silinen İçerik', value: `\`\`\`\n${contentText}\n\`\`\``, inline: false }
