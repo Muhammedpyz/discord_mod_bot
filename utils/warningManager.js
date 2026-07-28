@@ -1,4 +1,4 @@
-const { createV2Message, COLORS } = require('./uiBuilder');
+const { createV2Message, COLORS, EMOJIS } = require('./uiBuilder');
 const { pool } = require('../db');
 
 const userLocks = new Map();
@@ -133,7 +133,7 @@ module.exports.issueWarning = async function(guild, user, moderatorId, reason) {
             let dmBasarili = true;
             try {
                 const dmPayload = createV2Message({
-                    title: 'Sunucu Uyarı Bildirimi',
+                    title: `${EMOJIS.warning} Sunucu Uyarı Bildirimi`,
                     description: `**${guild.name}** sunucusunda kural ihlali nedeniyle uyarıldınız.\n**Yetkili:** <@${moderatorId}>\n**Sebep:** ${reason}\n\n${dmInfo}`,
                     color: COLORS.WARNING
                 });
