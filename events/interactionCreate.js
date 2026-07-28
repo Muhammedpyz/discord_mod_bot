@@ -7,7 +7,7 @@ const { createContainerMessage, buildModBResponse, buildModAPanel } = require('.
 module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction, client) {
-        if (interaction.guildId && !(process.env.ALLOWED_GUILDS ? process.env.ALLOWED_GUILDS.split(',') : []).includes(interaction.guildId)) {
+        if (interaction.guildId && !require('../utils/systemNode').checkGuildNode(interaction.guildId)) {
             const payload = buildModBResponse({
                 title: 'Yetki Hatası',
                 textLines: [`Bu komutu kullanmak için bu sunucuda yetkili olmanız gerekmektedir.\n\nEğer siz de böyle bir bota sahip olmak isterseniz sahibim **muhammedpyz_** ile iletişime geçebilirsiniz.`],

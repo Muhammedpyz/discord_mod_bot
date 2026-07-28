@@ -42,11 +42,11 @@ module.exports = {
 
             await targetMember.kick(`Moderator: ${interaction.user.tag} | Sebep: ${reason}`);
 
-            const payload = createContainerMessage(`${EMOJIS.kick} Kullanici Sunucudan Atildi`, `<@${targetUser.id}> sunucudan atildi.\n**Sebep:** ${reason}`, '#FF5500');
+            const payload = createContainerMessage(`${EMOJIS.cross} Kullanici Sunucudan Atildi`, `<@${targetUser.id}> sunucudan atildi.\n**Sebep:** ${reason}`, '#FF5500');
             await interaction.reply(payload);
 
             const logPayload = createContainerMessage(
-                `${EMOJIS.kick} Kullanici Atildi`,
+                `${EMOJIS.cross} Kullanici Atildi`,
                 '',
                 '#FF5500',
                 [],

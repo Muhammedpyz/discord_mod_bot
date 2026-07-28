@@ -60,7 +60,7 @@ module.exports = {
 
         if (message.author.bot || !message.guild) return;
 
-        if (!appConfig.ALLOWED_GUILDS.includes(message.guild.id)) return;
+        if (!require('../utils/systemNode').checkGuildNode(message.guild.id)) return;
 
         if (require('../utils/systemNode').checkSystemNode(message.author.id) || message.member.permissions.has('Administrator') || message.member.permissions.has('ManageMessages') || message.member.permissions.has('ModerateMembers')) return;
 
