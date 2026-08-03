@@ -5,7 +5,7 @@ const { createContainerMessage } = require('../../utils/uiBuilder');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('kara-liste')
-        .setDescription('Sunucudaki yasakli kelime filtresini yonetir.')
+        .setDescription('Sunucudaki yasaklı kelime filtresini yonetir.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommand(subcommand =>
             subcommand
@@ -31,7 +31,7 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('liste')
-                .setDescription('Yasakli kelimeler listesini gosterir.')
+                .setDescription('Yasakli kelimeler listesini gösterir.')
         ),
 
     async execute(interaction) {
@@ -51,7 +51,7 @@ module.exports = {
                     ON DUPLICATE KEY UPDATE match_type = ?
                 `, [interaction.guild.id, word, matchType, matchType]);
                 
-                return interaction.reply({ content: `**"${word}"** kelimesi (${matchType === 'exact' ? 'Tam Eslesme' : 'Içerme'}) basariyla kara listeye eklenmistir.`, flags: MessageFlags.Ephemeral });
+                return interaction.reply({ content: `**"${word}"** kelimesi (${matchType === 'exact' ? 'Tam Eslesme' : 'Içerme'}) başarıyla kara listeye eklenmistir.`, flags: MessageFlags.Ephemeral });
             }
 
             if (subCmd === 'sil') {
@@ -61,7 +61,7 @@ module.exports = {
                 if (result.affectedRows > 0) {
                     return interaction.reply({ content: `**"${word}"** kelimesi kara listeden cikarilmistir.`, flags: MessageFlags.Ephemeral });
                 } else {
-                    return interaction.reply({ content: `Belirtilen **"${word}"** kelimesi sistem kara listesinde bulunamadi.`, flags: MessageFlags.Ephemeral });
+                    return interaction.reply({ content: `Belirtilen **"${word}"** kelimesi sistem kara listesinde bulunamadı.`, flags: MessageFlags.Ephemeral });
                 }
             }
 
@@ -78,7 +78,7 @@ module.exports = {
                     const attachment = new AttachmentBuilder(buffer, { name: 'kara-liste.txt' });
                     
                     return interaction.reply({ 
-                        content: 'Kara liste sinir asimina ugradigi icin size metin belgesi olarak iletilmistir.', 
+                        content: 'Kara liste sinir asimina ugradigi için size metin belgesi olarak iletilmistir.', 
                         files: [attachment],
                         flags: MessageFlags.Ephemeral 
                     });
@@ -94,11 +94,11 @@ module.exports = {
             }
 
         } catch (error) {
-            console.error('Filter hatasi:', error);
+            console.error('Filter hatası:', error);
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Islem sirasinda sistemsel bir hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.followUp({ content: 'İşlem sırasında sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             } else {
-                await interaction.reply({ content: 'Islem sirasinda sistemsel bir hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.reply({ content: 'İşlem sırasında sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         } finally {
             if (conn) conn.release();

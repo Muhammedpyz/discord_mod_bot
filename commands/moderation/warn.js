@@ -8,14 +8,14 @@ const { sendLog } = require('../../utils/logger');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('warn')
-        .setDescription('Bir kullaniciyi uyarir ve veritabanina kaydeder.')
+        .setDescription('Bir kullanıcıyı uyarır ve veritabanina kaydeder.')
         .addUserOption(option => 
             option.setName('user')
-                .setDescription('Uyarilacak kullanici')
+                .setDescription('Uyarılacak kullanıcı')
                 .setRequired(true))
         .addStringOption(option =>
             option.setName('reason')
-                .setDescription('Uyari sebebi')
+                .setDescription('Uyarı sebebi')
                 .setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
         
@@ -35,49 +35,49 @@ module.exports = {
             const result = await issueWarning(interaction.guild, targetUser, interaction.user.id, reason);
 
             if (!result || !result.success) {
-                return interaction.editReply({ content: 'Uyari verilirken veritabani hatasi olustu.' });
+                return interaction.editReply({ content: 'Uyarı verilirken veritabanı hatası oluştu.' });
             }
 
             let fallbackMsg = '';
             if (!result.dmBasarili) {
-                fallbackMsg = `\n*(Not: <@${targetUser.id}> adli kullaniciya ozel mesaj gonderilemedi, uyari yalnizca sistem uzerinden kaydedildi.)*`;
+                fallbackMsg = `\n*(Not: <@${targetUser.id}> adlı kullanıcıya özel mesaj gönderilemedi, uyarı yalnızca sistem üzerinden kaydedildi.)*`;
             }
 
             if (result.missingRole) {
-                fallbackMsg += `\n\n**YETKILI BILGILENDIRME:** Kullaniciya uyari verilmistir ancak sistemde **${result.missingRoleMsg}** ayarlanmadigi icin rol islemi tamamlanamamistir. Lutfen ayarlari kontrol ediniz.`;
+                fallbackMsg += `\n\n**YETKİLİ BİLGİLENDİRME:** Kullanıcıya uyarı verilmiştir ancak sistemde **${result.missingRoleMsg}** ayarlanmadığı için rol işlemi tamamlanamamıştır. Lütfen ayarları kontrol ediniz.`;
             }
 
             const extraActionText = result.extraAction ? `\n${result.extraAction}` : '';
 
             const payload = createContainerMessage(
-                `${EMOJIS.warning} Kullanici Uyarildi`, 
-                `<@${targetUser.id}> uyarildi.\n**Sebep:** ${reason}\n**Toplam Aktif Uyari:** ${result.totalWarns}\n*(Bu uyari ${result.daysToAdd} gun sonra pasiflesecek)*${extraActionText}${fallbackMsg}`,
+                `${EMOJIS.warning} Kullanıcı Uyarıldı`, 
+                `<@${targetUser.id}> uyarıldı.\n**Sebep:** ${reason}\n**Toplam Aktif Uyarı:** ${result.totalWarns}\n*(Bu uyarı ${result.daysToAdd} gün sonra pasifleşecek)*${extraActionText}${fallbackMsg}`,
                 '#F1C40F'
             );
 
             await interaction.editReply(payload);
 
             const logPayload = createContainerMessage(
-                `${EMOJIS.warning} Kullanici Uyarildi`,
+                `${EMOJIS.warning} Kullanıcı Uyarıldı`,
                 '',
                 '#FFFF00',
                 [],
                 [
-                    { name: 'Uyarilan Uye', value: `<@${targetUser.id}> (${targetUser.tag})`, inline: true },
+                    { name: 'Uyarılan Üye', value: `<@${targetUser.id}> (${targetUser.tag})`, inline: true },
                     { name: 'Yetkili', value: `<@${interaction.user.id}>`, inline: true },
                     { name: 'Sebep', value: reason, inline: false },
-                    { name: 'Aktif Uyari Sayisi', value: `${result.totalWarns}`, inline: true }
+                    { name: 'Aktif Uyarı Sayısı', value: `${result.totalWarns}`, inline: true }
                 ]
             );
             
             await sendLog(interaction.guild, logPayload);
 
         } catch (error) {
-            console.error('Warn hatasi:', error);
+            console.error('Warn hatası:', error);
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Sistemsel bir hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.followUp({ content: 'Sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             } else {
-                await interaction.reply({ content: 'Sistemsel bir hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.reply({ content: 'Sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         }
     }

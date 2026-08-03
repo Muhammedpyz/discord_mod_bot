@@ -7,19 +7,19 @@ const { sendLog } = require('../../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('ban')
-        .setDescription('Kullaniciyi sunucudan yasaklar.')
+        .setName('yasakla')
+        .setDescription('Kullanıcıyı sunucudan yasaklar.')
         .addUserOption(option => 
-            option.setName('user')
-                .setDescription('Yasaklanacak kullanici')
+            option.setName('kullanıcı')
+                .setDescription('Yasaklanacak kullanıcı')
                 .setRequired(true))
         .addStringOption(option =>
-            option.setName('reason')
+            option.setName('sebep')
                 .setDescription('Yasaklama sebebi')
                 .setRequired(false))
         .addIntegerOption(option =>
-            option.setName('delete_messages')
-                .setDescription('Silinecek mesaj gecmisi (Gun)')
+            option.setName('gün')
+                .setDescription('Silinecek mesaj geçmişi (Gün)')
                 .setRequired(false)
                 .setMinValue(0)
                 .setMaxValue(7))
@@ -27,8 +27,8 @@ module.exports = {
 
     async execute(interaction) {
         try {
-            const targetUser = interaction.options.getUser('user');
-            const reason = interaction.options.getString('reason') || 'Belirtilmedi';
+            const targetUser = interaction.options.getUser('kullanıcı');
+            const reason = interaction.options.getString('sebep') || 'Belirtilmedi';
             const deleteDays = interaction.options.getInteger('delete_messages') || 0;
 
             const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
@@ -48,14 +48,14 @@ module.exports = {
 
                 const dmPayload = createContainerMessage(
                     'Sunucudan Yasaklandiniz', 
-                    `**${interaction.guild.name}** sunucusunda yasaklandiniz.\n**Sebep:** ${reason}\n\nEger bu yasagin haksiz oldugunu dusunuyorsaniz asagidaki butona tiklayarak itiraz formunu doldurabilirsiniz.`,
+                    `**${interaction.guild.name}** sunucusunda yasaklandınız.\n**Sebep:** ${reason}\n\nEger bu yasağın haksız olduğunu düşünüyorsanız aşağıdaki butona tıklayarak itiraz formunu doldurabilirsiniz.`,
                     '#FF0000',
                     [row]
                 );
 
                 await targetUser.send(dmPayload);
             } catch (dmError) {
-                console.log('Kullaniciya DM gonderilemedi.');
+                console.log('Kullanıcıya DM gönderilemedi.');
             }
 
             let conn;
@@ -64,13 +64,13 @@ module.exports = {
                 const [configRows] = await conn.query('SELECT banned_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
                 
                 if (configRows.length === 0 || !configRows[0].banned_role_id) {
-                    return interaction.reply({ content: 'Sunucu icin "Banlisin" rolu ayarlanmamis. Lutfen ayarlari kontrol edin.', flags: MessageFlags.Ephemeral });
+                    return interaction.reply({ content: 'Sunucu için "Banlisin" rolü ayarlanmamis. Lütfen ayarları kontrol edin.', flags: MessageFlags.Ephemeral });
                 }
 
                 const bannedRoleId = configRows[0].banned_role_id;
                 
                 if (!targetMember) {
-                    return interaction.reply({ content: 'Kullanici sunucuda bulunamadi. Rol bani atilabilmesi icin kullanicinin sunucuda olmasi gerekir.', flags: MessageFlags.Ephemeral });
+                    return interaction.reply({ content: 'Kullanıcı sunucuda bulunamadı. Rol bani atılabilmesi için kullanıcının sunucuda olması gerekir.', flags: MessageFlags.Ephemeral });
                 }
 
                 const rolesToKeep = targetMember.roles.cache
@@ -83,21 +83,26 @@ module.exports = {
                 
                 await targetMember.roles.set(rolesToKeep, `Moderator: ${interaction.user.tag} | Sebep: ${reason}`);
 
+                await conn.query(
+                    'INSERT INTO mutes (guild_id, user_id, moderator_id, action_type, expires_at, reason) VALUES (?, ?, ?, ?, NULL, ?)',
+                    [interaction.guild.id, targetUser.id, interaction.user.id, 'ban', reason]
+                );
+
                 const payload = createContainerMessage(
-                    `${EMOJIS.ban} Kullanici Yasaklandi`,
-                    `<@${targetUser.id}> adli kullaniciya yasakli rolu verildi ve diger rolleri alindi.\n**Sebep:** ${reason}`,
+                    `${EMOJIS.ban} Kullanıcı Yasaklandı`,
+                    `<@${targetUser.id}> adlı kullanıcıya yasaklı rolü verildi ve diğer rolleri alındı.\n**Sebep:** ${reason}`,
                     '#FF0000'
                 );
                 
                 await interaction.reply(payload);
 
                 const logPayload = createContainerMessage(
-                    'Kullanici Yasaklandi',
+                    'Kullanıcı Yasaklandı',
                     '',
                     '#FF0000',
                     [],
                     [
-                        { name: 'Yasaklanan Uye', value: `<@${targetUser.id}> (${targetUser.tag})`, inline: true },
+                        { name: 'Yasaklanan Üye', value: `<@${targetUser.id}> (${targetUser.tag})`, inline: true },
                         { name: 'Yetkili', value: `<@${interaction.user.id}>`, inline: true },
                         { name: 'Sebep', value: reason, inline: false }
                     ]
@@ -108,11 +113,11 @@ module.exports = {
                 if (conn) conn.release();
             }
         } catch (error) {
-            console.error('Ban hatasi:', error);
+            console.error('Ban hatası:', error);
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Islem sirasinda bir hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.followUp({ content: 'İşlem sırasında bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             } else {
-                await interaction.reply({ content: 'Islem sirasinda bir hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.reply({ content: 'İşlem sırasında bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         }
     }

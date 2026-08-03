@@ -8,10 +8,10 @@ function createWarningEmbed(title, description, color = COLORS.WARNING) {
 function createLogEmbed(action, user, moderator, reason) {
     // Log embeds should use Mod B response
     return buildModBResponse({
-        title: `Islem Raporu: ${action}`,
+        title: `İşlem Raporu: ${action}`,
         color: COLORS.LOG,
         fields: [
-            { name: 'Kullanici', value: `${user.tag} (${user.id})` },
+            { name: 'Kullanıcı', value: `${user.tag} (${user.id})` },
             { name: 'Yetkili', value: `${typeof moderator === 'object' && moderator !== null && moderator.tag ? moderator.tag : moderator}` },
             { name: 'Sebep', value: reason || 'Belirtilmedi' }
         ]

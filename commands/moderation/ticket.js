@@ -4,18 +4,18 @@ const { createV2Message, COLORS } = require('../../utils/uiBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('ticket')
-        .setDescription('Sistem uzerinden destek talebi olusturma ve yonetme islevleri saglar.')
+        .setName('destek')
+        .setDescription('Sistem üzerinden destek talebi oluşturma ve yönetme işlevleri sağlar.')
         .addSubcommand(subcommand =>
             subcommand
-                .setName('ac')
+                .setName('aç')
                 .setDescription('Yeni bir destek talebi baslatir.')
                 .addStringOption(option => 
                     option.setName('kategori')
                         .setDescription('Destek talebinizin siniflandirilmasi (kategori)')
                         .setRequired(true)
                         .addChoices(
-                            { name: 'Hesap Islemleri', value: 'Hesap Islemleri' },
+                            { name: 'Hesap İşlemleri', value: 'Hesap İşlemleri' },
                             { name: 'Ceza Itiraz', value: 'Ceza Itiraz' },
                             { name: 'Sunucu Sorunlari', value: 'Sunucu Sorunlari' },
                             { name: 'Diger', value: 'Diger' }
@@ -40,7 +40,7 @@ module.exports = {
         try {
             const subCmd = interaction.options.getSubcommand();
 
-            if (subCmd === 'ac') {
+            if (subCmd === 'aç') {
                 const reason = interaction.options.getString('sebep');
                 const category = interaction.options.getString('kategori');
                 await createTicket(interaction, reason, category);
@@ -74,11 +74,11 @@ module.exports = {
                 await interaction.reply({ content: 'Destek paneli başarıyla bu kanala gönderildi.', flags: MessageFlags.Ephemeral });
             }
         } catch (error) {
-            console.error('Ticket hatasi:', error);
+            console.error('Ticket hatası:', error);
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Destek talebi islenirken sistemsel bir hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.followUp({ content: 'Destek talebi islenirken sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             } else {
-                await interaction.reply({ content: 'Destek talebi islenirken sistemsel bir hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.reply({ content: 'Destek talebi islenirken sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         }
     }

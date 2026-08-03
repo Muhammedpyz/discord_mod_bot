@@ -18,15 +18,15 @@ function parseDuration(str) {
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('sesmute')
-        .setDescription('Kullaniciyi ses kanallarinda susturur (Orn: 10m, 1h, 1d)')
+        .setName('ses-sustur')
+        .setDescription('Kullanıcıyı ses kanallarinda susturur (Örn: 10m, 1h, 1d)')
         .addUserOption(option => 
-            option.setName('user')
-                .setDescription('Susturulacak kullanici')
+            option.setName('kullanıcı')
+                .setDescription('Susturulacak kullanıcı')
                 .setRequired(true))
         .addStringOption(option =>
-            option.setName('sure')
-                .setDescription('Sure (Orn: 10m, 1h, 1d)')
+            option.setName('süre')
+                .setDescription('Sure (Örn: 10m, 1h, 1d)')
                 .setRequired(true))
         .addStringOption(option =>
             option.setName('sebep')
@@ -36,12 +36,12 @@ module.exports = {
 
     async execute(interaction) {
         try {
-            const targetUser = interaction.options.getUser('user');
-            const durationStr = interaction.options.getString('sure');
+            const targetUser = interaction.options.getUser('kullanıcı');
+            const durationStr = interaction.options.getString('süre');
             const reason = interaction.options.getString('sebep') || 'Belirtilmedi';
 
             if (!targetUser) {
-                return interaction.reply({ content: 'Lutfen gecerli bir kullanici belirtiniz.', flags: MessageFlags.Ephemeral });
+                return interaction.reply({ content: 'Lütfen geçerli bir kullanıcı belirtiniz.', flags: MessageFlags.Ephemeral });
             }
 
             const durationMinutes = parseDuration(durationStr);
@@ -57,7 +57,7 @@ module.exports = {
             }
 
             if (!targetMember.moderatable && targetUser.id !== interaction.client.user.id) {
-                return interaction.reply({ content: 'Bu kullaniciyi susturma yetkim bulunmuyor. Rol hiyerarsisini kontrol ediniz.', flags: MessageFlags.Ephemeral });
+                return interaction.reply({ content: 'Bu kullanıcıyı susturma yetkim bulunmuyor. Rol hiyerarşisini kontrol ediniz.', flags: MessageFlags.Ephemeral });
             }
 
             const durationMs = durationMinutes * 60 * 1000;
@@ -67,7 +67,7 @@ module.exports = {
                 conn = await pool.getConnection();
 
                 if (!targetMember.voice.channel) {
-                    return interaction.reply({ content: 'Kullanici su anda herhangi bir ses kanalinda degil. Sadece ses kanalindaki kullanicilara sesli susturma isleme alinabilir.', flags: MessageFlags.Ephemeral });
+                    return interaction.reply({ content: 'Kullanıcı şu anda herhangi bir ses kanalında değil. Sadece ses kanalindaki kullanıcılara sesli susturma işleme alinabilir.', flags: MessageFlags.Ephemeral });
                 }
 
                 try {
@@ -83,7 +83,7 @@ module.exports = {
                     try {
                         await targetMember.roles.add(muteRoleId);
                     } catch (e) {
-                        console.error("Ses mute rolu verilemedi:", e);
+                        console.error("Ses mute rolü verilemedi:", e);
                     }
                 }
 
@@ -101,48 +101,48 @@ module.exports = {
                     );
                     await targetUser.send(dmPayload);
                 } catch (dmError) {
-                    console.log(`Kullaniciya bildirim gonderilemedi: ${targetUser.id}`);
+                    console.log(`Kullanıcıya bildirim gönderilemedi: ${targetUser.id}`);
                 }
 
                 const warnResult = await issueWarning(interaction.guild, targetUser, interaction.user.id, `Sesli Susturma (${durationStr}): ${reason}`);
 
                 let extraMsg = '';
                 if (warnResult && warnResult.success) {
-                    extraMsg = `\nSistem tarafindan 1 uyari eklendi. (Toplam Aktif: ${warnResult.totalWarns})`;
+                    extraMsg = `\nSistem tarafından 1 uyarı eklendi. (Toplam Aktif: ${warnResult.totalWarns})`;
                 }
 
                 const payload = createContainerMessage(
-                    'Kullanici Ses Kanallarinda Susturuldu',
-                    `<@${targetUser.id}> adli kullanici **${durationStr}** sureyle ses kanallarinda sagirlastirildi ve susturuldu.\n**Sebep:** ${reason}${extraMsg}`,
+                    'Kullanıcı Ses Kanallarinda Susturuldu',
+                    `<@${targetUser.id}> adlı kullanıcı **${durationStr}** süreyle ses kanallarinda sagirlastirildi ve susturuldu.\n**Sebep:** ${reason}${extraMsg}`,
                     '#3498DB'
                 );
                 
                 await interaction.reply(payload);
 
                 const logPayload = createContainerMessage(
-                    'Kullanici Susturuldu (Voice)',
+                    'Kullanıcı Susturuldu (Voice)',
                     '',
                     '#FF8800',
                     [],
                     [
-                        { name: 'Susturulan Uye', value: `<@${targetUser.id}> (${targetUser.tag})`, inline: true },
+                        { name: 'Susturulan Üye', value: `<@${targetUser.id}> (${targetUser.tag})`, inline: true },
                         { name: 'Yetkili', value: `<@${interaction.user.id}>`, inline: true },
                         { name: 'Sebep', value: reason, inline: false },
                         { name: 'Sure', value: durationStr, inline: true }
                     ]
                 );
                 
-                await sendLog(interaction.guild, logPayload);
+                await sendLog(interaction.guild, logPayload, 'voice');
 
             } finally {
                 if (conn) conn.release();
             }
         } catch (error) {
-            console.error('Sesmute hatasi:', error);
+            console.error('Sesmute hatası:', error);
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Sistemsel bir hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.followUp({ content: 'Sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             } else {
-                await interaction.reply({ content: 'Sistemsel bir hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.reply({ content: 'Sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         }
     }

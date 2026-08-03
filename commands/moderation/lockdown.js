@@ -12,7 +12,7 @@ module.exports = {
                 .setRequired(true)
                 .addChoices(
                     { name: 'Kapat (Kilitle)', value: 'lock' },
-                    { name: 'Ac (Kilidi Kaldir)', value: 'unlock' }
+                    { name: 'Ac (Kilidi Kaldır)', value: 'unlock' }
                 ))
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
     
@@ -36,7 +36,7 @@ module.exports = {
                 
                 const payload = createContainerMessage(
                     `${EMOJIS.lock} Kanal Kilitlendi`,
-                    'Sunucu guvenligi sebebiyle bu kanala mesaj gonderimi yetkililer tarafindan gecici olarak durdurulmustur.',
+                    'Sunucu guvenligi sebebiyle bu kanala mesaj gonderimi yetkililer tarafından gecici olarak durdurulmustur.',
                     '#E74C3C'
                 );
                 
@@ -46,7 +46,7 @@ module.exports = {
                 
                 const payload = createContainerMessage(
                     `${EMOJIS.unlock} Kanal Erisime Acildi`,
-                    'Kanal kısıtlaması kaldirilmis olup, sohbet erisimi tekrar aktif edilmistir.',
+                    'Kanal kısıtlaması kaldırılmış olup, sohbet erişimi tekrar aktif edilmistir.',
                     '#2ECC71'
                 );
                 
@@ -65,11 +65,11 @@ module.exports = {
             );
             await sendLog(interaction.guild, logPayload);
         } catch (error) {
-            console.error('Lockdown hatasi:', error);
+            console.error('Lockdown hatası:', error);
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Kanal ayarlari degistirilirken bir hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.followUp({ content: 'Kanal ayarları değiştirilirken bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             } else {
-                await interaction.reply({ content: 'Kanal ayarlari degistirilirken bir hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.reply({ content: 'Kanal ayarları değiştirilirken bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         }
     }

@@ -5,11 +5,11 @@ const { sendLog } = require('../../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('uyaritemizle')
-        .setDescription('Bir kullanicinin tum aktif uyarilarini sifirlar.')
+        .setName('uyarı-temizle')
+        .setDescription('Bir kullanıcının tum aktif uyarılarını sıfırlar.')
         .addUserOption(option => 
             option.setName('user')
-                .setDescription('Uyarilari sifirlanacak kullanici')
+                .setDescription('Uyarıları sıfırlanacak kullanıcı')
                 .setRequired(true)
         )
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
@@ -32,20 +32,20 @@ module.exports = {
                 const affected = result.affectedRows !== undefined ? result.affectedRows : 0;
 
                 const payload = createContainerMessage(
-                    'Uyari Sifirlama Islemi',
-                    `<@${targetUser.id}> adli kullanicinin toplam **${affected}** adet aktif uyarisi basariyla sifirlanmistir.`,
+                    'Uyarı Sıfırlama İşlemi',
+                    `<@${targetUser.id}> adlı kullanıcının toplam **${affected}** adet aktif uyarısı başarıyla sıfırlanmıştır.`,
                     '#2ECC71'
                 );
                     
                 await interaction.editReply(payload);
 
                 const logPayload = createContainerMessage(
-                    'Uyarilar Sifirlandi',
+                    'Uyarılar Sıfırlandı',
                     '',
                     '#FFAA00',
                     [],
                     [
-                        { name: 'Kullanici', value: `<@${targetUser.id}>`, inline: true },
+                        { name: 'Kullanıcı', value: `<@${targetUser.id}>`, inline: true },
                         { name: 'Yetkili', value: `<@${interaction.user.id}>`, inline: true },
                         { name: 'Sifirlanan Adet', value: `${affected}`, inline: true }
                     ]
@@ -55,11 +55,11 @@ module.exports = {
                 if (conn) conn.release();
             }
         } catch (error) {
-            console.error("Uyari temizleme hatasi:", error);
+            console.error("Uyarı temizleme hatası:", error);
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Uyarilar sifirlanirken bir veritabani hatasi olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.followUp({ content: 'Uyarılar sıfırlanırken bir veritabanı hatası oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             } else {
-                await interaction.reply({ content: 'Uyarilar sifirlanirken bir veritabani hatasi olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.reply({ content: 'Uyarılar sıfırlanırken bir veritabanı hatası oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         }
     }

@@ -6,11 +6,11 @@ const { createContainerMessage, EMOJIS } = require('../../utils/uiBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('unban')
-        .setDescription('Kullanicinin sunucu yasagini kaldirir.')
+        .setName('yasak-kaldır')
+        .setDescription('Kullanıcının sunucu yasağını kaldirir.')
         .addUserOption(option => 
-            option.setName('user')
-                .setDescription('Yasagi kaldirilacak kullanici')
+            option.setName('kullanıcı')
+                .setDescription('Yasağı kaldırılacak kullanıcı')
                 .setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
 
@@ -18,24 +18,24 @@ module.exports = {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         
         try {
-            const targetUser = interaction.options.getUser('user');
+            const targetUser = interaction.options.getUser('kullanıcı');
             const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
 
             if (!targetMember) {
-                return interaction.editReply({ content: 'Belirtilen kullanici sunucuda bulunamadi.' });
+                return interaction.editReply({ content: 'Belirtilen kullanıcı sunucuda bulunamadı.' });
             }
 
             const configRows = await pool.query('SELECT banned_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
             const config = configRows[0];
 
             if (!config || !config.banned_role_id) {
-                return interaction.editReply({ content: 'Sistem yapilandirmasinda yasakli rolu (Banned) bulunamadi. Lutfen ayarlari kontrol ediniz.' });
+                return interaction.editReply({ content: 'Sistem yapılandırmasında yasaklı rolü (Banned) bulunamadı. Lütfen ayarları kontrol ediniz.' });
             }
 
             const bannedRoleId = config.banned_role_id;
 
             if (!targetMember.roles.cache.has(bannedRoleId)) {
-                return interaction.editReply({ content: 'Islem yapilan kullanici uzerinde yasakli rolu bulunmamaktadir.' });
+                return interaction.editReply({ content: 'İşlem yapilan kullanıcı üzerinde yasaklı rolü bulunmamaktadır.' });
             }
 
             const validation = validateModTarget(interaction, targetUser, targetMember);
@@ -54,23 +54,28 @@ module.exports = {
             }
 
             const logPayload = createContainerMessage(
-                `${EMOJIS.unlock} Sunucu Yasagi Kaldirildi`,
+                `${EMOJIS.unlock} Sunucu Yasağı Kaldırıldı`,
                 '',
                 '#2ECC71',
                 [],
                 [
-                    { name: 'Kullanici', value: `${targetUser.tag} (${targetUser.id})`, inline: true },
+                    { name: 'Kullanıcı', value: `${targetUser.tag} (${targetUser.id})`, inline: true },
                     { name: 'Yetkili', value: `${interaction.user.tag} (${interaction.user.id})`, inline: true }
                 ]
             );
 
             await sendLog(interaction.guild, logPayload);
 
-            return interaction.editReply({ content: `${targetUser.tag} adli kullanicinin sunucu yasagi basariyla kaldirilmistir.` });
+            const successPayload = createContainerMessage(
+                `${EMOJIS.unlock} Başarılı`,
+                `**<@${targetUser.id}>** adlı kullanıcının sunucu yasağı başarıyla kaldırıldı.`,
+                '#00FF00'
+            );
+            return interaction.editReply(successPayload);
 
         } catch (error) {
-            console.error('Unban hatasi:', error);
-            return interaction.editReply({ content: 'Islem sirasinda sistemsel bir hata olustu.' });
+            console.error('Unban hatası:', error);
+            return interaction.editReply({ content: 'İşlem sırasında sistemsel bir hata oluştu.' });
         }
     }
 };

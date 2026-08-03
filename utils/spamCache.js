@@ -1,41 +1,47 @@
-const fs = require('fs');
+const fs = require('fs').promises;
 const path = require('path');
 
 const cacheFile = path.join(__dirname, '..', 'spamCache.json');
+const oldRead = require('fs');
 
 class SpamCache {
     constructor() {
         this.cache = new Map();
         this.dirty = false;
-        this.load();
+        this.saving = false;
+        this.loadSync();
         
         setInterval(() => {
-            if (this.dirty) {
+            if (this.dirty && !this.saving) {
                 this.save();
                 this.dirty = false;
             }
         }, 10000);
     }
 
-    load() {
-        if (fs.existsSync(cacheFile)) {
+    loadSync() {
+        if (oldRead.existsSync(cacheFile)) {
             try {
-                const data = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+                const data = JSON.parse(oldRead.readFileSync(cacheFile, 'utf8'));
                 for (const key in data) {
                     this.cache.set(key, data[key]);
                 }
             } catch (e) {
-                console.error('SpamCache yukleme hatasi:', e);
+                console.error('SpamCache yukleme hatası:', e);
             }
         }
     }
 
-    save() {
+    async save() {
+        if (this.saving) return;
+        this.saving = true;
         try {
             const obj = Object.fromEntries(this.cache);
-            fs.writeFileSync(cacheFile, JSON.stringify(obj), 'utf8');
+            await fs.writeFile(cacheFile, JSON.stringify(obj), 'utf8');
         } catch (e) {
-            console.error('SpamCache kaydetme hatasi:', e);
+            console.error('SpamCache kaydetme hatası:', e);
+        } finally {
+            this.saving = false;
         }
     }
 

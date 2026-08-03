@@ -10,7 +10,8 @@ function createHelpComponents(selected = 'home') {
                 { label: 'Ana Sayfa', value: 'help_home', default: selected === 'home' },
                 { label: 'Moderasyon', value: 'help_moderation', default: selected === 'moderation' },
                 { label: 'Yönetim', value: 'help_system', default: selected === 'system' },
-                { label: 'Güvenlik', value: 'help_security', default: selected === 'security' }
+                { label: 'Güvenlik', value: 'help_security', default: selected === 'security' },
+                { label: 'Özel Odalar', value: 'help_rooms', default: selected === 'rooms' }
             ])
     );
 }
@@ -26,8 +27,8 @@ function helpEmbedHome(guild, user, actionRows = []) {
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('yardim')
-        .setDescription('Sistem yonetimi ve komutlar hakkinda bilgi almak icin yardim panelini acar.'),
+        .setName('yardım')
+        .setDescription('Sistem yonetimi ve komutlar hakkında bilgi almak için yardim panelini acar.'),
 
     createHelpComponents,
     helpEmbedHome,
@@ -40,11 +41,11 @@ module.exports = {
             fullPayload.flags |= MessageFlags.Ephemeral;
             await interaction.editReply(fullPayload);
         } catch (error) {
-            console.error('Yardim hatasi:', error);
+            console.error('Yardim hatası:', error);
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Yardim menusu olusturulurken sistemsel bir hata olustu.', flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 }).catch(() => {});
+                await interaction.followUp({ content: 'Yardim menüsü oluşturulurken sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 }).catch(() => {});
             } else {
-                await interaction.reply({ content: 'Yardim menusu olusturulurken sistemsel bir hata olustu.', flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 }).catch(() => {});
+                await interaction.reply({ content: 'Yardim menüsü oluşturulurken sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 }).catch(() => {});
             }
         }
     }

@@ -23,7 +23,7 @@ module.exports = {
                 dbLogChannelId = config.log_channel_id;
             }
         } catch (e) {
-            console.error("Config hatasi guildMemberAdd:", e);
+            console.error("Config hatası guildMemberAdd:", e);
         }
 
         const now = Date.now();
@@ -50,7 +50,7 @@ module.exports = {
                         description: 'Kısa sürede çok fazla üye katılımı tespit edildi. Yeni hesaplar otomatik olarak uzaklaştırılıyor.',
                         color: COLORS.ERROR
                     });
-                    await sendLog(member.guild, payload).catch(()=>{});
+                    await sendLog(member.guild, payload, 'system').catch(()=>{});
                 }
             } catch (e) {
                 console.error("Raid kick hatası", e);
@@ -68,7 +68,7 @@ module.exports = {
                     color: COLORS.WARNING,
                     actionRows: [buttons]
                 });
-                await sendLog(member.guild, payload).catch(()=>{});
+                await sendLog(member.guild, payload, 'system').catch(()=>{});
             }
         }
 
@@ -128,7 +128,7 @@ module.exports = {
                         description: `<@${member.id}> kullanıcısının aktif cezası devam ettiği için kısıtlama rolü otomatik olarak tekrar yüklendi.`,
                         color: COLORS.ERROR
                     });
-                    await sendLog(member.guild, payload).catch(()=>{});
+                    await sendLog(member.guild, payload, 'system').catch(()=>{});
                 }
             }
         } catch (e) {
@@ -155,7 +155,7 @@ module.exports = {
                     color: COLORS.SUCCESS
                 });
                 
-                await channel.send(payload).catch(e => console.error("Welcome mesaj hatasi", e));
+                await channel.send(payload).catch(e => console.error("Welcome mesaj hatası", e));
             }
         }
     }

@@ -139,8 +139,33 @@ async function createTicket(interaction, reason, category = 'Diğer') {
             actionRows: [row]
         });
 
-        await ticketChannel.send(payload).catch(e => console.error("Kanal mesaj hatasi", e));
+        await ticketChannel.send(payload).catch(e => console.error("Kanal mesaj hatası", e));
         await interaction.editReply({ content: `Talebiniz başarıyla oluşturuldu: <#${ticketChannel.id}>` }).catch(()=>{});
+
+        if (configObj) {
+            const isTicketLogSet = !!configObj.log_ticket_channel_id;
+            const targetChannelId = configObj.log_ticket_channel_id || configObj.log_channel_id;
+            
+            if (targetChannelId) {
+                const logChannel = interaction.guild.channels.cache.get(targetChannelId);
+                if (logChannel) {
+                    const fields = [
+                        { name: 'Kullanıcı', value: `<@${interaction.user.id}> (\`${interaction.user.tag}\`)`, inline: true },
+                        { name: 'Kategori', value: `${category}`, inline: true },
+                        { name: 'Kanal', value: `<#${ticketChannel.id}>`, inline: true }
+                    ];
+                    let desc = `**Yeni bir destek talebi (ticket) açıldı.**\n\n**Talep Sebebi:**\n${reason}`;
+                    
+                    const openLogPayload = createContainerMessage(
+                        'Bilet Açıldı',
+                        desc,
+                        '#3498db',
+                        [], fields
+                    );
+                    logChannel.send(openLogPayload).catch(()=>{});
+                }
+            }
+        }
 
         if (configObj && configObj.ticket_role_id) {
             const adminRoles = configObj.ticket_role_id.split(',');
@@ -333,21 +358,34 @@ async function closeTicketChannel(interaction) {
             await conn.query(
                 "UPDATE tickets SET status='closed', closed_by=?, transcript_html=NULL, transcript_text=?, closed_at=NOW() WHERE channel_id=?",
                 [interaction.user.id, textTranscript, interaction.channel.id]
-            ).catch(e => console.error("DB bilet guncelleme hatasi", e));
+            ).catch(e => console.error("DB bilet guncelleme hatası", e));
             
-            const rows = await conn.query('SELECT log_channel_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
-            if (rows.length > 0 && rows[0].log_channel_id) {
-                const logChannel = interaction.guild.channels.cache.get(rows[0].log_channel_id);
-                if (logChannel) {
-                    const payload = createContainerMessage(
-                        'Bilet Kapatıldı',
-                        `**Kanal:** ${interaction.channel.name}\n**Kapatan Yetkili:** <@${interaction.user.id}>`,
-                        COLORS.ERROR,
-                        [], [], false, false,
-                        [attachmentHtml.name, attachmentText.name]
-                    );
-                    payload.files = [attachmentHtml, attachmentText];
-                    await logChannel.send(payload).catch(e => console.error("Log gönderme hatasi", e));
+            const rows = await conn.query('SELECT log_ticket_channel_id, log_channel_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
+            if (rows.length > 0) {
+                const isTicketLogSet = !!rows[0].log_ticket_channel_id;
+                const targetChannelId = rows[0].log_ticket_channel_id || rows[0].log_channel_id;
+                
+                if (targetChannelId) {
+                    const logChannel = interaction.guild.channels.cache.get(targetChannelId);
+                    if (logChannel) {
+                        let payload;
+                        if (isTicketLogSet) {
+                            payload = createContainerMessage(
+                                'Bilet Kapatıldı',
+                                `**Kanal:** ${interaction.channel.name}\n**Kapatan Yetkili:** <@${interaction.user.id}>`,
+                                COLORS.ERROR, [], [], false, false,
+                                [attachmentHtml.name, attachmentText.name]
+                            );
+                            payload.files = [attachmentHtml, attachmentText];
+                        } else {
+                            payload = createContainerMessage(
+                                'Bilet Kapatıldı',
+                                `**Kanal:** ${interaction.channel.name}\n**Kapatan Yetkili:** <@${interaction.user.id}>`,
+                                COLORS.ERROR
+                            );
+                        }
+                        await logChannel.send(payload).catch(e => console.error("Log gönderme hatası", e));
+                    }
                 }
             }
         } finally {

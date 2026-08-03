@@ -4,11 +4,11 @@ const { sendLog } = require('../../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('slowmode')
-        .setDescription('Kanalin yavas modunu (slowmode) ayarlar.')
+        .setName('yavaş-mod')
+        .setDescription('Kanalin yavaş modunu (slowmode) ayarlar.')
         .addIntegerOption(option => 
             option.setName('saniye')
-                .setDescription('Kac saniye arayla mesaj atilabilsin? (Kapatmak icin 0)')
+                .setDescription('Kac saniye arayla mesaj atilabilsin? (Kapatmak için 0)')
                 .setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
     
@@ -17,21 +17,21 @@ module.exports = {
             const seconds = interaction.options.getInteger('saniye');
             
             if (seconds < 0 || seconds > 21600) {
-                return interaction.reply({ content: 'Lutfen 0 ile 21600 saniye (6 saat) arasinda gecerli bir deger giriniz.', flags: MessageFlags.Ephemeral });
+                return interaction.reply({ content: 'Lütfen 0 ile 21600 saniye (6 saat) arasinda geçerli bir deger giriniz.', flags: MessageFlags.Ephemeral });
             }
             
             await interaction.channel.setRateLimitPerUser(seconds, `Slowmode ayarlandi: ${interaction.user.tag}`);
             
             const payload = createContainerMessage(
-                'Yavas Mod Guncellendi',
-                seconds === 0 ? 'Bu kanalda yavas mod devreden cikarildi, mesaj gonderim hiz limiti kaldirildi.' : `Bu kanalda yavas mod **${seconds} saniye** olarak ayarlanmistir.\nUyelerimiz her ${seconds} saniyede bir mesaj atabilecektir.`,
+                'Yavaş Mod Guncellendi',
+                seconds === 0 ? 'Bu kanalda yavaş mod devreden çıkarıldı, mesaj gönderim hiz limiti kaldırıldı.' : `Bu kanalda yavaş mod **${seconds} saniye** olarak ayarlanmıştır.\nUyelerimiz her ${seconds} saniyede bir mesaj atabilecektir.`,
                 seconds === 0 ? '#2ECC71' : '#E67E22'
             );
                 
             await interaction.reply(payload);
 
             const logPayload = createContainerMessage(
-                'Yavas Mod Guncellendi',
+                'Yavaş Mod Guncellendi',
                 '',
                 '#3498DB',
                 [],
@@ -43,11 +43,11 @@ module.exports = {
             );
             await sendLog(interaction.guild, logPayload);
         } catch (error) {
-            console.error('Slowmode hatasi:', error);
+            console.error('Slowmode hatası:', error);
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Yavas mod ayarlanirken bir hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.followUp({ content: 'Yavaş mod ayarlanirken bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             } else {
-                await interaction.reply({ content: 'Yavas mod ayarlanirken bir hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.reply({ content: 'Yavaş mod ayarlanirken bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         }
     }

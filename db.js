@@ -6,7 +6,8 @@ const pool = mariadb.createPool({
     user: process.env.DB_USER || 'root', 
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'discord_mod',
-    connectionLimit: 5
+    connectionLimit: 20,
+    idleTimeout: 30000
 });
 
 async function initDB() {
@@ -51,6 +52,9 @@ async function initDB() {
         }
         try { await conn.query('ALTER TABLE guild_config ADD COLUMN ticket_category_id VARCHAR(25)'); } catch (e) {}
         try { await conn.query('ALTER TABLE guild_config ADD COLUMN log_channel_id VARCHAR(25)'); } catch (e) {}
+        try { await conn.query('ALTER TABLE guild_config ADD COLUMN log_voice_channel_id VARCHAR(25)'); } catch (e) {}
+        try { await conn.query('ALTER TABLE guild_config ADD COLUMN log_ticket_channel_id VARCHAR(25)'); } catch (e) {}
+        try { await conn.query('ALTER TABLE guild_config ADD COLUMN log_system_channel_id VARCHAR(25)'); } catch (e) {}
 
         // Ticket limit takibi için log tablosu
         await conn.query(`
@@ -104,7 +108,9 @@ async function initDB() {
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 guild_id VARCHAR(25),
                 user_id VARCHAR(25),
+                moderator_id VARCHAR(25),
                 action_type VARCHAR(25),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 expires_at TIMESTAMP NULL,
                 is_active BOOLEAN DEFAULT TRUE,
                 reason TEXT
@@ -112,6 +118,8 @@ async function initDB() {
         `);
         try { await conn.query('ALTER TABLE mutes ADD COLUMN is_active BOOLEAN DEFAULT TRUE'); } catch (e) {}
         try { await conn.query('ALTER TABLE mutes MODIFY COLUMN action_type VARCHAR(25)'); } catch (e) {}
+        try { await conn.query('ALTER TABLE mutes ADD COLUMN moderator_id VARCHAR(25)'); } catch (e) {}
+        try { await conn.query('ALTER TABLE mutes ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'); } catch (e) {}
 
         // 5. Whitelists
         await conn.query(`
@@ -139,6 +147,18 @@ async function initDB() {
         try { await conn.query('ALTER TABLE deleted_messages ADD COLUMN deleted_by VARCHAR(25)'); } catch(e){}
         try { await conn.query('ALTER TABLE deleted_messages ADD COLUMN reason VARCHAR(255)'); } catch(e){}
 
+        // 6.5. Global Action Logs
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS bot_action_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(25),
+                user_id VARCHAR(25),
+                action_type VARCHAR(50),
+                action_detail TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
         // 7. Tickets
         await conn.query(`
             CREATE TABLE IF NOT EXISTS tickets (
@@ -159,6 +179,66 @@ async function initDB() {
                 INDEX idx_channel (channel_id)
             )
         `);
+
+        // 8. Özel Oda (Private Rooms) Sistemi
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS active_rooms (
+                channel_id VARCHAR(255) PRIMARY KEY,
+                owner_id VARCHAR(255) NOT NULL,
+                guild_id VARCHAR(255) NOT NULL,
+                log_message_id VARCHAR(255),
+                log_text TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        try { await conn.query("ALTER TABLE active_rooms ADD COLUMN room_name VARCHAR(100)"); } catch (e) {}
+        
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_setup (
+                guild_id VARCHAR(255) PRIMARY KEY,
+                setup_category_id VARCHAR(255),
+                setup_channel_id VARCHAR(255),
+                setup_voice_channel_id VARCHAR(255),
+                active_rooms_category_id VARCHAR(255),
+                log_channel_id VARCHAR(255)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS room_whitelists (
+                channel_id VARCHAR(255),
+                user_id VARCHAR(255),
+                PRIMARY KEY(channel_id, user_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS room_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(255) NOT NULL,
+                channel_id VARCHAR(255) NOT NULL,
+                owner_id VARCHAR(255),
+                action_name VARCHAR(100),
+                description TEXT,
+                executor_id VARCHAR(255),
+                log_type VARCHAR(20) DEFAULT 'room',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        try { await conn.query('ALTER TABLE room_logs ADD COLUMN log_type VARCHAR(20) DEFAULT \'room\''); } catch (e) {}
+
+        // Ses log kanali bazli tek-mesaj takibi (duzenle guncelle)
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS voice_log_state (
+                guild_id VARCHAR(255) NOT NULL,
+                scope_key VARCHAR(100) NOT NULL,
+                log_message_id VARCHAR(255),
+                log_text LONGTEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (guild_id, scope_key)
+            )
+        `);
+
 
         await conn.query(`
             CREATE TABLE IF NOT EXISTS ticket_messages (
@@ -260,8 +340,36 @@ function updateFilteredWordsCache(guildId, words) {
     filteredWordsCache.set(guildId, words);
 }
 
+function updateGuildConfigCache(guildId, configData) {
+    guildConfigCache.set(guildId, configData);
+}
+
+const guildSetupCache = new Map();
+
+async function getGuildSetup(guildId) {
+    if (guildSetupCache.has(guildId)) return guildSetupCache.get(guildId);
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM guild_setup WHERE guild_id = ?', [guildId]);
+        if (rows.length > 0) {
+            guildSetupCache.set(guildId, rows[0]);
+            return rows[0];
+        }
+        return null;
+    } catch (e) {
+        return null;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+function updateGuildSetupCache(guildId, setupData) {
+    guildSetupCache.set(guildId, setupData);
+}
+
 function clearFilteredWordsCache(guildId) {
     filteredWordsCache.delete(guildId);
 }
 
-module.exports = { pool, initDB, getGuildConfig, updateConfigCache, getFilteredWords, updateFilteredWordsCache, clearFilteredWordsCache };
+module.exports = { pool, initDB, getGuildConfig, updateConfigCache, updateGuildConfigCache, getGuildSetup, updateGuildSetupCache, getFilteredWords, updateFilteredWordsCache, clearFilteredWordsCache };

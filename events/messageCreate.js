@@ -96,7 +96,7 @@ module.exports = {
                         { name: 'Silinen Mesaj', value: `\`\`\`\n${message.content.substring(0, 1000)}\n\`\`\``, inline: false }
                     ]
                 });
-                await sendLog(message.guild, logPayload).catch(()=>{});
+                await sendLog(message.guild, logPayload, 'text').catch(()=>{});
 
                 const payload = createV2Message({
                     title: 'Metin Engellendi',
@@ -130,7 +130,7 @@ module.exports = {
                             { name: 'Silinen Mesaj', value: `\`\`\`\n${message.content.substring(0, 1000)}\n\`\`\``, inline: false }
                         ]
                     });
-                    await sendLog(message.guild, logPayload).catch(()=>{});
+                    await sendLog(message.guild, logPayload, 'text').catch(()=>{});
 
                     const result = await issueWarning(message.guild, message.author, client.user.id, 'İzinsiz Link veya Reklam Paylaşımı');
                     
@@ -203,7 +203,7 @@ module.exports = {
                                 { name: 'Silinen Mesaj', value: `\`\`\`\n${message.content.substring(0, 1000)}\n\`\`\``, inline: false }
                             ]
                         });
-                        await sendLog(message.guild, logPayload).catch(()=>{});
+                        await sendLog(message.guild, logPayload, 'text').catch(()=>{});
 
                         const result = await issueWarning(message.guild, message.author, client.user.id, 'Sunucu kurallarına aykırı kelime kullanımı');
                         
@@ -252,7 +252,7 @@ module.exports = {
                                 { name: 'Silinen Mesaj', value: `\`\`\`\n${message.content.substring(0, 1000)}\n\`\`\``, inline: false }
                             ]
                         });
-                        await sendLog(message.guild, logPayload).catch(()=>{});
+                        await sendLog(message.guild, logPayload, 'text').catch(()=>{});
 
                         const result = await issueWarning(message.guild, message.author, client.user.id, 'Aşırı büyük harf kullanımı');
                         

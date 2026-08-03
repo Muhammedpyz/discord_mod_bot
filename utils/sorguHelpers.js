@@ -16,56 +16,206 @@ function buildSorguPanel({ title, description, fields = [], navRow, showSocials 
 }
 const { pool } = require('../db');
 
-function createSorguMenu(targetId, current = 'sorgu_overview') {
+function createSorguMenu(targetId, current = 'sorgu_overview', isStaff = false) {
+    const options = [
+        { label: 'Genel Bilgi & Ozeti', value: 'sorgu_overview', default: current === 'sorgu_overview' },
+        { label: 'Uyarı Geçmişi', value: 'sorgu_warns', default: current === 'sorgu_warns' },
+        { label: 'Susturma Geçmişi', value: 'sorgu_mutes', default: current === 'sorgu_mutes' },
+        { label: 'Ceza Geçmişi', value: 'sorgu_penalties', default: current === 'sorgu_penalties' },
+        { label: 'Ticket Geçmişi', value: 'sorgu_tickets', default: current === 'sorgu_tickets' },
+        { label: 'Silinen Mesajlar', value: 'sorgu_deleted', default: current === 'sorgu_deleted' }
+    ];
+
+    if (isStaff) {
+        options.push({ label: 'Yetkili İşlem Geçmişi', value: 'sorgu_staff', default: current === 'sorgu_staff' });
+    }
+
     const menu = new StringSelectMenuBuilder()
         .setCustomId(`sorgu:select:${targetId}`)
         .setPlaceholder('Sorgu kategorisi secin...')
-        .addOptions([
-            { label: 'Genel Bilgi & Ozeti', value: 'sorgu_overview', default: current === 'sorgu_overview' },
-            { label: 'Uyari Gecmisi', value: 'sorgu_warns', default: current === 'sorgu_warns' },
-            { label: 'Susturma Gecmisi', value: 'sorgu_mutes', default: current === 'sorgu_mutes' },
-            { label: 'Ceza Gecmisi', value: 'sorgu_penalties', default: current === 'sorgu_penalties' },
-            { label: 'Ticket Gecmisi', value: 'sorgu_tickets', default: current === 'sorgu_tickets' },
-            { label: 'Silinen Mesajlar', value: 'sorgu_deleted', default: current === 'sorgu_deleted' }
-        ]);
+        .addOptions(options);
+    
     return new ActionRowBuilder().addComponents(menu);
 }
 
 async function handleSorguSelect(interaction, value, targetId) {
     let conn;
     try {
+        await interaction.deferUpdate().catch(() => {});
+        const { PermissionFlagsBits, AuditLogEvent } = require('discord.js');
         conn = await pool.getConnection();
         const targetUser = await interaction.client.users.fetch(targetId).catch(() => null);
         const userName = targetUser ? `${targetUser.username} (${targetUser.tag})` : targetId;
 
-        if (value === 'sorgu_overview') {
-            let targetMember;
-            try { targetMember = await interaction.guild.members.fetch(targetId); } catch { targetMember = null; }
+        let targetMember;
+        try { targetMember = await interaction.guild.members.fetch(targetId); } catch { targetMember = null; }
 
+        let isStaff = false;
+        if (targetMember && (
+            targetMember.permissions.has(PermissionFlagsBits.ModerateMembers) ||
+            targetMember.permissions.has(PermissionFlagsBits.BanMembers) ||
+            targetMember.permissions.has(PermissionFlagsBits.ManageRoles) ||
+            targetMember.permissions.has(PermissionFlagsBits.Administrator)
+        )) {
+            isStaff = true;
+        }
+
+        if (value === 'sorgu_staff' && isStaff) {
+            const warnRows = await conn.query('SELECT user_id, created_at, reason FROM warnings WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetId]);
+            const delRows = await conn.query('SELECT user_id, deleted_at, reason FROM deleted_messages WHERE guild_id = ? AND deleted_by = ?', [interaction.guild.id, targetId]);
+            const staffTicketRows = await conn.query('SELECT owner_id, closed_at, reason FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetId]);
+            const modActionRows = await conn.query('SELECT user_id, action_type, created_at, reason FROM mutes WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetId]);
+
+            let allActions = [];
+
+            for (let w of warnRows) {
+                allActions.push({ type: 'Uyarı Verildi', target: `<@${w.user_id}>`, date: new Date(w.created_at).getTime(), reason: w.reason || 'Belirtilmemis' });
+            }
+            for (let t of staffTicketRows) {
+                if (!t.closed_at) continue;
+                allActions.push({ type: 'Ticket Kapatildi', target: `<@${t.owner_id}>`, date: new Date(t.closed_at).getTime(), reason: t.reason || 'Belirtilmemis' });
+            }
+            for (let d of delRows) {
+                allActions.push({ type: 'Mesaj Silindi', target: `<@${d.user_id}>`, date: new Date(d.deleted_at).getTime(), reason: d.reason || 'Belirtilmemis' });
+            }
+            for (let m of modActionRows) {
+                let actName = m.action_type === 'ban' ? 'Banlandi' : (m.action_type === 'kick' ? 'Kicklendi' : 'Susturuldu (Timeout)');
+                allActions.push({ type: actName, target: `<@${m.user_id}>`, date: new Date(m.created_at || Date.now()).getTime(), reason: m.reason || 'Belirtilmemis' });
+            }
+
+            try {
+                const logs = await interaction.guild.fetchAuditLogs({ limit: 100, user: targetId });
+                logs.entries.forEach(e => {
+                    if (!e.target) return;
+                    const targetName = e.target.username || e.target.tag || 'Bilinmeyen';
+                    const date = e.createdAt.getTime();
+                    const reason = e.reason || 'Belirtilmemis';
+                    
+                    if (e.action === AuditLogEvent.MemberRoleUpdate) {
+                        const addedRoles = e.changes?.find(c => c.key === '$add')?.new?.map(r => r.name).join(', ');
+                        const removedRoles = e.changes?.find(c => c.key === '$remove')?.new?.map(r => r.name).join(', ');
+                        
+                        if (addedRoles) {
+                            const isWarning = addedRoles.toLowerCase().includes('uyarı') || addedRoles.toLowerCase().includes('uyarı');
+                            if (!isWarning) {
+                                allActions.push({ type: 'Rol Verildi', target: targetName, date, reason: `Verilen Roller: ${addedRoles}` });
+                            }
+                        }
+                        if (removedRoles) {
+                            allActions.push({ type: 'Rol Alindi', target: targetName, date, reason: `Alinan Roller: ${removedRoles}` });
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error('Audit log fetch error:', e);
+            }
+
+            allActions.sort((a, b) => b.date - a.date);
+
+            const fields = allActions.slice(0, 10).map((act, i) => ({
+                name: `İşlem #${i + 1} - ${act.type}`,
+                value: `**Kime:** ${act.target}\n**Tarih:** <t:${Math.floor(act.date / 1000)}:f>\n**Sebep:** ${act.reason}`
+            }));
+
+            if (fields.length === 0) {
+                fields.push({ name: 'İşlem Yok', value: 'Bu yetkiliye ait kaydedilmis herhangi bir eylem bulunamadı.' });
+            }
+
+            const actionRows = [];
+            if (allActions.length > 0) {
+                const btnRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`sorgu:export_staff:${targetId}`)
+                        .setLabel(`Tum İşlem Gecmisini Indir (.txt - ${allActions.length} İşlem)`)
+                        .setStyle(ButtonStyle.Primary)
+                );
+                actionRows.push(btnRow);
+            }
+
+            const payload = buildSorguPanel({
+                title: `Yetkili İşlem Geçmişi - ${userName}`,
+                description: `Son ${allActions.length > 10 ? '10' : allActions.length} işlem gosteriliyor. Toplam kaydedilmis işlem: **${allActions.length}**`,
+                fields,
+                navRow: createSorguMenu(targetId, 'sorgu_staff', isStaff),
+                actionRows,
+                showSocials: false
+            });
+            return interaction.editReply(payload);
+        }
+
+        if (value === 'sorgu_overview') {
             const [warnRows] = await conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [interaction.guild.id, targetId]);
             const [totalWarnRows] = await conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetId]);
             const [muteRows] = await conn.query('SELECT COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetId]);
             const [ticketRows] = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND owner_id = ?', [interaction.guild.id, targetId]);
             const [deletedRows] = await conn.query('SELECT COUNT(*) as cnt FROM deleted_messages WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetId]);
 
-            const roles = targetMember ? targetMember.roles.cache.filter(r => r.id !== interaction.guild.id).sort((a, b) => b.position - a.position).map(r => `<@&${r.id}>`).join(', ') || 'Rol yok' : 'Sunucuda degil';
+            const roles = targetMember ? targetMember.roles.cache.filter(r => r.id !== interaction.guild.id).sort((a, b) => b.position - a.position).map(r => `<@&${r.id}>`).join(', ') || 'Rol yok' : 'Sunucuda değil';
             const joinDate = targetMember?.joinedTimestamp ? `<t:${Math.floor(targetMember.joinedTimestamp / 1000)}:F>` : 'Bilinmiyor';
             const createDate = targetUser ? `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:F>` : 'Bilinmiyor';
 
+            let staffDesc = '';
+            if (isStaff) {
+                const [staffWarnRows] = await conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetId]);
+                const totalWarnsGiven = Number(staffWarnRows[0]?.cnt || 0);
+
+                const [delRows] = await conn.query('SELECT COUNT(*) as cnt FROM deleted_messages WHERE guild_id = ? AND deleted_by = ?', [interaction.guild.id, targetId]);
+                const totalDels = Number(delRows[0]?.cnt || 0);
+
+                const [staffTicketRows] = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetId]);
+                const totalTicketsClosed = Number(staffTicketRows[0]?.cnt || 0);
+
+                let totalBans = 0, totalKicks = 0, totalTimeouts = 0, totalRoles = 0, auditWarns = 0;
+                
+                try {
+                    const modRows = await conn.query('SELECT action_type, COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND moderator_id = ? GROUP BY action_type', [interaction.guild.id, targetId]);
+                    modRows.forEach(row => {
+                        if (row.action_type === 'ban') totalBans += Number(row.cnt);
+                        else if (row.action_type === 'kick') totalKicks += Number(row.cnt);
+                        else if (row.action_type === 'text_mute') totalTimeouts += Number(row.cnt);
+                    });
+                } catch(e) {}
+
+                try {
+                    const logs = await interaction.guild.fetchAuditLogs({ limit: 100, user: targetId });
+                    logs.entries.forEach(e => {
+                        if (e.action === AuditLogEvent.MemberRoleUpdate) {
+                            const addedRoles = e.changes?.find(c => c.key === '$add')?.new?.map(r => r.name).join(', ');
+                            if (addedRoles) {
+                                totalRoles++;
+                            }
+                        }
+                    });
+                } catch(e) {}
+
+                const finalWarns = totalWarnsGiven;
+
+                staffDesc = `\n\n**Yetkili İşlem Geçmişi (Ozet):**\n` +
+                             `- Verdigi Uyarı: **${finalWarns}** | Sildigi Mesaj: **${totalDels}** | Kapattigi Ticket: **${totalTicketsClosed}**\n` +
+                             `- Ban: **${totalBans}** | Kick: **${totalKicks}** | Timeout: **${totalTimeouts}** | Rol: **${totalRoles}**\n\n` +
+                             `*(Detaylar için aşağıdaki menuden "Yetkili İşlem Geçmişi"ni secin.)*`;
+            }
+
             const actionRows = [];
+            
+            const fieldsArr = [
+                { name: 'Roller', value: (roles.length > 200 ? roles.substring(0, 200) + '...' : roles) },
+                { name: 'Sicil & Kayit Ozeti', value: `Aktif Uyarı: **${Number(warnRows[0]?.cnt || 0)}** | Toplam Uyarı: **${Number(totalWarnRows[0]?.cnt || 0)}**\nToplam Susturma: **${Number(muteRows[0]?.cnt || 0)}** | Toplam Ticket: **${Number(ticketRows[0]?.cnt || 0)}**\nSilinen Mesaj Kaydi: **${Number(deletedRows[0]?.cnt || 0)}**` }
+            ];
+
+            if (isStaff && staffDesc) {
+                fieldsArr.push({ name: 'Yetkili Istatistikleri', value: staffDesc });
+            }
 
             const payload = buildSorguPanel({
-                title: 'Kullanici Sorgu Paneli',
-                description: `**Kullanici:** ${userName}\n**ID:** \`${targetId}\`\n**Hesap Olusturma:** ${createDate}\n**Sunucuya Katilim:** ${joinDate}`,
-                fields: [
-                    { name: 'Roller', value: (roles.length > 200 ? roles.substring(0, 200) + '...' : roles) },
-                    { name: 'Sicil & Kayit Ozeti', value: `Aktif Uyari: **${Number(warnRows[0]?.cnt || 0)}** | Toplam Uyari: **${Number(totalWarnRows[0]?.cnt || 0)}**\nToplam Susturma: **${Number(muteRows[0]?.cnt || 0)}** | Toplam Ticket: **${Number(ticketRows[0]?.cnt || 0)}**\nSilinen Mesaj Kaydi: **${Number(deletedRows[0]?.cnt || 0)}**` }
-                ],
-                navRow: createSorguMenu(targetId, 'sorgu_overview'),
+                title: 'Kullanıcı Sorgu Paneli',
+                description: `**Kullanıcı:** ${userName}\n**ID:** \`${targetId}\`\n**Hesap Oluşturma:** ${createDate}\n**Sunucuya Katılım:** ${joinDate}`,
+                fields: fieldsArr,
+                navRow: createSorguMenu(targetId, 'sorgu_overview', isStaff),
                 actionRows,
                 showSocials: true
             });
-            return interaction.update(payload);
+            return interaction.editReply(payload);
         }
 
         if (value === 'sorgu_warns') {
@@ -73,12 +223,12 @@ async function handleSorguSelect(interaction, value, targetId) {
             
             if (rows.length === 0) {
                 const payload = buildSorguPanel({
-                    title: `Uyari Gecmisi - ${userName}`,
-                    description: 'Bu kullaniciya ait kayitli hicbir uyari bulunmamaktadir. (Temiz)',
-                    navRow: createSorguMenu(targetId, 'sorgu_warns'),
+                    title: `Uyarı Geçmişi - ${userName}`,
+                    description: 'Bu kullanıcıya ait kayitli hicbir uyarı bulunmamaktadır. (Temiz)',
+                    navRow: createSorguMenu(targetId, 'sorgu_warns', isStaff),
                     showSocials: false
                 });
-                return interaction.update(payload);
+                return interaction.editReply(payload);
             }
 
             const activeWarns = rows.filter(r => r.is_active).length;
@@ -97,32 +247,32 @@ async function handleSorguSelect(interaction, value, targetId) {
             const btnRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId(`sorgu:export_warns:${targetId}`)
-                    .setLabel(`Tum Uyari Gecmisini Indir (.txt - ${totalWarns} Kayit)`)
+                    .setLabel(`Tum Uyarı Gecmisini Indir (.txt - ${totalWarns} Kayit)`)
                     .setStyle(ButtonStyle.Primary)
             );
             actionRows.push(btnRow);
 
             const payload = buildSorguPanel({
-                title: `Uyari Gecmisi - ${userName}`,
-                description: `Aktif Uyari: **${activeWarns}** | Toplam Uyari Kaydi: **${totalWarns}**`,
+                title: `Uyarı Geçmişi - ${userName}`,
+                description: `Aktif Uyarı: **${activeWarns}** | Toplam Uyarı Kaydi: **${totalWarns}**`,
                 fields,
-                navRow: createSorguMenu(targetId, 'sorgu_warns'),
+                navRow: createSorguMenu(targetId, 'sorgu_warns', isStaff),
                 actionRows,
                 showSocials: false
             });
-            return interaction.update(payload);
+            return interaction.editReply(payload);
         }
 
         if (value === 'sorgu_mutes') {
             const rows = await conn.query('SELECT * FROM mutes WHERE guild_id = ? AND user_id = ? ORDER BY id DESC', [interaction.guild.id, targetId]);
             if (rows.length === 0) {
                 const payload = buildSorguPanel({
-                    title: `Susturma Gecmisi - ${userName}`,
-                    description: 'Bu kullaniciya ait kayitli susturma bulunamadi.',
-                    navRow: createSorguMenu(targetId, 'sorgu_mutes'),
+                    title: `Susturma Geçmişi - ${userName}`,
+                    description: 'Bu kullanıcıya ait kayitli susturma bulunamadı.',
+                    navRow: createSorguMenu(targetId, 'sorgu_mutes', isStaff),
                     showSocials: false
                 });
-                return interaction.update(payload);
+                return interaction.editReply(payload);
             }
 
             const fields = rows.slice(0, 8).map((m) => ({
@@ -140,14 +290,14 @@ async function handleSorguSelect(interaction, value, targetId) {
             actionRows.push(btnRow);
 
             const payload = buildSorguPanel({
-                title: `Susturma Gecmisi - ${userName}`,
+                title: `Susturma Geçmişi - ${userName}`,
                 description: `Toplam Susturma Kaydi: **${rows.length}**`,
                 fields,
-                navRow: createSorguMenu(targetId, 'sorgu_mutes'),
+                navRow: createSorguMenu(targetId, 'sorgu_mutes', isStaff),
                 actionRows,
                 showSocials: false
             });
-            return interaction.update(payload);
+            return interaction.editReply(payload);
         }
 
         if (value === 'sorgu_penalties') {
@@ -159,7 +309,7 @@ async function handleSorguSelect(interaction, value, targetId) {
             const fields = [];
             if (warns.length > 0) {
                 fields.push({
-                    name: `Uyarilar (${warns.length})`,
+                    name: `Uyarılar (${warns.length})`,
                     value: warns.slice(0, 5).map(w => `#${w.id} - <t:${Math.floor(new Date(w.created_at).getTime() / 1000)}:d> [${w.is_active ? 'AKTIF' : 'PASIF'}] - ${w.reason || 'Sebep yok'}`).join('\n')
                 });
             }
@@ -169,7 +319,7 @@ async function handleSorguSelect(interaction, value, targetId) {
                     value: mutes.slice(0, 5).map(m => `#${m.id} - ${m.action_type || 'text'} [${m.is_active ? 'AKTIF' : 'BITMIS'}] - ${m.reason || 'Sebep yok'}`).join('\n')
                 });
             }
-            if (fields.length === 0) fields.push({ name: 'Kayit Yok', value: 'Bu kullaniciya ait ceza kaydi bulunamadi.' });
+            if (fields.length === 0) fields.push({ name: 'Kayit Yok', value: 'Bu kullanıcıya ait ceza kaydi bulunamadı.' });
 
             const actionRows = [];
             const btnRow = new ActionRowBuilder().addComponents(
@@ -181,26 +331,26 @@ async function handleSorguSelect(interaction, value, targetId) {
             actionRows.push(btnRow);
 
             const payload = buildSorguPanel({
-                title: `Ceza Gecmisi - ${userName}`,
-                description: `Toplam Ceza / Islem Sayisi: **${totalPenalties}**`,
+                title: `Ceza Geçmişi - ${userName}`,
+                description: `Toplam Ceza / İşlem Sayısı: **${totalPenalties}**`,
                 fields,
-                navRow: createSorguMenu(targetId, 'sorgu_penalties'),
+                navRow: createSorguMenu(targetId, 'sorgu_penalties', isStaff),
                 actionRows,
                 showSocials: false
             });
-            return interaction.update(payload);
+            return interaction.editReply(payload);
         }
 
         if (value === 'sorgu_tickets') {
             const rows = await conn.query('SELECT * FROM tickets WHERE guild_id = ? AND owner_id = ? ORDER BY opened_at DESC', [interaction.guild.id, targetId]);
             if (rows.length === 0) {
                 const payload = buildSorguPanel({
-                    title: `Ticket Gecmisi - ${userName}`,
-                    description: 'Bu kullaniciya ait ticket kaydi bulunamadi.',
-                    navRow: createSorguMenu(targetId, 'sorgu_tickets'),
+                    title: `Ticket Geçmişi - ${userName}`,
+                    description: 'Bu kullanıcıya ait ticket kaydi bulunamadı.',
+                    navRow: createSorguMenu(targetId, 'sorgu_tickets', isStaff),
                     showSocials: false
                 });
-                return interaction.update(payload);
+                return interaction.editReply(payload);
             }
 
             const fields = rows.slice(0, 8).map((t) => ({
@@ -236,14 +386,14 @@ async function handleSorguSelect(interaction, value, targetId) {
             }
 
             const payload = buildSorguPanel({
-                title: `Ticket Gecmisi - ${userName}`,
-                description: `Toplam Ticket Sayisi: **${rows.length}**`,
+                title: `Ticket Geçmişi - ${userName}`,
+                description: `Toplam Ticket Sayısı: **${rows.length}**`,
                 fields,
-                navRow: createSorguMenu(targetId, 'sorgu_tickets'),
+                navRow: createSorguMenu(targetId, 'sorgu_tickets', isStaff),
                 actionRows,
                 showSocials: false
             });
-            return interaction.update(payload);
+            return interaction.editReply(payload);
         }
 
         if (value === 'sorgu_deleted') {
@@ -251,11 +401,11 @@ async function handleSorguSelect(interaction, value, targetId) {
             if (rows.length === 0) {
                 const payload = buildSorguPanel({
                     title: `Silinen Mesajlar - ${userName}`,
-                    description: 'Bu kullaniciya ait veritabaninda silinmis mesaj kaydi bulunamadi.',
-                    navRow: createSorguMenu(targetId, 'sorgu_deleted'),
+                    description: 'Bu kullanıcıya ait veritabaninda silinmis mesaj kaydi bulunamadı.',
+                    navRow: createSorguMenu(targetId, 'sorgu_deleted', isStaff),
                     showSocials: false
                 });
-                return interaction.update(payload);
+                return interaction.editReply(payload);
             }
 
             const fields = rows.slice(0, 8).map((m, i) => {
@@ -267,7 +417,7 @@ async function handleSorguSelect(interaction, value, targetId) {
             });
 
             const actionRows = [];
-            // Sadece tek mesaja sigmadiginda (>8 mesaj) indirme butonunu goster
+            // Sadece tek mesaja sigmadiginda (>8 mesaj) indirme butonunu göster
             if (rows.length > 8) {
                 const btnRow = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
@@ -282,20 +432,20 @@ async function handleSorguSelect(interaction, value, targetId) {
                 title: `Silinen Mesajlar - ${userName}`,
                 description: `Toplam Silinen Mesaj Kaydi: **${rows.length}**`,
                 fields,
-                navRow: createSorguMenu(targetId, 'sorgu_deleted'),
+                navRow: createSorguMenu(targetId, 'sorgu_deleted', isStaff),
                 actionRows,
                 showSocials: false
             });
-            return interaction.update(payload);
+            return interaction.editReply(payload);
         }
     } catch (err) {
-        console.error('[Sorgu] Select handler hatasi:', err);
+        console.error('[Sorgu] Select handler hatası:', err);
         const errPayload = buildModBResponse({
             title: 'Sistem Hatasi',
-            textLines: ['Sorgu sirasinda bir hata olustu.'],
+            textLines: ['Sorgu sırasında bir hata oluştu.'],
             color: COLORS.ERROR
         });
-        return interaction.update(errPayload).catch(() => {});
+        return interaction.editReply(errPayload).catch(() => {});
     } finally {
         if (conn) conn.release();
     }
@@ -315,7 +465,7 @@ async function handleExport(interaction, exportType, targetId) {
             filename = `${targetId}-uyarilar.txt`;
             const rows = await conn.query('SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? ORDER BY created_at DESC', [interaction.guild.id, targetId]);
             txtContent += `UYARI GECMISI DOSYASI: ${userTag} (${targetId})\n`;
-            txtContent += `Toplam Uyari Kaydi: ${rows.length}\n`;
+            txtContent += `Toplam Uyarı Kaydi: ${rows.length}\n`;
             txtContent += `====================================================\n\n`;
             for (const r of rows) {
                 const date = new Date(r.created_at).toLocaleString('tr-TR');
@@ -334,16 +484,16 @@ async function handleExport(interaction, exportType, targetId) {
             }
         }
         else if (exportType === 'penalties') {
-            filename = `${targetId}-ceza-gecmisi.txt`;
+            filename = `${targetId}-ceza-geçmişi.txt`;
             const warns = await conn.query('SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? ORDER BY created_at DESC', [interaction.guild.id, targetId]);
             const mutes = await conn.query('SELECT * FROM mutes WHERE guild_id = ? AND user_id = ? ORDER BY id DESC', [interaction.guild.id, targetId]);
             txtContent += `CEZA GECMISI DOSYASI: ${userTag} (${targetId})\n`;
-            txtContent += `Toplam Uyari: ${warns.length} | Toplam Susturma: ${mutes.length}\n`;
+            txtContent += `Toplam Uyarı: ${warns.length} | Toplam Susturma: ${mutes.length}\n`;
             txtContent += `====================================================\n\n`;
             txtContent += `--- UYARILAR ---\n`;
             for (const r of warns) {
                 const date = new Date(r.created_at).toLocaleString('tr-TR');
-                txtContent += `[Uyari #${r.id}] Durum: ${r.is_active ? 'AKTIF' : 'PASIF'} | Tarih: ${date} | Yetkili: ${r.moderator_id || 'Sistem'}\nSebep: ${r.reason || 'Belirtilmemis'}\n`;
+                txtContent += `[Uyarı #${r.id}] Durum: ${r.is_active ? 'AKTIF' : 'PASIF'} | Tarih: ${date} | Yetkili: ${r.moderator_id || 'Sistem'}\nSebep: ${r.reason || 'Belirtilmemis'}\n`;
             }
             txtContent += `\n--- SUSTURMALAR ---\n`;
             for (const r of mutes) {
@@ -354,7 +504,7 @@ async function handleExport(interaction, exportType, targetId) {
             filename = `${targetId}-ticketlar.txt`;
             const rows = await conn.query('SELECT * FROM tickets WHERE guild_id = ? AND owner_id = ? ORDER BY opened_at DESC', [interaction.guild.id, targetId]);
             txtContent += `TICKET GECMISI DOSYASI: ${userTag} (${targetId})\n`;
-            txtContent += `Toplam Ticket Sayisi: ${rows.length}\n`;
+            txtContent += `Toplam Ticket Sayısı: ${rows.length}\n`;
             txtContent += `====================================================\n\n`;
             for (const r of rows) {
                 const openDate = new Date(r.opened_at).toLocaleString('tr-TR');
@@ -374,11 +524,78 @@ async function handleExport(interaction, exportType, targetId) {
                 txtContent += `[Tarih: ${date}] Kanal: #${r.channel_id}\nSilen Yetkili/Kişi: ${deletedBy}\nSebep: ${r.reason || 'Belirtilmedi'}\nMesaj: ${r.content || '[Icerik Yok]'}\n-----------------------------------\n`;
             }
         }
+        else if (exportType === 'staff') {
+            const { AuditLogEvent } = require('discord.js');
+            filename = `${targetId}-yetkili-işlem-geçmişi.txt`;
+            const warnRows = await conn.query('SELECT user_id, created_at, reason FROM warnings WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetId]);
+            const delRows = await conn.query('SELECT user_id, deleted_at, reason FROM deleted_messages WHERE guild_id = ? AND deleted_by = ?', [interaction.guild.id, targetId]);
+            const staffTicketRows = await conn.query('SELECT owner_id, closed_at, reason FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetId]);
+            const modActionRows = await conn.query('SELECT user_id, action_type, created_at, reason FROM mutes WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetId]);
+
+            let allActions = [];
+
+            for (let w of warnRows) {
+                allActions.push({ type: 'Uyarı Verildi', target: w.user_id, date: new Date(w.created_at).getTime(), reason: w.reason || 'Belirtilmemis' });
+            }
+            for (let t of staffTicketRows) {
+                if (!t.closed_at) continue;
+                allActions.push({ type: 'Ticket Kapatildi', target: t.owner_id, date: new Date(t.closed_at).getTime(), reason: t.reason || 'Belirtilmemis' });
+            }
+            for (let d of delRows) {
+                allActions.push({ type: 'Mesaj Silindi', target: d.user_id, date: new Date(d.deleted_at).getTime(), reason: d.reason || 'Belirtilmemis' });
+            }
+            for (let m of modActionRows) {
+                let actName = m.action_type === 'ban' ? 'Ban' : (m.action_type === 'kick' ? 'Kick' : 'Susturma (Timeout)');
+                allActions.push({ type: actName, target: m.user_id, date: new Date(m.created_at || Date.now()).getTime(), reason: m.reason || 'Belirtilmemis' });
+            }
+
+            try {
+                const logs = await interaction.guild.fetchAuditLogs({ limit: 100, user: targetId });
+                logs.entries.forEach(e => {
+                    if (!e.target) return;
+                    const targetName = e.target.username || e.target.tag || 'Bilinmeyen';
+                    const date = e.createdAt.getTime();
+                    const reason = e.reason || 'Belirtilmemis';
+                    
+                    if (e.action === AuditLogEvent.MemberBanAdd) {
+                        allActions.push({ type: 'Ban', target: targetName, date, reason });
+                    } else if (e.action === AuditLogEvent.MemberKick) {
+                        allActions.push({ type: 'Kick', target: targetName, date, reason });
+                    } else if (e.action === AuditLogEvent.MemberUpdate && e.changes?.some(c => c.key === 'communication_disabled_until' && c.new)) {
+                        allActions.push({ type: 'Susturma (Timeout)', target: targetName, date, reason });
+                    } else if (e.action === AuditLogEvent.MemberRoleUpdate) {
+                        const addedRoles = e.changes?.find(c => c.key === '$add')?.new?.map(r => r.name).join(', ');
+                        const removedRoles = e.changes?.find(c => c.key === '$remove')?.new?.map(r => r.name).join(', ');
+                        
+                        if (addedRoles) {
+                            const isWarning = addedRoles.toLowerCase().includes('uyarı') || addedRoles.toLowerCase().includes('uyarı');
+                            const typeLabel = isWarning ? 'Uyarı Verildi (Rol)' : 'Rol Verildi';
+                            allActions.push({ type: typeLabel, target: targetName, date, reason: `Verilen Roller: ${addedRoles}` });
+                        }
+                        if (removedRoles) {
+                            allActions.push({ type: 'Rol Alindi', target: targetName, date, reason: `Alinan Roller: ${removedRoles}` });
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error('Audit log fetch error:', e);
+            }
+
+            allActions.sort((a, b) => b.date - a.date);
+
+            txtContent += `YETKİLİ ISLEM GECMISI DOSYASI: ${userTag} (${targetId})\n`;
+            txtContent += `Toplam İşlem Sayısı: ${allActions.length}\n`;
+            txtContent += `====================================================\n\n`;
+            for (const act of allActions) {
+                const dateStr = new Date(act.date).toLocaleString('tr-TR');
+                txtContent += `[Tarih: ${dateStr}] İşlem Turu: ${act.type}\nKime (Hedef): ${act.target}\nSebep: ${act.reason}\n-----------------------------------\n`;
+            }
+        }
 
         if (!txtContent || txtContent.trim().length === 0) {
             const emptyPayload = buildModBResponse({
                 title: 'Bilgi',
-                textLines: ['Kayitli veri bulunamadi.']
+                textLines: ['Kayitli veri bulunamadı.']
             });
             return interaction.reply({ ...emptyPayload, flags: MessageFlags.Ephemeral });
         }
@@ -395,7 +612,7 @@ async function handleExport(interaction, exportType, targetId) {
         console.error('[Export Handler] Hata:', err);
         const errPayload = buildModBResponse({
             title: 'Sistem Hatasi',
-            textLines: ['Dosya aktarimi sirasinda hata olustu.'],
+            textLines: ['Dosya aktarimi sırasında hata oluştu.'],
             color: COLORS.ERROR
         });
         return interaction.reply({ ...errPayload, flags: MessageFlags.Ephemeral }).catch(() => {});

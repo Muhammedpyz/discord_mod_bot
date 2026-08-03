@@ -24,7 +24,10 @@ async function getSettingsPage(guildId, pageName) {
             ticket_channel_id: null,
             ticket_role_id: null,
             ticket_category_id: null,
-            log_channel_id: null
+            log_channel_id: null,
+            log_voice_channel_id: null,
+            log_ticket_channel_id: null,
+            log_system_channel_id: null
         };
 
         if (rows.length > 0) config = rows[0];
@@ -39,7 +42,9 @@ async function getSettingsPage(guildId, pageName) {
                     { label: 'Sistem Rolleri', description: 'Otorol, Uyarı ve Ban rolleri', value: 'page_roles', default: pageName === 'page_roles' },
                     { label: 'Mute Rolleri', description: 'Metin ve Ses mute rolleri', value: 'page_mute_roles', default: pageName === 'page_mute_roles' },
                     { label: 'Ticket Sistemi', description: 'Destek talebi ayarları', value: 'page_ticket', default: pageName === 'page_ticket' },
-                    { label: 'Kanallar', description: 'Giriş-Çıkış ve log kanalları', value: 'page_channels', default: pageName === 'page_channels' }
+                    { label: 'Kanallar', description: 'Giriş-Çıkış kanalları', value: 'page_channels', default: pageName === 'page_channels' },
+                    { label: 'Log Kanalları', description: 'Detaylı log kanalları (Ses, Ticket, vb.)', value: 'page_logs', default: pageName === 'page_logs' },
+                    { label: 'Özel Odalar', description: 'Özel oda sistemi ayarları', value: 'page_rooms', default: pageName === 'page_rooms' }
                 ])
         );
 
@@ -152,8 +157,7 @@ async function getSettingsPage(guildId, pageName) {
             description = '';
             fields = [
                 { name: 'Hoşgeldin Kanalı', value: config.welcome_channel_id ? `<#${config.welcome_channel_id}>` : 'Ayarlanmadı' },
-                { name: 'Görüşürüz Kanalı', value: config.goodbye_channel_id ? `<#${config.goodbye_channel_id}>` : 'Ayarlanmadı' },
-                { name: 'Kapsamlı Log Kanalı', value: config.log_channel_id ? `<#${config.log_channel_id}>` : 'Ayarlanmadı' }
+                { name: 'Görüşürüz Kanalı', value: config.goodbye_channel_id ? `<#${config.goodbye_channel_id}>` : 'Ayarlanmadı' }
             ];
 
             components.push(new ActionRowBuilder().addComponents(
@@ -169,12 +173,94 @@ async function getSettingsPage(guildId, pageName) {
                     .setPlaceholder(config.goodbye_channel_id ? 'Görüşürüz Kanalı Ayarlandı' : 'Görüşürüz Kanalını Seçin')
                     .addChannelTypes(ChannelType.GuildText)
             ));
+        }
+        else if (pageName === 'page_logs') {
+            title = 'Sunucu Ayarları | Log Kanalları';
+            description = 'Botun tuttuğu kayıtların (logların) gönderileceği kanalları yapılandırın.\n*Belirli bir işlem için özel kanal ayarlanmazsa, sistem otomatik olarak **Genel (Metin) Log Kanalı**na gönderir.*';
+            fields = [
+                { name: 'Genel (Metin) Log Kanalı', value: config.log_channel_id ? `<#${config.log_channel_id}>` : 'Ayarlanmadı' },
+                { name: 'Ses Log Kanalı', value: config.log_voice_channel_id ? `<#${config.log_voice_channel_id}>` : 'Ayarlanmadı' },
+                { name: 'Ticket Log Kanalı', value: config.log_ticket_channel_id ? `<#${config.log_ticket_channel_id}>` : 'Ayarlanmadı' },
+                { name: 'Sistem Log Kanalı', value: config.log_system_channel_id ? `<#${config.log_system_channel_id}>` : 'Ayarlanmadı' }
+            ];
 
             components.push(new ActionRowBuilder().addComponents(
                 new ChannelSelectMenuBuilder()
                     .setCustomId('select_log_channel')
-                    .setPlaceholder(config.log_channel_id ? 'Log Kanalı Ayarlandı' : 'Detaylı Log Kanalını Seçin')
+                    .setPlaceholder(config.log_channel_id ? 'Genel Log Kanalı Ayarlandı' : 'Genel Log Kanalını Seçin')
                     .addChannelTypes(ChannelType.GuildText)
+            ));
+
+            components.push(new ActionRowBuilder().addComponents(
+                new ChannelSelectMenuBuilder()
+                    .setCustomId('select_log_voice_channel')
+                    .setPlaceholder(config.log_voice_channel_id ? 'Ses Log Kanalı Ayarlandı' : 'Ses Log Kanalını Seçin')
+                    .addChannelTypes(ChannelType.GuildText)
+            ));
+
+            components.push(new ActionRowBuilder().addComponents(
+                new ChannelSelectMenuBuilder()
+                    .setCustomId('select_log_ticket_channel')
+                    .setPlaceholder(config.log_ticket_channel_id ? 'Ticket Log Kanalı Ayarlandı' : 'Ticket Log Kanalını Seçin')
+                    .addChannelTypes(ChannelType.GuildText)
+            ));
+
+            components.push(new ActionRowBuilder().addComponents(
+                new ChannelSelectMenuBuilder()
+                    .setCustomId('select_log_system_channel')
+                    .setPlaceholder(config.log_system_channel_id ? 'Sistem Log Kanalı Ayarlandı' : 'Sistem Log Kanalını Seçin')
+                    .addChannelTypes(ChannelType.GuildText)
+            ));
+        }
+        else if (pageName === 'page_rooms') {
+            const { getGuildSetup } = require('../../db');
+            const setupInfo = await getGuildSetup(guildId);
+            
+            title = 'Sunucu Ayarları | Özel Odalar';
+            description = 'Özel oda sistemini aşağıdan manuel olarak yapılandırabilir veya her şeyi tek tuşla kurması için **Sistemi Otomatik Kur** butonuna tıklayabilirsiniz.\n\n*Eğer hem Sesli hem de Metin oluşturma kanallarını ayarlarsanız, sistem Karma olarak çalışır.*';
+            
+            let catStr = (setupInfo && setupInfo.active_rooms_category_id) ? `<#${setupInfo.active_rooms_category_id}>` : 'Ayarlanmadı';
+            let txtStr = (setupInfo && setupInfo.setup_channel_id) ? `<#${setupInfo.setup_channel_id}>` : 'Ayarlanmadı';
+            let vocStr = (setupInfo && setupInfo.setup_voice_channel_id) ? `<#${setupInfo.setup_voice_channel_id}>` : 'Ayarlanmadı';
+            let logStr = (setupInfo && setupInfo.log_channel_id) ? `<#${setupInfo.log_channel_id}>` : 'Ayarlanmadı';
+
+            fields = [
+                { name: 'Oda Kategorisi', value: catStr },
+                { name: 'Oluşturma (Metin)', value: txtStr },
+                { name: 'Katıl-Oluştur (Ses)', value: vocStr },
+                { name: 'Oda Log Kanalı', value: logStr }
+            ];
+
+            components.push(new ActionRowBuilder().addComponents(
+                new ChannelSelectMenuBuilder()
+                    .setCustomId('select_room_category')
+                    .setPlaceholder((setupInfo && setupInfo.active_rooms_category_id) ? 'Kategori Ayarlandı' : 'Özel Odalar Kategorisini Seçin')
+                    .addChannelTypes(ChannelType.GuildCategory)
+            ));
+
+            components.push(new ActionRowBuilder().addComponents(
+                new ChannelSelectMenuBuilder()
+                    .setCustomId('select_room_text_channel')
+                    .setPlaceholder((setupInfo && setupInfo.setup_channel_id) ? 'Metin Kanalı Ayarlandı' : 'Oda Kurulum (Metin) Kanalını Seçin')
+                    .addChannelTypes(ChannelType.GuildText)
+            ));
+
+            components.push(new ActionRowBuilder().addComponents(
+                new ChannelSelectMenuBuilder()
+                    .setCustomId('select_room_voice_channel')
+                    .setPlaceholder((setupInfo && setupInfo.setup_voice_channel_id) ? 'Ses Kanalı Ayarlandı' : 'Katıl-Oluştur (Ses) Kanalını Seçin')
+                    .addChannelTypes(ChannelType.GuildVoice)
+            ));
+
+            components.push(new ActionRowBuilder().addComponents(
+                new ChannelSelectMenuBuilder()
+                    .setCustomId('select_room_log_channel')
+                    .setPlaceholder((setupInfo && setupInfo.log_channel_id) ? 'Oda Log Kanalı Ayarlandı' : 'Oda Log Kanalını Seçin')
+                    .addChannelTypes(ChannelType.GuildText)
+            ));
+
+            components.push(new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('setup_private_rooms').setLabel('Sistemi Otomatik Kur (Sıfırdan)').setStyle(ButtonStyle.Success)
             ));
         }
 
@@ -263,11 +349,38 @@ module.exports = {
             } else if (interaction.isChannelSelectMenu()) {
                 const selectedChannelId = interaction.values[0];
                 let column = '';
-                if (interaction.customId.includes('select_welcome_channel')) column = 'welcome_channel_id';
-                if (interaction.customId.includes('select_goodbye_channel')) column = 'goodbye_channel_id';
-                if (interaction.customId.includes('select_ticket_channel')) column = 'ticket_channel_id';
-                if (interaction.customId.includes('select_ticket_category')) column = 'ticket_category_id';
-                if (interaction.customId.includes('select_log_channel')) column = 'log_channel_id';
+                if (interaction.customId === 'select_welcome_channel') column = 'welcome_channel_id';
+                if (interaction.customId === 'select_goodbye_channel') column = 'goodbye_channel_id';
+                if (interaction.customId === 'select_log_channel') column = 'log_channel_id';
+                if (interaction.customId === 'select_log_voice_channel') column = 'log_voice_channel_id';
+                if (interaction.customId === 'select_log_ticket_channel') column = 'log_ticket_channel_id';
+                if (interaction.customId === 'select_log_system_channel') column = 'log_system_channel_id';
+                if (interaction.customId === 'select_ticket_channel') column = 'ticket_channel_id';
+                if (interaction.customId === 'select_ticket_category') column = 'ticket_category_id';
+                
+                if (interaction.customId === 'select_room_log_channel' || interaction.customId === 'select_room_category' || interaction.customId === 'select_room_text_channel' || interaction.customId === 'select_room_voice_channel') {
+                    const { updateGuildSetupCache } = require('../../db');
+                    const rows = await conn.query('SELECT guild_id FROM guild_setup WHERE guild_id = ?', [interaction.guild.id]);
+                    
+                    let updateCol = '';
+                    if (interaction.customId === 'select_room_log_channel') updateCol = 'log_channel_id';
+                    else if (interaction.customId === 'select_room_category') updateCol = 'active_rooms_category_id';
+                    else if (interaction.customId === 'select_room_text_channel') updateCol = 'setup_channel_id';
+                    else if (interaction.customId === 'select_room_voice_channel') updateCol = 'setup_voice_channel_id';
+
+                    if (rows.length > 0) {
+                        await conn.query(`UPDATE guild_setup SET ${updateCol} = ? WHERE guild_id = ?`, [selectedChannelId, interaction.guild.id]);
+                    } else {
+                        await conn.query(`INSERT INTO guild_setup (guild_id, ${updateCol}) VALUES (?, ?)`, [interaction.guild.id, selectedChannelId]);
+                    }
+                    const updatedSetup = await conn.query('SELECT * FROM guild_setup WHERE guild_id = ?', [interaction.guild.id]);
+                    if (updatedSetup.length > 0) updateGuildSetupCache(interaction.guild.id, updatedSetup[0]);
+                    
+                    const pageData = await getSettingsPage(interaction.guild.id, 'page_rooms');
+                    if (pageData) await interaction.editReply(pageData);
+                    await interaction.followUp({ content: `Ayar başarıyla güncellendi: <#${selectedChannelId}>`, ephemeral: true });
+                    return;
+                }
 
                 if (column) {
                     const rows = await conn.query('SELECT guild_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);

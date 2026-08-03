@@ -68,7 +68,7 @@ module.exports.issueWarning = async function(guild, user, moderatorId, reason) {
                             extraAction = `\nKullanıcı ilk uyarısını aldığı için <@&${roleId}> rolü tanımlandı.`;
                         }
                     } catch (roleErr) { 
-                        console.error("Rol atama hatasi 1:", roleErr.message); 
+                        console.error("Rol atama hatası 1:", roleErr.message); 
                         missingRole = true;
                         missingRoleMsg = `1. Uyarı Rolü (Hata: ${roleErr.message})`;
                     }
@@ -92,7 +92,7 @@ module.exports.issueWarning = async function(guild, user, moderatorId, reason) {
                             extraAction = `\nKullanıcı ikinci uyarısını aldığı için birinci uyarı rolü kaldırıldı ve <@&${roleId}> rolü tanımlandı.`;
                         }
                     } catch (roleErr) { 
-                        console.error("Rol atama hatasi 2:", roleErr.message); 
+                        console.error("Rol atama hatası 2:", roleErr.message); 
                         missingRole = true;
                         missingRoleMsg = `2. Uyarı Rolü (Hata: ${roleErr.message})`;
                     }
@@ -120,7 +120,7 @@ module.exports.issueWarning = async function(guild, user, moderatorId, reason) {
                             dmInfo += `\n\n**Önemli Bildirim:** Kural ihlali sınırına ulaştığınız için sunucuda yetkileriniz kısıtlanmıştır. Durumu görüşmek için bir destek talebi açabilirsiniz.`;
                         }
                     } catch (roleErr) {
-                        console.error("Rol atama hatasi 3:", roleErr.message);
+                        console.error("Rol atama hatası 3:", roleErr.message);
                         missingRole = true;
                         missingRoleMsg = `3. Uyarı Rolü (Hata: ${roleErr.message})`;
                     }
@@ -153,7 +153,7 @@ module.exports.issueWarning = async function(guild, user, moderatorId, reason) {
             };
 
         } catch (err) {
-            console.error("Uyari sistemi hatasi:", err);
+            console.error("Uyarı sistemi hatası:", err);
             return { success: false };
         } finally {
             if (conn) conn.release();

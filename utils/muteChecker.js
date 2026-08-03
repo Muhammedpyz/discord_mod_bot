@@ -36,13 +36,13 @@ async function checkExpiredMutes(client) {
                     }
                 }
             } catch (err) {
-                console.error(`MuteChecker kayit isleme hatasi ID ${record.id}:`, err);
+                console.error(`MuteChecker kayit işleme hatası ID ${record.id}:`, err);
             }
 
-            await conn.query('UPDATE mutes SET is_active = FALSE WHERE id = ?', [record.id]).catch(e => console.error("MuteChecker DB guncelleme hatasi", e));
+            await conn.query('UPDATE mutes SET is_active = FALSE WHERE id = ?', [record.id]).catch(e => console.error("MuteChecker DB guncelleme hatası", e));
         }
     } catch (error) {
-        console.error('MuteChecker genel hatasi:', error);
+        console.error('MuteChecker genel hatası:', error);
     } finally {
         if (conn) conn.release();
     }

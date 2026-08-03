@@ -12,7 +12,7 @@ module.exports = {
             const snipe = client.snipes.get(interaction.channel.id);
 
             if (!snipe) {
-                return interaction.reply({ content: 'Sistem kayitlarina gore bu kanalda yakin zamanda silinmis bir mesaj bulunmamaktadir.', flags: MessageFlags.Ephemeral });
+                return interaction.reply({ content: 'Sistem kayitlarina gore bu kanalda yakin zamanda silinmis bir mesaj bulunmamaktadır.', flags: MessageFlags.Ephemeral });
             }
 
             const payload = createContainerMessage(
@@ -23,11 +23,11 @@ module.exports = {
 
             await interaction.reply(payload);
         } catch (error) {
-            console.error('Snipe hatasi:', error);
+            console.error('Snipe hatası:', error);
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Islem gerceklestirilirken bir hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.followUp({ content: 'İşlem gerceklestirilirken bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             } else {
-                await interaction.reply({ content: 'Islem gerceklestirilirken bir hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.reply({ content: 'İşlem gerceklestirilirken bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         }
     }

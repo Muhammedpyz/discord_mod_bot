@@ -23,6 +23,30 @@ module.exports = {
             return;
         }
 
+        if (interaction.guildId) {
+            const { logGlobalAction } = require('../utils/logger');
+            let actionType = 'Bilinmiyor';
+            let actionDetail = 'Bilinmeyen işlem';
+            
+            if (interaction.isChatInputCommand()) {
+                actionType = 'SLASH_COMMAND';
+                actionDetail = `/${interaction.commandName}`;
+            } else if (interaction.isButton()) {
+                actionType = 'BUTTON_CLICK';
+                actionDetail = `Buton: ${interaction.customId}`;
+            } else if (interaction.isAnySelectMenu()) {
+                actionType = 'SELECT_MENU';
+                actionDetail = `Menu: ${interaction.customId} (Secilen: ${interaction.values ? interaction.values.join(',') : 'Yok'})`;
+            } else if (interaction.isModalSubmit()) {
+                actionType = 'MODAL_SUBMIT';
+                actionDetail = `Modal: ${interaction.customId}`;
+            }
+
+            if (actionType !== 'Bilinmiyor') {
+                logGlobalAction(interaction.guildId, interaction.user.id, actionType, actionDetail).catch(e => console.error(e));
+            }
+        }
+
         if (interaction.isChatInputCommand()) {
             const command = client.commands.get(interaction.commandName);
             if (!command) return;
@@ -46,6 +70,10 @@ module.exports = {
 
         // --- STATELESS ROUTING ---
         if (!interaction.isButton() && !interaction.isStringSelectMenu() && !interaction.isRoleSelectMenu() && !interaction.isChannelSelectMenu() && !interaction.isModalSubmit()) return;
+
+        // Özel Oda (Private Room) Yönlendirmesi
+        const { handlePrivateRoomInteraction } = require('../utils/privateRoomInteractionHandler');
+        await handlePrivateRoomInteraction(interaction, client);
 
         // Geçiş dönemi için (henüz tam namespace'e geçmemiş eskiler için fallback)
         let namespace, action, targetId;
@@ -141,8 +169,8 @@ module.exports = {
                     if (rows.length === 0) return interaction.reply({ content: 'Transcript bulunamadı.', ephemeral: true });
                     const ticket = rows[0];
                     const dbMsgs = await conn.query('SELECT * FROM ticket_messages WHERE channel_id = ? OR ticket_owner_id = ? ORDER BY created_at ASC', [ticket.channel_id, ticket.owner_id]);
-                    const htmlContent = await generateDiscordTranscriptHtml({ guild: interaction.guild, channel: { name: `destek-${ticket.owner_tag || 'kullanici'}` }, messages: dbMsgs || [], ticketData: ticket });
-                    const textContent = generateDiscordTranscriptText({ guild: interaction.guild, channel: { name: `destek-${ticket.owner_tag || 'kullanici'}` }, messages: dbMsgs || [], ticketData: ticket });
+                    const htmlContent = await generateDiscordTranscriptHtml({ guild: interaction.guild, channel: { name: `destek-${ticket.owner_tag || 'kullanıcı'}` }, messages: dbMsgs || [], ticketData: ticket });
+                    const textContent = generateDiscordTranscriptText({ guild: interaction.guild, channel: { name: `destek-${ticket.owner_tag || 'kullanıcı'}` }, messages: dbMsgs || [], ticketData: ticket });
                     const channelSlug = ticket.owner_tag ? `destek-${ticket.owner_tag}` : 'destek';
                     const files = [
                         new AttachmentBuilder(Buffer.from(htmlContent, 'utf-8'), { name: `ticket-#${ticket.id}-${channelSlug}.html` }),
@@ -161,6 +189,7 @@ module.exports = {
 
         // YARDIM / SETTINGS (Legacy fallback until settings is rewritten)
         if (action === 'help_category_select') {
+            console.log(`[PERF] YARDIM MENU CLICKED: Time since creation = ${Date.now() - interaction.createdTimestamp}ms`);
             const val = interaction.values[0];
             if (val === 'help_home') return interaction.update(helpEmbedHome(interaction.guild, interaction.user, [createHelpComponents('home')]));
             
@@ -178,9 +207,10 @@ module.exports = {
                 });
             };
             
-            if (val === 'help_moderation') return interaction.update(getHelpPayload('Moderasyon Komutları', ['Sunucudaki yetkililerin kullanabileceği gelişmiş ceza ve düzen komutları:'], [{ name: 'Ceza Komutları', value: `${getCmd('ban')}, ${getCmd('unban')}, ${getCmd('kick')}, ${getCmd('mute')}, ${getCmd('unmute')}, ${getCmd('sesmute')}` }, { name: 'Uyarı & Sicil Komutları', value: `${getCmd('sorgu')}, ${getCmd('warn')}, ${getCmd('warnings')}, ${getCmd('resetwarns')}` }, { name: 'Kanal Yönetim', value: `${getCmd('clear')}, ${getCmd('lockdown')}, ${getCmd('slowmode')}` }], 'moderation'));
-            if (val === 'help_system') return interaction.update(getHelpPayload('Sistem & Yapılandırma', ['Botun yapılandırma, filtre ve takip komutları:'], [{ name: getCmd('ayarlar'), value: 'Gelişmiş arayüz.' }, { name: getCmd('kara-liste'), value: 'Yasaklı kelime filtresi.' }, { name: getCmd('snipe'), value: 'Silinen mesajı geri getirir.' }, { name: getCmd('ticket'), value: 'Destek sistemini yapılandırır/yönetir.' }], 'system'));
+            if (val === 'help_moderation') return interaction.update(getHelpPayload('Moderasyon Komutları', ['Sunucudaki yetkililerin kullanabileceği gelişmiş ceza ve düzen komutları:'], [{ name: 'Ceza Komutları', value: `${getCmd('yasakla')}, ${getCmd('yasak-kaldır')}, ${getCmd('at')}, ${getCmd('sustur')}, ${getCmd('susturma-kaldır')}, ${getCmd('ses-sustur')}` }, { name: 'Uyarı & Sicil Komutları', value: `${getCmd('sorgu')}, ${getCmd('uyar')}, ${getCmd('uyarılar')}, ${getCmd('uyarı-temizle')}` }, { name: 'Kanal Yönetim', value: `${getCmd('temizle')}, ${getCmd('kilit')}, ${getCmd('yavaş-mod')}` }], 'moderation'));
+            if (val === 'help_system') return interaction.update(getHelpPayload('Sistem & Yapılandırma', ['Botun yapılandırma, filtre ve takip komutları:'], [{ name: getCmd('ayarlar'), value: 'Gelişmiş arayüz.' }, { name: getCmd('kara-liste'), value: 'Yasaklı kelime filtresi.' }, { name: getCmd('snipe'), value: 'Silinen mesajı geri getirir.' }, { name: getCmd('destek'), value: 'Destek sistemini yapılandırır/yönetir.' }], 'system'));
             if (val === 'help_security') return interaction.update(getHelpPayload('Otomatik Güvenlik', ['Botun sunucunuzda 7/24 arka planda otomatik çalıştırdığı zırhlar (Ayarlar menüsünden yönetilir):'], [{ name: 'Anti-Spam & Mass Mention', value: 'Spam yapanları susturur.' }, { name: 'Anti-Link & Reklam', value: 'İzinsiz linkleri siler.' }, { name: 'Anti-Küfür & Zalgo', value: 'Yasaklı kelimeleri siler.' }, { name: 'Caps Lock Filtresi', value: '%65 büyük harf engeli.' }, { name: 'Anti-Raid & Mass-Ban', value: 'Saldırıları durdurur.' }], 'security'));
+            if (val === 'help_rooms') return interaction.update(getHelpPayload('Özel Odalar', ['Sunucunuza özel otomatik açılan, yönetilebilir ses odaları sistemi:'], [{ name: getCmd('ayarlar'), value: 'Özel odalar sekmesinden kurulum ve log ayarlarını yapabilirsiniz.' }, { name: getCmd('odapanel'), value: 'Kullanıcıların odalarını yönetmesi için kontrol paneli gönderir.' }], 'rooms'));
         }
 
         if (action.startsWith('toggle_')) {

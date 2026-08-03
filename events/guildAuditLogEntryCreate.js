@@ -1,5 +1,5 @@
 const { Events, AuditLogEvent } = require('discord.js');
-const { getGuildConfig } = require('../db');
+const { getGuildConfig, pool } = require('../db');
 const { sendLog } = require('../utils/logger');
 const { createContainerMessage, COLORS } = require('../utils/uiBuilder');
 
@@ -8,6 +8,53 @@ const actionCache = new Map();
 module.exports = {
     name: Events.GuildAuditLogEntryCreate,
     async execute(auditLogEntry, guild, client) {
+        // Log manual actions to database
+        if (auditLogEntry.executor && auditLogEntry.executor.id !== client.user.id) {
+            const executorId = auditLogEntry.executor.id;
+            const targetId = auditLogEntry.targetId;
+            const reason = auditLogEntry.reason || 'Manuel İşlem (Discord UI)';
+            const guildId = guild.id;
+
+            try {
+                let actionType = null;
+                
+                if (auditLogEntry.action === AuditLogEvent.MemberBanAdd) {
+                    actionType = 'ban';
+                } else if (auditLogEntry.action === AuditLogEvent.MemberKick) {
+                    actionType = 'kick';
+                } else if (auditLogEntry.action === AuditLogEvent.MemberUpdate) {
+                    const timeoutChange = auditLogEntry.changes?.find(c => c.key === 'communication_disabled_until');
+                    if (timeoutChange && timeoutChange.new) {
+                        actionType = 'text_mute';
+                    }
+                } else if (auditLogEntry.action === AuditLogEvent.MemberRoleUpdate) {
+                    const addedRoles = auditLogEntry.changes?.find(c => c.key === '$add');
+                    if (addedRoles && addedRoles.new) {
+                        const hasWarning = addedRoles.new.some(r => r.name.toLowerCase().includes('uyarı') || r.name.toLowerCase().includes('uyarı'));
+                        if (hasWarning) {
+                            const conn = await pool.getConnection();
+                            await conn.query(
+                                'INSERT INTO warnings (guild_id, user_id, moderator_id, reason, expires_at) VALUES (?, ?, ?, ?, NULL)',
+                                [guildId, targetId, executorId, reason]
+                            );
+                            conn.release();
+                        }
+                    }
+                }
+
+                if (actionType) {
+                    const conn = await pool.getConnection();
+                    await conn.query(
+                        'INSERT INTO mutes (guild_id, user_id, moderator_id, action_type, expires_at, reason) VALUES (?, ?, ?, ?, NULL, ?)',
+                        [guildId, targetId, executorId, actionType, reason]
+                    );
+                    conn.release();
+                }
+            } catch (dbErr) {
+                console.error('Audit log DB insert error:', dbErr);
+            }
+        }
+
         if (!auditLogEntry.executor || auditLogEntry.executor.id === client.user.id) return;
         
         if (auditLogEntry.executor.id === guild.ownerId) return;
@@ -62,7 +109,7 @@ module.exports = {
                         `**Kullanıcı:** <@${executorId}> (${auditLogEntry.executor.tag})\n\n**Neden:** Kısa süre içinde yetkisiz veya şüpheli sayılabilecek işlemler gerçekleştirdi.\n**Sonuç:** Kullanıcının yetkileri askıya alındı ve sunucudan uzaklaştırıldı.`,
                         COLORS.ERROR
                     );
-                    await sendLog(guild, payload).catch(()=>{});
+                    await sendLog(guild, payload, 'system').catch(()=>{});
                 }
 
                 actionCache.delete(executorId);

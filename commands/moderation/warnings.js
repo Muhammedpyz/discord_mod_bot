@@ -5,10 +5,10 @@ const { createContainerMessage } = require('../../utils/uiBuilder');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('warnings')
-        .setDescription('Kullanicinin uyari gecmisini gosterir.')
+        .setDescription('Kullanıcının uyarı gecmisini gösterir.')
         .addUserOption(option => 
             option.setName('user')
-                .setDescription('Uyari gecmisi gosterilecek kullanici')
+                .setDescription('Uyarı geçmişi gosterilecek kullanıcı')
                 .setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
@@ -25,13 +25,13 @@ module.exports = {
                 );
 
                 if (!rows || rows.length === 0) {
-                    return interaction.reply({ content: `<@${targetUser.id}> kullanicisinin aktif uyarisi bulunmamaktadir.`, flags: MessageFlags.Ephemeral });
+                    return interaction.reply({ content: `<@${targetUser.id}> kullanıcısının aktif uyarısı bulunmamaktadır.`, flags: MessageFlags.Ephemeral });
                 }
 
                 const fields = rows.map((row) => {
                     const date = new Date(row.created_at).toLocaleDateString('tr-TR');
                     return {
-                        name: `Uyari #${row.id} - ${date}`,
+                        name: `Uyarı #${row.id} - ${date}`,
                         value: `**Sebep:** ${row.reason}\n**Yetkili:** <@${row.moderator_id}>`,
                         inline: false
                     };
@@ -39,8 +39,8 @@ module.exports = {
 
                 const { buildModBResponse, COLORS } = require('../../utils/uiBuilder');
                 const payload = buildModBResponse({
-                    title: `${targetUser.tag} Uyari Gecmisi`,
-                    textLines: ['Asagida kullanicinin son aktif uyarilari listelenmistir.'],
+                    title: `${targetUser.tag} Uyarı Geçmişi`,
+                    textLines: ['Aşağıda kullanıcının son aktif uyarıları listelenmistir.'],
                     color: COLORS.PRIMARY,
                     fields
                 });
@@ -51,11 +51,11 @@ module.exports = {
                 if (conn) conn.release();
             }
         } catch (error) {
-            console.error('Warnings hatasi:', error);
+            console.error('Warnings hatası:', error);
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Uyari gecmisi alinirken hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.followUp({ content: 'Uyarı geçmişi alınırken hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             } else {
-                await interaction.reply({ content: 'Uyari gecmisi alinirken hata olustu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.reply({ content: 'Uyarı geçmişi alınırken hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         }
     }

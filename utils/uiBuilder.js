@@ -10,39 +10,40 @@ const BRAND_FOOTER = 'turklion.net';
 const DEFAULT_BANNER_URL = "https://cdn.discordapp.com/attachments/1529916823150133459/1530497564665708655/F75E13D7-AC38-4B77-B9AB-DEAFCA8990E4.jpg?ex=6a65ca6e&is=6a6478ee&hm=b71a066c1e619da7ff83e82a460262845c3f50bdba638193104b5cb267729c71&";
 
 const MONO_EMOJIS = {
-    twitch: "1531752985472925726",
-    ticket: "1531753001629388820",
-    tiktok: "1531752988106817576",
-    spotify: "1531752988106817576", // fallback
-    settings: "1531753003625742516",
-    status: "1531753003625742516",
-    shield: "1531753006708822076",
-    arrow_left: "1531752489034973304",
-    pin: "1531753003625742516",
-    kofi: "1531752980578041897",
-    delete: "1531752503237152858",
-    unlock: "1531752498509910199",
-    crown: "1531752493812547594",
-    paypal: "1531752492269047992",
-    reddit: "1531752490691854528",
-    arrow_right: "1531752489034973304",
-    lock: "1531752487067975963",
-    kick: "1531753039592030248",
-    mail: "1531752978392940564",
-    invite: "1531752982167949412",
-    instagram: "1531753011427282964",
-    discord: "1531753009841836184",
-    github: "1531754214534021160",
-    cross: "1531752989663166625",
-    check: "1531752991265263676",
-    ban: "1531752993983037601",
-    add: "1531752983568842842",
-    youtube: "1531753008483012759",
-    announcement: "1531753005127303249",
-    warning: "1531752996768186428",
-    x_twitter: "1531753000152862820",
-    website: "1531752980578041897",
-    web: "1531752980578041897"
+    kickgg: "1532084300663750817",
+    twitch: "1530917519463022632",
+    ticket: "1530917517227331584",
+    tiktok: "1530917515650273452",
+    spotify: "1530917513851048119",
+    settings: "1530917511711948903",
+    status: "1530917510189285528",
+    shield: "1530917506867400775",
+    arrow_left: "1530918962890670161",
+    pin: "1530918960764027000",
+    kofi: "1530918958926921849",
+    delete: "1530918957349867711",
+    unlock: "1530918955726667867",
+    crown: "1530918952711094272",
+    paypal: "1530918950383124641",
+    reddit: "1530918946843267123",
+    arrow_right: "1530918943424778350",
+    lock: "1530918940065267712",
+    kick: "1530918797437833356",
+    mail: "1530917545434021958",
+    invite: "1530917543491932196",
+    instagram: "1530917541839503371",
+    discord: "1530917539859660952",
+    github: "1530917538672672799",
+    cross: "1530917536806469783",
+    check: "1530917534885478600",
+    ban: "1530917533081927780",
+    add: "1530917531450343474",
+    youtube: "1530917528929439835",
+    announcement: "1530917526391750676",
+    warning: "1530917524609175562",
+    x_twitter: "1530917523061473320",
+    website: "1530917521174302840",
+    web: "1530917521174302840"
 };
 
 const EMOJIS = {};
@@ -52,7 +53,12 @@ for (const [name, id] of Object.entries(MONO_EMOJIS)) {
 
 const COLORS = {
     PRIMARY: 0x2B2D31,
-    BRAND: 0xC0392B
+    BRAND: 0xC0392B,
+    SUCCESS: 0x2ECC71,
+    ERROR: 0xE74C3C,
+    WARNING: 0xF1C40F,
+    LOG: 0x3498DB,
+    INFO: 0x9B59B6
 };
 
 function resolveColor(color) {
@@ -101,11 +107,11 @@ function buildModAPanel({ title, description, bannerUrl = DEFAULT_BANNER_URL, ac
                 .setButtonAccessory(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("turklion.net").setEmoji(MONO_EMOJIS.web).setURL(BRAND_URL)),
             
             new SectionBuilder()
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent("-# **Etkinlikler & ozel cekilisler**"))
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent("-# **Etkinlikler & özel cekilisler**"))
                 .setButtonAccessory(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Instagram").setEmoji(MONO_EMOJIS.instagram).setURL("https://instagram.com/turklion")),
             
             new SectionBuilder()
-                .addTextDisplayComponents(new TextDisplayBuilder().setContent("-# **Tanitim & ozel videolar**"))
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent("-# **Tanitim & özel videolar**"))
                 .setButtonAccessory(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("YouTube").setEmoji(MONO_EMOJIS.youtube).setURL("https://youtube.com/@turklion"))
         );
 
@@ -119,30 +125,32 @@ function buildModAPanel({ title, description, bannerUrl = DEFAULT_BANNER_URL, ac
 // YENİ STRICT KURAL: MOD B (İşlevsel/Operasyonel - Sadece Metin + Butonlar)
 function buildModBResponse({ title, textLines = [], fields = [], actionRows = [], color = COLORS.PRIMARY, files = [] }) {
     const { FileBuilder } = require('discord.js');
+    // Sol çubuğun gözükmemesi için Discord dark mode arka plan rengiyle aynı yapıyoruz
     const container = new ContainerBuilder().setAccentColor(COLORS.PRIMARY);
 
     if (title) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${title}`));
 
-    let textCount = 0;
-    
-    for (const line of textLines) {
-        if (textCount < 4 && line.trim()) {
-            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(line.trim()));
-            textCount++;
+    if (textLines && textLines.length > 0) {
+        const fullText = textLines.join('\n');
+        if (fullText.trim()) {
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(fullText.trim()));
         }
     }
 
-    if (fields && fields.length > 0 && textCount < 4) {
-        for (const field of fields) {
-            if (textCount < 4) {
-                container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**${field.name}:** ${field.value}`));
-                textCount++;
-            }
+    // Fields'leri tek bir TextDisplay block olarak ekle (V2'de inline fields yok,TEK satır olarak)
+    if (fields && fields.length > 0) {
+        const fieldText = fields.map(f => `**${f.name}**\n${f.value}`).join('\n\n');
+        if (fieldText.trim()) {
+            // 4000 karakter limiti
+            const trimmed = fieldText.length > 3900 ? fieldText.slice(0, 3897) + '...' : fieldText;
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(trimmed));
         }
     }
 
     if (actionRows && actionRows.length > 0) {
-        container.addActionRowComponents(actionRows[0]); 
+        for (const row of actionRows) {
+            container.addActionRowComponents(row);
+        }
     }
 
     if (files && files.length > 0) {
@@ -170,13 +178,18 @@ function createContainerMessage(title, description, colorHex = '#2B2D31', custom
     return payload;
 }
 
-// Eski createV2Message'ı direkt sarmalayalım
+function createV2Container({ title, description, color, fields = [], actionRows = [], showBrand = false, footer = 'turklion.net' }) {
+    const textLines = description ? description.split('\n\n') : [];
+    return buildModBResponse({ title, textLines, fields, actionRows, color, footer });
+}
+
 function createV2Message({ title, description, color, fields, actionRows, showBrand = false }) {
     return createContainerMessage(title, description, color, actionRows, fields, showBrand);
 }
 
 module.exports = { 
     createV2Message, 
+    createV2Container,
     createContainerMessage, 
     buildModAPanel, 
     buildModBResponse,

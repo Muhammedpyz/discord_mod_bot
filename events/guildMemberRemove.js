@@ -9,7 +9,7 @@ module.exports = {
         try {
             configRow = await getGuildConfig(member.guild.id);
         } catch(e) {
-            console.error("Config hatasi guildMemberRemove:", e);
+            console.error("Config hatası guildMemberRemove:", e);
             return;
         }
 
@@ -53,7 +53,7 @@ module.exports = {
                         '#FF0000'
                     );
                         
-                    await channel.send(payload).catch(e => console.error("Goodbye mesaj hatasi:", e));
+                    await channel.send(payload).catch(e => console.error("Goodbye mesaj hatası:", e));
                 } catch (sendError) {
                     console.error("Goodbye mesaj VEYA embed oluşturma hatası:", sendError);
                 }
