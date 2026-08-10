@@ -29,13 +29,13 @@ module.exports = {
             const newTimeout = newMember.isCommunicationDisabled();
             if (oldTimeout && !newTimeout) {
                 // Timeout kalkmış. Veritabanında aktif Mute var mı bakalım.
-                const rows = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
+                const rows = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE AND action_type = "text_mute"', [guildId, userId]);
                 if (rows.length > 0) {
-                    await conn.query('UPDATE mutes SET is_active = FALSE WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
+                    await conn.query('UPDATE mutes SET is_active = FALSE WHERE guild_id = ? AND user_id = ? AND is_active = TRUE AND action_type = "text_mute"', [guildId, userId]);
                     if (config.log_channel_id) {
                         const payload = createV2Message({
-                            title: 'Manuel Ceza Kaldırma (Timeout)',
-                            description: `**Kullanıcı:** ${newMember.user.tag} (<@${userId}>)\nKullanıcının Discord üzerindeki zaman aşımı cezası (timeout) bir yetkili tarafından manuel kaldırıldı. Veritabanındaki susturma (mute) kaydı eşzamanlı olarak silindi.`,
+                            title: 'Ceza Kaldırma (Timeout Bitişi / Manuel)',
+                            description: `**Kullanıcı:** ${newMember.user.tag} (<@${userId}>)\nKullanıcının Discord üzerindeki zaman aşımı cezası (timeout) kalktı. Veritabanındaki metin susturma kaydı eşzamanlı olarak silindi.`,
                             color: COLORS.LOG
                         });
                         await sendLog(newMember.guild, payload, 'system').catch(()=>{});
@@ -44,15 +44,15 @@ module.exports = {
             }
 
             // 2. Manuel Mute Rolü Kaldırma Tespiti
-            const checkRolesRemoved = async (roleId, roleTypeDesc) => {
+            const checkRolesRemoved = async (roleId, roleTypeDesc, targetAction) => {
                 if (!roleId) return;
                 const hadRole = oldMember.roles.cache.has(roleId);
                 const hasRole = newMember.roles.cache.has(roleId);
                 
                 if (hadRole && !hasRole) {
-                    const rows = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
+                    const rows = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE AND action_type = ?', [guildId, userId, targetAction]);
                     if (rows.length > 0) {
-                        await conn.query('UPDATE mutes SET is_active = FALSE WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
+                        await conn.query('UPDATE mutes SET is_active = FALSE WHERE guild_id = ? AND user_id = ? AND is_active = TRUE AND action_type = ?', [guildId, userId, targetAction]);
                         if (config.log_channel_id) {
                             const payload = createV2Message({
                                 title: 'Manuel Ceza Kaldırma (Mute Rolü)',
@@ -65,8 +65,8 @@ module.exports = {
                 }
             };
 
-            await checkRolesRemoved(config.text_mute_role_id, 'Metin Susturma Rolü');
-            await checkRolesRemoved(config.voice_mute_role_id, 'Ses Susturma Rolü');
+            await checkRolesRemoved(config.text_mute_role_id, 'Metin Susturma Rolü', 'text_mute');
+            await checkRolesRemoved(config.voice_mute_role_id, 'Ses Susturma Rolü', 'voice_mute');
 
             // 3. Manuel Uyarı/Ban Rolü Kaldırma Tespiti
             const checkWarnRoleRemoved = async (roleId, roleDesc) => {
@@ -115,13 +115,14 @@ module.exports = {
                             await conn.query('INSERT INTO warnings (guild_id, user_id, moderator_id, reason) VALUES (?, ?, ?, ?)', [guildId, userId, moderatorId, `Manuel olarak ${roleDesc} verildi`]);
                         }
                     } else if (actionType === 'mute') {
-                        const muteRows = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
+                        const targetAction = roleId === config.text_mute_role_id ? 'text_mute' : 'voice_mute';
+                        const muteRows = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE AND action_type = ?', [guildId, userId, targetAction]);
                         if (muteRows.length === 0) {
                             // Mute rolü verilmiş ama timeout yok! Timeout atalım.
                             if (roleId === config.text_mute_role_id) {
                                 await newMember.timeout(10 * 60 * 1000, `Manuel ${roleDesc} verildi`).catch(()=>{});
                             }
-                            await conn.query('INSERT INTO mutes (guild_id, user_id, moderator_id, reason, action_type) VALUES (?, ?, ?, ?, ?)', [guildId, userId, moderatorId, `Manuel olarak ${roleDesc} verildi`, roleId === config.text_mute_role_id ? 'text_mute' : 'voice_mute']);
+                            await conn.query('INSERT INTO mutes (guild_id, user_id, moderator_id, reason, action_type) VALUES (?, ?, ?, ?, ?)', [guildId, userId, moderatorId, `Manuel olarak ${roleDesc} verildi`, targetAction]);
                         }
                     } else if (actionType === 'ban') {
                         const muteRows = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE AND action_type = "ban"', [guildId, userId]);

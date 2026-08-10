@@ -28,18 +28,8 @@ module.exports = {
                         actionType = 'text_mute';
                     }
                 } else if (auditLogEntry.action === AuditLogEvent.MemberRoleUpdate) {
-                    const addedRoles = auditLogEntry.changes?.find(c => c.key === '$add');
-                    if (addedRoles && addedRoles.new) {
-                        const hasWarning = addedRoles.new.some(r => r.name.toLowerCase().includes('uyarı') || r.name.toLowerCase().includes('uyarı'));
-                        if (hasWarning) {
-                            const conn = await pool.getConnection();
-                            await conn.query(
-                                'INSERT INTO warnings (guild_id, user_id, moderator_id, reason, expires_at) VALUES (?, ?, ?, ?, NULL)',
-                                [guildId, targetId, executorId, reason]
-                            );
-                            conn.release();
-                        }
-                    }
+                    // Rol güncellemelerini artık guildMemberUpdate.js yönetiyor.
+                    // Burada çakışma olmaması için loglamıyoruz.
                 }
 
                 if (actionType) {
