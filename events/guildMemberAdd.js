@@ -86,11 +86,11 @@ module.exports = {
         try {
             conn2 = await pool.getConnection();
             
-            const [muteRows] = await conn2.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [member.guild.id, member.id]);
+            const muteRows = await conn2.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [member.guild.id, member.id]);
             if (muteRows.length > 0) isMuted = true;
             
-            const [warnRows] = await conn2.query('SELECT COUNT(id) as count FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [member.guild.id, member.id]);
-            activeWarnsCount = Number(warnRows[0].count);
+            const warnRows = await conn2.query('SELECT COUNT(id) as count FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [member.guild.id, member.id]);
+            activeWarnsCount = Number(warnRows[0]?.count || 0);
             
             let inviter = null;
             if (client.invites && client.invites.has(member.guild.id)) {

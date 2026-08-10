@@ -29,7 +29,7 @@ module.exports = {
             const newTimeout = newMember.isCommunicationDisabled();
             if (oldTimeout && !newTimeout) {
                 // Timeout kalkmış. Veritabanında aktif Mute var mı bakalım.
-                const [rows] = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
+                const rows = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
                 if (rows.length > 0) {
                     await conn.query('UPDATE mutes SET is_active = FALSE WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
                     if (config.log_channel_id) {
@@ -50,7 +50,7 @@ module.exports = {
                 const hasRole = newMember.roles.cache.has(roleId);
                 
                 if (hadRole && !hasRole) {
-                    const [rows] = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
+                    const rows = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
                     if (rows.length > 0) {
                         await conn.query('UPDATE mutes SET is_active = FALSE WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
                         if (config.log_channel_id) {
@@ -74,7 +74,7 @@ module.exports = {
                 const hadRole = oldMember.roles.cache.has(roleId);
                 const hasRole = newMember.roles.cache.has(roleId);
                 if (hadRole && !hasRole) {
-                    const [warnRows] = await conn.query('SELECT id FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
+                    const warnRows = await conn.query('SELECT id FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
                     if (warnRows.length > 0) {
                         // Eğer manuel uyarı rolü sildiyse uyarıları pasife çek!
                         await conn.query('UPDATE warnings SET is_active = FALSE WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
@@ -109,18 +109,22 @@ module.exports = {
                     } catch (e) {}
                     
                     if (actionType === 'warn') {
-                        const [warnRows] = await conn.query('SELECT id FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
+                        const warnRows = await conn.query('SELECT id FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
                         if (warnRows.length === 0 || (warnRows.length === 1 && roleId === config.warn2_role_id)) {
                             // Sadece sistemde uyarı eksikse ekle
                             await conn.query('INSERT INTO warnings (guild_id, user_id, moderator_id, reason) VALUES (?, ?, ?, ?)', [guildId, userId, moderatorId, `Manuel olarak ${roleDesc} verildi`]);
                         }
                     } else if (actionType === 'mute') {
-                        const [muteRows] = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
+                        const muteRows = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
                         if (muteRows.length === 0) {
+                            // Mute rolü verilmiş ama timeout yok! Timeout atalım.
+                            if (roleId === config.text_mute_role_id) {
+                                await newMember.timeout(10 * 60 * 1000, `Manuel ${roleDesc} verildi`).catch(()=>{});
+                            }
                             await conn.query('INSERT INTO mutes (guild_id, user_id, moderator_id, reason, action_type) VALUES (?, ?, ?, ?, ?)', [guildId, userId, moderatorId, `Manuel olarak ${roleDesc} verildi`, roleId === config.text_mute_role_id ? 'text_mute' : 'voice_mute']);
                         }
                     } else if (actionType === 'ban') {
-                        const [muteRows] = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE AND action_type = "ban"', [guildId, userId]);
+                        const muteRows = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE AND action_type = "ban"', [guildId, userId]);
                         if (muteRows.length === 0) {
                             await conn.query('INSERT INTO mutes (guild_id, user_id, moderator_id, reason, action_type) VALUES (?, ?, ?, ?, ?)', [guildId, userId, moderatorId, 'Manuel olarak Banned rolü verildi', 'ban']);
                         }
