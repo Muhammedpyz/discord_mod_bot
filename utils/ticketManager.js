@@ -251,10 +251,17 @@ async function closeTicketChannel(interaction) {
         return interaction.reply({ content: 'Sadece bilet sahibi veya yetkililer bu talebi kapatabilir.', flags: MessageFlags.Ephemeral }).catch(()=>{});
     }
 
+    const { createV2Container } = require('./uiBuilder');
+    const closePayload = createV2Container({
+        title: 'Bilet Kapatılıyor',
+        description: 'Bilet günlüğü oluşturuluyor ve kanal 5 saniye içinde kapatılıp silinecektir...',
+        color: COLORS.WARNING
+    });
+
     if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({ content: 'Bilet günlüğü oluşturuluyor ve kanal 5 saniye içinde kapatılıp silinecektir...' }).catch(()=>{});
+        await interaction.followUp(closePayload).catch(()=>{});
     } else {
-        await interaction.reply({ content: 'Bilet günlüğü oluşturuluyor ve kanal 5 saniye içinde kapatılıp silinecektir...' }).catch(()=>{});
+        await interaction.reply(closePayload).catch(()=>{});
     }
 
     try {
@@ -394,14 +401,15 @@ async function closeTicketChannel(interaction) {
                                 COLORS.ERROR, [], [], false, false,
                                 [attachmentHtml.name, attachmentText.name]
                             );
-                            payload.files = [attachmentHtml, attachmentText];
                         } else {
                             payload = createContainerMessage(
                                 'Bilet Kapatıldı',
                                 `**Kanal:** ${interaction.channel.name}\n**Kapatan Yetkili:** <@${interaction.user.id}>`,
-                                COLORS.ERROR
+                                COLORS.ERROR, [], [], false, false,
+                                [attachmentHtml.name, attachmentText.name]
                             );
                         }
+                        payload.files = [attachmentHtml, attachmentText];
                         await logChannel.send(payload).catch(e => console.error("Log gönderme hatası", e));
                     }
                 }
