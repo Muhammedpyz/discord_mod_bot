@@ -832,28 +832,39 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
             background-color: var(--bg-secondary);
             border-left: 4px solid var(--brand-color);
             border-radius: 4px;
-            padding: 12px 16px;
-            margin-top: 6px;
+            padding: 8px 16px 16px 12px;
+            margin-top: 4px;
             max-width: 520px;
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: auto;
             gap: 8px;
+            box-sizing: border-box;
         }
 
         .discord-embed-title {
             font-weight: 600;
             color: var(--text-header);
-            font-size: 15px;
+            font-size: 1rem;
+            margin-top: 8px;
         }
 
         .discord-embed-description {
-            font-size: 14px;
+            font-size: 0.875rem;
+            line-height: 1.125rem;
+            color: var(--text-normal);
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
 
         .discord-embed-fields {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 8px;
+            margin-top: 8px;
+        }
+
+        .discord-embed-field {
+            grid-column: span 3;
         }
 
         .discord-embed-field.inline {
@@ -862,24 +873,32 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
 
         .discord-embed-field-name {
             font-weight: 600;
-            font-size: 13px;
-            color: var(--text-muted);
+            font-size: 0.875rem;
+            color: var(--text-header);
+            margin-bottom: 2px;
         }
 
         .discord-embed-field-value {
-            font-size: 14px;
+            font-size: 0.875rem;
+            color: var(--text-normal);
+            line-height: 1.125rem;
+            white-space: pre-wrap;
         }
 
         .discord-embed-footer {
-            font-size: 12px;
+            font-size: 0.75rem;
             color: var(--text-muted);
-            margin-top: 4px;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
         }
 
         .discord-embed-image img {
-            max-width: 100%;
+            max-width: 400px;
+            max-height: 300px;
             border-radius: 4px;
-            margin-top: 6px;
+            margin-top: 16px;
+            object-fit: contain;
         }
 
         /* Footer Copyright */
