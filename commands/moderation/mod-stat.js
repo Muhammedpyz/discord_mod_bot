@@ -16,21 +16,21 @@ module.exports = {
             conn = await pool.getConnection();
             
             // Get all mod actions from warnings, mutes, tickets
-            const [warnRows] = await conn.query(`
+            const warnRows = await conn.query(`
                 SELECT moderator_id as user_id, COUNT(*) as count 
                 FROM warnings 
                 WHERE guild_id = ? AND moderator_id IS NOT NULL AND moderator_id != ''
                 GROUP BY moderator_id
             `, [interaction.guild.id]);
 
-            const [muteRows] = await conn.query(`
+            const muteRows = await conn.query(`
                 SELECT moderator_id as user_id, action_type, COUNT(*) as count 
                 FROM mutes 
                 WHERE guild_id = ? AND moderator_id IS NOT NULL AND moderator_id != ''
                 GROUP BY moderator_id, action_type
             `, [interaction.guild.id]);
 
-            const [ticketRows] = await conn.query(`
+            const ticketRows = await conn.query(`
                 SELECT closed_by as user_id, COUNT(*) as count 
                 FROM tickets 
                 WHERE guild_id = ? AND closed_by IS NOT NULL AND closed_by != ''
