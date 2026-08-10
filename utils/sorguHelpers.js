@@ -1,5 +1,5 @@
 const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, MessageFlags } = require('discord.js');
-const { buildModAPanel, buildModBResponse, COLORS } = require('./uiBuilder');
+const { buildModAPanel, buildModBResponse, COLORS, MONO_EMOJIS, createContainerMessage } = require('./uiBuilder');
 
 function buildSorguPanel({ title, description, fields = [], navRow, showSocials = false, actionRows = [] }) {
     let finalDesc = description || '';
@@ -190,31 +190,30 @@ async function handleSorguSelect(interaction, value, targetId) {
 
                 const finalWarns = totalWarnsGiven;
 
-                staffDesc = `\n\n**Yetkili İşlem Geçmişi (Ozet):**\n` +
-                             `- Verdigi Uyarı: **${finalWarns}** | Sildigi Mesaj: **${totalDels}** | Kapattigi Ticket: **${totalTicketsClosed}**\n` +
-                             `- Ban: **${totalBans}** | Kick: **${totalKicks}** | Timeout: **${totalTimeouts}** | Rol: **${totalRoles}**\n\n` +
-                             `*(Detaylar için aşağıdaki menuden "Yetkili İşlem Geçmişi"ni secin.)*`;
+                staffDesc = `**<:mono:${MONO_EMOJIS.crown}> Moderasyon Özeti:**\n`;
+                staffDesc += `└ Toplam İşlem: **${finalWarns + totalDels + totalTicketsClosed + totalBans + totalKicks + totalTimeouts + totalRoles}**\n`;
+                staffDesc += `└ Atılan Uyarı: **${finalWarns}**\n`;
+                staffDesc += `└ Kapatılan Bilet: **${totalTicketsClosed}**\n`;
+                staffDesc += `└ Atılan Ban: **${totalBans}** | Kick: **${totalKicks}** | Mute: **${totalTimeouts}**\n`;
+                staffDesc += `└ Silinen Mesaj (Clear): **${totalDels}**\n`;
             }
 
-            const actionRows = [];
-            
             const fieldsArr = [
-                { name: 'Roller', value: (roles.length > 200 ? roles.substring(0, 200) + '...' : roles) },
-                { name: 'Sicil & Kayit Ozeti', value: `Aktif Uyarı: **${Number(warnRows[0]?.cnt || 0)}** | Toplam Uyarı: **${Number(totalWarnRows[0]?.cnt || 0)}**\nToplam Susturma: **${Number(muteRows[0]?.cnt || 0)}** | Toplam Ticket: **${Number(ticketRows[0]?.cnt || 0)}**\nSilinen Mesaj Kaydi: **${Number(deletedRows[0]?.cnt || 0)}**` }
+                { name: `<:mono:${MONO_EMOJIS.shield}> Roller`, value: (roles.length > 200 ? roles.substring(0, 200) + '...' : roles) },
+                { name: `<:mono:${MONO_EMOJIS.warning}> Ceza Istatistikleri`, value: `Aktif Uyarı: **${Number(warnRows[0]?.cnt || 0)}** | Toplam Uyarı: **${Number(totalWarnRows[0]?.cnt || 0)}**\nToplam Susturma: **${Number(muteRows[0]?.cnt || 0)}** | Toplam Ticket: **${Number(ticketRows[0]?.cnt || 0)}**` }
             ];
 
             if (isStaff && staffDesc) {
-                fieldsArr.push({ name: 'Yetkili Istatistikleri', value: staffDesc });
+                fieldsArr.push({ name: `<:mono:${MONO_EMOJIS.settings}> Yetkili Geçmişi (Sicil)`, value: staffDesc });
             }
 
-            const payload = buildSorguPanel({
-                title: 'Kullanıcı Sorgu Paneli',
-                description: `**Kullanıcı:** ${userName}\n**ID:** \`${targetId}\`\n**Hesap Oluşturma:** ${createDate}\n**Sunucuya Katılım:** ${joinDate}`,
-                fields: fieldsArr,
-                navRow: createSorguMenu(targetId, 'sorgu_overview', isStaff),
-                actionRows,
-                showSocials: true
-            });
+            const payload = createContainerMessage(
+                'Kullanıcı Sorgu Paneli',
+                `Aşağıda <@${targetId}> adlı kullanıcının detaylı sicil bilgilerine ulaşabilirsiniz.\n\n**Kayıt Tarihi:** ${createDate}\n**Sunucuya Katılım:** ${joinDate}`,
+                isStaff ? '#3498DB' : '#2ECC71',
+                [createSorguMenu(targetId, 'sorgu_overview', isStaff)],
+                fieldsArr
+            );
             return interaction.editReply(payload);
         }
 
