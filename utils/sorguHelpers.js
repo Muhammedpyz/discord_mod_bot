@@ -27,7 +27,11 @@ function createSorguMenu(targetId, current = 'sorgu_overview', isStaff = false) 
     ];
 
     if (isStaff) {
-        options.push({ label: 'Yetkili İşlem Geçmişi', value: 'sorgu_staff', default: current === 'sorgu_staff' });
+        options.push({ label: 'Yetkili: Genel İşlem Akışı', value: 'sorgu_staff', default: current === 'sorgu_staff' });
+        options.push({ label: 'Yetkili: Verilen Uyarılar', value: 'sorgu_staff_warns', default: current === 'sorgu_staff_warns' });
+        options.push({ label: 'Yetkili: Atılan Mute/Ban', value: 'sorgu_staff_mutes', default: current === 'sorgu_staff_mutes' });
+        options.push({ label: 'Yetkili: Silinen Mesajlar', value: 'sorgu_staff_dels', default: current === 'sorgu_staff_dels' });
+        options.push({ label: 'Yetkili: Kapatılan Biletler', value: 'sorgu_staff_tickets', default: current === 'sorgu_staff_tickets' });
     }
 
     const menu = new StringSelectMenuBuilder()
@@ -98,7 +102,6 @@ async function handleSorguSelect(interaction, value, targetId) {
                     if (!e.target) return;
                     const targetName = e.target.username || e.target.tag || 'Bilinmeyen';
                     const date = e.createdAt.getTime();
-                    const reason = e.reason || 'Belirtilmemis';
                     
                     if (e.action === AuditLogEvent.MemberRoleUpdate) {
                         const addedRoles = e.changes?.find(c => c.key === '$add')?.new?.map(r => r.name).join(', ');
@@ -142,12 +145,72 @@ async function handleSorguSelect(interaction, value, targetId) {
             }
 
             const payload = buildSorguPanel({
-                title: `Yetkili İşlem Geçmişi - ${userName}`,
+                title: `Genel İşlem Akışı - ${userName}`,
                 description: `Son ${allActions.length > 10 ? '10' : allActions.length} işlem gosteriliyor. Toplam kaydedilmis işlem: **${allActions.length}**`,
                 fields,
                 navRow: createSorguMenu(targetId, 'sorgu_staff', isStaff),
                 actionRows,
                 showSocials: false
+            });
+            return interaction.editReply(payload);
+        }
+
+        if (value === 'sorgu_staff_warns' && isStaff) {
+            const rows = await conn.query('SELECT * FROM warnings WHERE guild_id = ? AND moderator_id = ? ORDER BY created_at DESC', [interaction.guild.id, targetId]);
+            const fields = rows.slice(0, 10).map((m, i) => ({
+                name: `Uyarı #${i + 1} (Hedef: <@${m.user_id}>)`,
+                value: `**Tarih:** <t:${Math.floor(new Date(m.created_at).getTime() / 1000)}:f>\n**Sebep:** ${m.reason || 'Belirtilmemis'}`
+            }));
+            if (fields.length === 0) fields.push({ name: 'Kayıt Yok', value: 'Hiç uyarı vermemiş.' });
+            const payload = buildSorguPanel({
+                title: `Yetkili: Verilen Uyarılar - ${userName}`,
+                description: `Toplam **${rows.length}** uyarı verdi (Son 10 gösteriliyor).`,
+                fields, navRow: createSorguMenu(targetId, 'sorgu_staff_warns', isStaff)
+            });
+            return interaction.editReply(payload);
+        }
+
+        if (value === 'sorgu_staff_mutes' && isStaff) {
+            const rows = await conn.query('SELECT * FROM mutes WHERE guild_id = ? AND moderator_id = ? ORDER BY created_at DESC', [interaction.guild.id, targetId]);
+            const fields = rows.slice(0, 10).map((m, i) => ({
+                name: `İşlem #${i + 1} (Hedef: <@${m.user_id}>)`,
+                value: `**Tür:** ${m.action_type}\n**Tarih:** <t:${Math.floor(new Date(m.created_at).getTime() / 1000)}:f>\n**Sebep:** ${m.reason || 'Belirtilmemis'}`
+            }));
+            if (fields.length === 0) fields.push({ name: 'Kayıt Yok', value: 'Hiç ceza atmamış.' });
+            const payload = buildSorguPanel({
+                title: `Yetkili: Atılan Mute/Ban/Kick - ${userName}`,
+                description: `Toplam **${rows.length}** ceza attı (Son 10 gösteriliyor).`,
+                fields, navRow: createSorguMenu(targetId, 'sorgu_staff_mutes', isStaff)
+            });
+            return interaction.editReply(payload);
+        }
+
+        if (value === 'sorgu_staff_dels' && isStaff) {
+            const rows = await conn.query('SELECT * FROM deleted_messages WHERE guild_id = ? AND deleted_by = ? ORDER BY deleted_at DESC', [interaction.guild.id, targetId]);
+            const fields = rows.slice(0, 10).map((m, i) => ({
+                name: `Silinen Mesaj #${i + 1} (Kanal: <#${m.channel_id}>)`,
+                value: `**Hedef:** <@${m.user_id}>\n**İçerik:** \`${m.content?.substring(0, 50) || 'Bos'}\`\n**Tarih:** <t:${Math.floor(new Date(m.deleted_at).getTime() / 1000)}:f>`
+            }));
+            if (fields.length === 0) fields.push({ name: 'Kayıt Yok', value: 'Hiç mesaj silmemiş.' });
+            const payload = buildSorguPanel({
+                title: `Yetkili: Silinen Mesajlar - ${userName}`,
+                description: `Toplam **${rows.length}** mesaj sildi (Son 10 gösteriliyor).`,
+                fields, navRow: createSorguMenu(targetId, 'sorgu_staff_dels', isStaff)
+            });
+            return interaction.editReply(payload);
+        }
+
+        if (value === 'sorgu_staff_tickets' && isStaff) {
+            const rows = await conn.query('SELECT * FROM tickets WHERE guild_id = ? AND closed_by = ? ORDER BY closed_at DESC', [interaction.guild.id, targetId]);
+            const fields = rows.slice(0, 10).map((m, i) => ({
+                name: `Ticket #${m.id} (Açan: <@${m.owner_id}>)`,
+                value: `**Kategori:** ${m.category || 'Genel'}\n**Kapatılma Tarihi:** <t:${Math.floor(new Date(m.closed_at).getTime() / 1000)}:f>`
+            }));
+            if (fields.length === 0) fields.push({ name: 'Kayıt Yok', value: 'Hiç ticket kapatmamış.' });
+            const payload = buildSorguPanel({
+                title: `Yetkili: Kapatılan Biletler - ${userName}`,
+                description: `Toplam **${rows.length}** ticket kapattı (Son 10 gösteriliyor).`,
+                fields, navRow: createSorguMenu(targetId, 'sorgu_staff_tickets', isStaff)
             });
             return interaction.editReply(payload);
         }
@@ -476,6 +539,7 @@ async function handleSorguSelect(interaction, value, targetId) {
 async function handleExport(interaction, exportType, targetId) {
     let conn;
     try {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
         conn = await pool.getConnection();
         const targetUser = await interaction.client.users.fetch(targetId).catch(() => null);
         const userTag = targetUser ? `${targetUser.username} (${targetUser.tag})` : targetId;
@@ -619,7 +683,7 @@ async function handleExport(interaction, exportType, targetId) {
                 title: 'Bilgi',
                 textLines: ['Kayitli veri bulunamadı.']
             });
-            return interaction.reply({ ...emptyPayload, flags: MessageFlags.Ephemeral });
+            return interaction.editReply(emptyPayload);
         }
 
         const attachment = new AttachmentBuilder(Buffer.from(txtContent, 'utf-8'), { name: filename });
@@ -629,15 +693,15 @@ async function handleExport(interaction, exportType, targetId) {
             color: COLORS.SUCCESS
         });
         successPayload.files = [attachment];
-        return interaction.reply({ ...successPayload, flags: MessageFlags.Ephemeral });
+        return interaction.editReply(successPayload);
     } catch (err) {
         console.error('[Export Handler] Hata:', err);
         const errPayload = buildModBResponse({
             title: 'Sistem Hatasi',
-            textLines: ['Dosya aktarimi sırasında hata oluştu.'],
+            textLines: ['Dokum dosyasi olusturulurken bir hata meydana geldi.'],
             color: COLORS.ERROR
         });
-        return interaction.reply({ ...errPayload, flags: MessageFlags.Ephemeral }).catch(() => {});
+        return interaction.editReply(errPayload).catch(() => {});
     } finally {
         if (conn) conn.release();
     }
