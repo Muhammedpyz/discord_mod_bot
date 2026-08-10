@@ -79,6 +79,12 @@ function parseDiscordMarkdown(content, guild = null) {
         return `<span class="discord-mention has-tooltip" data-tooltip="Rol ID: ${id}">@${escapeHtml(name)}</span>`;
     });
 
+    // Custom Emojis <:name:id> and <a:name:id>
+    html = html.replace(/&lt;(a?):([a-zA-Z0-9_]+):(\d+)&gt;/g, (match, animated, name, id) => {
+        const ext = animated === 'a' ? 'gif' : 'png';
+        return `<img src="https://cdn.discordapp.com/emojis/${id}.${ext}" alt=":${name}:" class="discord-emoji has-tooltip" data-tooltip=":${name}:" />`;
+    });
+
     // Line breaks
     html = html.replace(/\n/g, '<br>');
 
@@ -330,13 +336,14 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
         }
 
         let replyHtml = '';
-        if (msg.reply_to_id) {
-            const refMsg = messages.find(m => m.id === msg.reply_to_id);
+        const replyId = (msg.reference && msg.reference.messageId) || msg.reply_to_id;
+        if (replyId) {
+            const refMsg = messages.find(m => m.id === replyId);
             if (refMsg) {
                 const refAuthorName = escapeHtml(refMsg.author_tag || 'Kullanıcı');
                 let refContent = escapeHtml(refMsg.content || '');
-                if (!refContent && refMsg.attachments_json) refContent = '[Dosya/Görsel]';
-                if (!refContent && refMsg.embeds) refContent = '[Embed]';
+                if (!refContent && refMsg.attachments) refContent = '[Dosya/Görsel]';
+                if (!refContent && refMsg.embeds && refMsg.embeds.length > 0) refContent = '[Embed]';
                 if (refContent.length > 50) refContent = refContent.substring(0, 50) + '...';
                 
                 replyHtml = `
@@ -1018,6 +1025,12 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
         .discord-btn-danger { background-color: #DA373C; }
         .discord-btn-link { background-color: #4E5058; }
         .discord-v2-text { margin-bottom: 4px; }
+        
+        .discord-emoji {
+            width: 1.375em;
+            height: 1.375em;
+            vertical-align: -0.25em;
+        }
 
         /* Premium Tooltips */
         .has-tooltip {
