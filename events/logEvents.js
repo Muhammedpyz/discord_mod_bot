@@ -369,12 +369,14 @@ module.exports = [
         if (oldChannel.bitrate !== newChannel.bitrate) changes.push({ name: 'Bit Hızı', value: `${Math.floor((oldChannel.bitrate || 0) / 1000)}kbps → ${Math.floor((newChannel.bitrate || 0) / 1000)}kbps` });
         if (oldChannel.userLimit !== newChannel.userLimit) changes.push({ name: 'Kişi Limiti', value: `${oldChannel.userLimit || 'Sınırsız'} → ${newChannel.userLimit || 'Sınırsız'}` });
         if (oldChannel.parentId !== newChannel.parentId) changes.push({ name: 'Kategori Değişti', value: `\`${oldChannel.parent?.name || 'Yok'}\` → \`${newChannel.parent?.name || 'Yok'}\`` });
+        if (!oldChannel.permissionOverwrites.cache.equals(newChannel.permissionOverwrites.cache)) changes.push({ name: 'İzinler', value: 'Kanal yetkilerinde güncelleme yapıldı.' });
 
         if (changes.length === 0) return;
 
         let executorId = 'Bilinmiyor';
         try {
-            const fetchedLogs = await newChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelUpdate });
+            // İzin değişiklikleri ChannelOverwriteUpdate olarak geçer, bu yüzden type kısıtlamasını kaldırıyoruz.
+            const fetchedLogs = await newChannel.guild.fetchAuditLogs({ limit: 1 });
             const log = fetchedLogs.entries.first();
             if (log && log.target.id === newChannel.id && Date.now() - log.createdTimestamp < 10000) {
                 executorId = `<@${log.executor.id}> (\`${log.executor.tag}\`)`;
