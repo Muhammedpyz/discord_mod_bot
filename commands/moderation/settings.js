@@ -411,8 +411,7 @@ module.exports = {
                                 textLines: [
                                     'Bir sorununuz mu var veya bir cezaya itiraz etmek mi istiyorsunuz?\n\nAşağıdaki butona tıklayarak açılan pencereye sorun başlığınızı ve açıklamanızı yazıp destek ekibimizle anında iletişime geçebilirsiniz.'
                                 ],
-                                actionRows: [btnRow],
-                                color: COLORS.INFO
+                                actionRows: [btnRow]
                             });
                             await ticketChannel.send(uiPayload).catch(() => {});
                         }
@@ -459,7 +458,6 @@ module.exports = {
                                     'Bir sorununuz mu var veya bir cezaya itiraz etmek mi istiyorsunuz?\n\nAşağıdaki butona tıklayarak açılan pencereye sorun başlığınızı ve açıklamanızı yazıp destek ekibimizle anında iletişime geçebilirsiniz.'
                                 ],
                                 fields: [],
-                                color: COLORS.INFO,
                                 actionRows: [
                                     new ActionRowBuilder().addComponents(
                                         new ButtonBuilder().setCustomId('ticket:create:1').setLabel('Bilet Oluştur').setStyle(ButtonStyle.Primary)
