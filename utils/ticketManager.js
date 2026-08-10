@@ -432,6 +432,16 @@ async function closeTicketChannel(interaction) {
                 }
                 return `@${name} (${id})`;
             });
+            // Strip Markdown for clean TXT
+            txt = txt.replace(/\*\*(.*?)\*\*/g, '$1');
+            txt = txt.replace(/\*(.*?)\*/g, '$1');
+            txt = txt.replace(/__(.*?)__/g, '$1');
+            txt = txt.replace(/~~(.*?)~~/g, '$1');
+            txt = txt.replace(/`([^`]+)`/g, '$1');
+            txt = txt.replace(/^###\s+(.*)$/gm, '$1');
+            txt = txt.replace(/^##\s+(.*)$/gm, '$1');
+            txt = txt.replace(/^#\s+(.*)$/gm, '$1');
+            txt = txt.replace(/\|\|(.*?)\|\|/g, '[SPOILER: $1]');
             return txt;
         };
 

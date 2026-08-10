@@ -25,6 +25,17 @@ function parseDiscordMarkdown(content, guild = null) {
     // Inline code `code`
     html = html.replace(/`([^`]+)`/g, '<code class="discord-inline-code">$1</code>');
 
+    // Headers
+    html = html.replace(/^###\s+(.*)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^##\s+(.*)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^#\s+(.*)$/gm, '<h1>$1</h1>');
+
+    // Blockquotes
+    html = html.replace(/^>\s+(.*)$/gm, '<div class="discord-quote-container"><div class="discord-quote-divider"></div><blockquote>$1</blockquote></div>');
+    
+    // Spoilers
+    html = html.replace(/\|\|([\s\S]*?)\|\|/g, '<span class="discord-spoiler">$1</span>');
+
     // Bold **text**
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
@@ -747,6 +758,49 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
             overflow-x: auto;
             font-family: 'Consolas', 'Courier New', monospace;
             font-size: 13px;
+        }
+
+        /* Markdown Elements */
+        h1, h2, h3 {
+            color: var(--text-header);
+            font-weight: 700;
+            margin-bottom: 4px;
+            margin-top: 8px;
+        }
+        h1 { font-size: 1.5rem; }
+        h2 { font-size: 1.25rem; }
+        h3 { font-size: 1.125rem; }
+
+        .discord-quote-container {
+            display: flex;
+            margin-top: 4px;
+            margin-bottom: 4px;
+        }
+
+        .discord-quote-divider {
+            width: 4px;
+            border-radius: 4px;
+            background-color: #4e5058;
+            margin-right: 8px;
+        }
+
+        blockquote {
+            margin: 0;
+            padding: 0;
+            color: var(--text-normal);
+        }
+
+        .discord-spoiler {
+            background-color: #1e1f22;
+            color: transparent;
+            border-radius: 4px;
+            padding: 0 2px;
+            cursor: pointer;
+        }
+
+        .discord-spoiler:active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: inherit;
         }
 
         /* Attachments */
