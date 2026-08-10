@@ -29,7 +29,8 @@ module.exports = {
         }
 
         if (oldMessage && oldMessage.content === newMessage.content) return; // No content change
-        if (oldMessage.author?.bot) return;
+        const author = oldMessage.author || newMessage.author;
+        if (!author || author.bot) return;
 
         let config;
         try {
@@ -46,7 +47,7 @@ module.exports = {
 
             const payload = createV2Message({
                 title: 'Mesaj Düzenlendi',
-                description: `**Kullanıcı:** ${oldMessage.author.tag} (<@${oldMessage.author.id}>)\n**Kanal:** <#${oldMessage.channel.id}>\n\n**Eski Mesaj:**\n\`\`\`text\n${oldContent.length > 1000 ? oldContent.substring(0, 1000) + '...' : oldContent}\n\`\`\`\n**Yeni Mesaj:**\n\`\`\`text\n${newContent.length > 1000 ? newContent.substring(0, 1000) + '...' : newContent}\n\`\`\`\n[Mesaja Git](${newMessage.url})`,
+                description: `**Kullanıcı:** ${author.tag} (<@${author.id}>)\n**Kanal:** <#${oldMessage.channel.id || newMessage.channel.id}>\n\n**Eski Mesaj:**\n\`\`\`text\n${oldContent.length > 1000 ? oldContent.substring(0, 1000) + '...' : oldContent}\n\`\`\`\n**Yeni Mesaj:**\n\`\`\`text\n${newContent.length > 1000 ? newContent.substring(0, 1000) + '...' : newContent}\n\`\`\`\n[Mesaja Git](${newMessage.url})`,
                 color: COLORS.WARNING
             });
             await sendLog(newMessage.guild, payload, 'system').catch(()=>{});
