@@ -525,7 +525,7 @@ async function closeTicketChannel(interaction) {
                 };
                     let compText = extractCompText(msg.components).trim();
                 if (compText) {
-                    textTranscript += ` ↳ [Sistem Mesajı/V2] \n   ${parseTxtMentions(compText).split('\n').join('\n   ')}\n`;
+                    textTranscript += `\n--- [V2 Mesaj Kutusu] ---\n${parseTxtMentions(compText)}\n--------------------------\n`;
                 }
             }
             let allAtts = [];

@@ -364,7 +364,7 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
             };
             const compText = extractCompText(msg.components).trim();
             if (compText) {
-                contentParsed += (contentParsed ? '<br><br>' : '') + '<div class="discord-v2-container"><strong>Sistem Mesajı (V2):</strong><br>' + parseDiscordMarkdown(compText, guild) + '</div>';
+                contentParsed += (contentParsed ? '<br><br>' : '') + '<div class="discord-v2-container">' + parseDiscordMarkdown(compText, guild) + '</div>';
             }
         }
         
@@ -975,6 +975,16 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
             .discord-embed {
                 max-width: 100%;
             }
+        }
+        
+        .discord-v2-container {
+            background-color: #2b2d31;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-top: 6px;
+            margin-bottom: 6px;
+            max-width: 520px;
+            box-sizing: border-box;
         }
     </style>
 </head>
