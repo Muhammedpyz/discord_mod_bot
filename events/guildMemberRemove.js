@@ -21,6 +21,32 @@ module.exports = {
                 SET is_in_guild = FALSE, last_leave = NOW(), username = ? 
                 WHERE user_id = ?
             `, [member.user.username, member.id]);
+            
+            const [ticketRows] = await conn.query('SELECT channel_id FROM tickets WHERE guild_id = ? AND owner_id = ? AND status = "open"', [member.guild.id, member.id]);
+            if (ticketRows.length > 0) {
+                const { closeTicketChannel } = require('../utils/ticketManager');
+                for (const row of ticketRows) {
+                    const ticketChannel = member.guild.channels.cache.get(row.channel_id);
+                    if (ticketChannel) {
+                        try {
+                            const fakeInteraction = {
+                                guild: member.guild,
+                                channel: ticketChannel,
+                                user: client.user,
+                                member: member.guild.members.cache.get(client.user.id),
+                                reply: async (obj) => { await ticketChannel.send(obj).catch(()=>{}); },
+                                followUp: async (obj) => { await ticketChannel.send(obj).catch(()=>{}); },
+                                replied: false,
+                                deferred: false
+                            };
+                            await ticketChannel.send({ content: `**Sistem Bildirimi:** Bilet sahibi sunucudan ayrıldığı için bu bilet otomatik olarak kapatılıyor...` }).catch(()=>{});
+                            await closeTicketChannel(fakeInteraction);
+                        } catch (e) {
+                            console.error("Yetim ticket kapatma hatası:", e);
+                        }
+                    }
+                }
+            }
         } catch (err) {
             console.error("Member leave update error:", err);
         } finally {

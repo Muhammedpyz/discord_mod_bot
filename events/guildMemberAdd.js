@@ -80,20 +80,73 @@ module.exports = {
         }
 
         let conn2;
+        let isMuted = false;
+        let activeWarnsCount = 0;
         try {
             conn2 = await pool.getConnection();
+            
+            const [muteRows] = await conn2.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [member.guild.id, member.id]);
+            if (muteRows.length > 0) isMuted = true;
+            
+            const [warnRows] = await conn2.query('SELECT COUNT(id) as count FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [member.guild.id, member.id]);
+            activeWarnsCount = Number(warnRows[0].count);
+            
             await conn2.query(`
                 INSERT INTO members (user_id, username, is_in_guild, last_join)
                 VALUES (?, ?, TRUE, NOW())
                 ON DUPLICATE KEY UPDATE username = ?, is_in_guild = TRUE, last_join = NOW()
             `, [member.id, member.user.username, member.user.username]);
         } catch (err) {
-            console.error("Member insert error:", err);
+            console.error("Member DB check/insert error:", err);
         } finally {
             if (conn2) conn2.release();
         }
         
-        if (autoroleId) {
+        let shouldGiveAutorole = true;
+        
+        if (isMuted && config) {
+            shouldGiveAutorole = false;
+            try {
+                let rolesAdded = 0;
+                if (config.text_mute_role_id) { await member.roles.add(config.text_mute_role_id, 'Sistem Koruması: Mute cezasından kaçma girişimi engellendi').catch(()=>{}); rolesAdded++; }
+                if (config.voice_mute_role_id) { await member.roles.add(config.voice_mute_role_id, 'Sistem Koruması: Mute cezasından kaçma girişimi engellendi').catch(()=>{}); rolesAdded++; }
+                
+                if (rolesAdded > 0 && dbLogChannelId) {
+                    const payload = createV2Message({
+                        title: 'Mute Cezasından Kaçma Girişimi',
+                        description: `**Kullanıcı:** ${member.user.tag} (<@${member.id}>)\nKullanıcı aktif bir susturma cezası varken sunucudan çıkıp tekrar girdi. Cezalı rolleri otomatik olarak geri verildi.`,
+                        color: COLORS.WARNING
+                    });
+                    await sendLog(member.guild, payload, 'system').catch(()=>{});
+                }
+            } catch(e) { console.error("Mute rol geri verme hatası:", e); }
+        }
+        
+        if (activeWarnsCount > 0 && config) {
+            try {
+                let roleToGive = null;
+                if (activeWarnsCount === 1) roleToGive = config.warn1_role_id;
+                else if (activeWarnsCount === 2) roleToGive = config.warn2_role_id;
+                else if (activeWarnsCount >= 3) {
+                    roleToGive = config.banned_role_id;
+                    shouldGiveAutorole = false;
+                }
+                
+                if (roleToGive) {
+                    await member.roles.add(roleToGive, 'Sistem Koruması: Uyarı cezası/rolü hafızadan geri yüklendi').catch(()=>{});
+                    if (dbLogChannelId) {
+                        const payload = createV2Message({
+                            title: 'Cezalı Kullanıcı Girişi (Uyarı)',
+                            description: `**Kullanıcı:** ${member.user.tag} (<@${member.id}>)\nKullanıcının veritabanında aktif **${activeWarnsCount}** uyarısı bulunuyor. Sahip olması gereken ceza/uyarı rolü tekrar tanımlandı.`,
+                            color: COLORS.WARNING
+                        });
+                        await sendLog(member.guild, payload, 'system').catch(()=>{});
+                    }
+                }
+            } catch(e) { console.error("Warn rol geri verme hatası:", e); }
+        }
+        
+        if (autoroleId && shouldGiveAutorole) {
             try {
                 await member.roles.add(autoroleId, 'Sunucuya katılım otorol işlemi');
             } catch (err) {
