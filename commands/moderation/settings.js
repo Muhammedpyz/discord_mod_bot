@@ -402,14 +402,17 @@ module.exports = {
                     if (column === 'ticket_channel_id') {
                         const ticketChannel = interaction.guild.channels.cache.get(selectedChannelId);
                         if (ticketChannel) {
-                            const { buildModAPanel } = require('../../utils/uiBuilder');
+                            const { buildModBResponse } = require('../../utils/uiBuilder');
                             const btnRow = new ActionRowBuilder().addComponents(
                                 new ButtonBuilder().setCustomId('ticket:create:1').setLabel('Bilet Oluştur').setStyle(ButtonStyle.Primary)
                             );
-                            const uiPayload = buildModAPanel({
-                                title: 'Destek Talebi (Ticket)',
-                                description: 'Bir sorununuz mu var veya bir cezaya itiraz mı etmek istiyorsunuz?\nAşağıdaki "Bilet Oluştur" butonuna tıklayarak yetkililerle özel bir kanal üzerinden iletişime geçebilirsiniz.\n\n_Gereksiz bilet açanlar cezalandırılabilir._',
-                                actionRows: [btnRow]
+                            const uiPayload = buildModBResponse({
+                                title: 'Destek Talebi Sistemi',
+                                textLines: [
+                                    'Bir sorununuz mu var veya bir cezaya itiraz etmek mi istiyorsunuz?\n\nAşağıdaki butona tıklayarak açılan pencereye sorun başlığınızı ve açıklamanızı yazıp destek ekibimizle anında iletişime geçebilirsiniz.'
+                                ],
+                                actionRows: [btnRow],
+                                color: COLORS.INFO
                             });
                             await ticketChannel.send(uiPayload).catch(() => {});
                         }
