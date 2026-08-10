@@ -181,7 +181,7 @@ async function sendVoiceLog(client, guildId, actionName, description, executor, 
 }
 
 async function sendLog(guild, payload, logType = 'text') {
-    if (!guild) return;
+    if (!guild) return null;
     let conn;
     try {
         const { pool, getGuildConfig } = require('../db');
@@ -197,7 +197,7 @@ async function sendLog(guild, payload, logType = 'text') {
             if (targetChannelId) {
                 const channel = guild.channels.cache.get(targetChannelId);
                 if (channel) {
-                    await channel.send(payload).catch(()=>{});
+                    return await channel.send(payload).catch(()=>null);
                 }
             }
         }
@@ -206,6 +206,7 @@ async function sendLog(guild, payload, logType = 'text') {
     } finally {
         if (conn) conn.release();
     }
+    return null;
 }
 
 async function logGlobalAction(guildId, userId, actionType, actionDetail) {

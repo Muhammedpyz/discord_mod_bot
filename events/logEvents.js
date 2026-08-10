@@ -25,9 +25,46 @@ function channelTypeToTurkish(type) {
     return map[type] || `Tür: ${type}`;
 }
 
-function logSystemEvent(guild, title, fields, colorHex = '#3498DB', logType = 'system') {
+const sysLogState = new Map();
+
+async function logSystemEvent(guild, title, fields, colorHex = '#3498DB', logType = 'system') {
+    let executorField = fields.find(f => f.name.includes('Yetkili') || f.name.includes('Kullanıcı') || f.name.includes('Değiştiren') || f.name.includes('Silen'));
+    let executorVal = executorField ? executorField.value : 'System';
+
+    const stateKey = `${guild.id}_${logType}_${title}_${executorVal}`;
+    const now = Date.now();
+    let state = sysLogState.get(stateKey);
+
+    if (state && (now - state.timestamp < 300000) && state.fields.length + fields.length <= 23) {
+        state.fields.push({ name: '\u200B', value: '──────────────────' });
+        state.fields.push(...fields);
+        state.timestamp = now;
+        
+        const payload = buildModBResponse({ title, fields: state.fields, color: colorHex });
+        
+        if (state.msgId && state.channelId) {
+            const channel = guild.channels.cache.get(state.channelId);
+            if (channel) {
+                const msg = await channel.messages.fetch(state.msgId).catch(() => null);
+                if (msg) {
+                    await msg.edit(payload).catch(() => {});
+                    return;
+                }
+            }
+        }
+    }
+
     const payload = buildModBResponse({ title, fields, color: colorHex });
-    sendLog(guild, payload, logType);
+    const newMsg = await sendLog(guild, payload, logType);
+    
+    if (newMsg) {
+        sysLogState.set(stateKey, {
+            fields: [...fields],
+            timestamp: now,
+            msgId: newMsg.id,
+            channelId: newMsg.channelId
+        });
+    }
 }
 
 module.exports = [

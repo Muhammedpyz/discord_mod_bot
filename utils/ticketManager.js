@@ -104,11 +104,27 @@ async function createTicket(interaction, reason, category = 'Diğer') {
         permissionOverwrites: permissionOverwrites
     };
 
-    if (configObj && configObj.ticket_category_id) {
-        const cat = interaction.guild.channels.cache.get(configObj.ticket_category_id);
-        if (cat && cat.type === ChannelType.GuildCategory) {
-            channelData.parent = cat.id;
+    let catId = configObj ? configObj.ticket_category_id : null;
+    let cat = catId ? interaction.guild.channels.cache.get(catId) : null;
+    
+    if (!cat || cat.type !== ChannelType.GuildCategory) {
+        try {
+            cat = await interaction.guild.channels.create({
+                name: 'DESTEK TALEPLERI',
+                type: ChannelType.GuildCategory
+            });
+            let conn2;
+            try {
+                conn2 = await pool.getConnection();
+                await conn2.query('UPDATE guild_config SET ticket_category_id = ? WHERE guild_id = ?', [cat.id, interaction.guild.id]);
+            } catch(e){} finally { if (conn2) conn2.release(); }
+        } catch (e) {
+            console.error("Ticket kategori oluşturulamadı:", e);
         }
+    }
+    
+    if (cat) {
+        channelData.parent = cat.id;
     }
 
     try {
