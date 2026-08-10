@@ -70,9 +70,8 @@ function resolveColor(color) {
     return COLORS.PRIMARY;
 }
 
-// YENİ STRICT KURAL: MOD A (Bilgilendirme Panelleri - Banner + Sections)
 function buildModAPanel({ title, description, bannerUrl = DEFAULT_BANNER_URL, actionRows = [], navRow = null, showSocials = true }) {
-    const container = new ContainerBuilder().setAccentColor(COLORS.PRIMARY);
+    const container = new ContainerBuilder();
 
     if (title) {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${title.toUpperCase()}`));
@@ -123,9 +122,9 @@ function buildModAPanel({ title, description, bannerUrl = DEFAULT_BANNER_URL, ac
 }
 
 // YENİ STRICT KURAL: MOD B (İşlevsel/Operasyonel - Sadece Metin + Butonlar)
-function buildModBResponse({ title, textLines = [], fields = [], actionRows = [], color = COLORS.PRIMARY, files = [] }) {
+function buildModBResponse({ title, textLines = [], fields = [], actionRows = [], files = [] }) {
     const { FileBuilder } = require('discord.js');
-    const container = new ContainerBuilder().setAccentColor(color || COLORS.PRIMARY);
+    const container = new ContainerBuilder();
 
     if (title) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${title}`));
 
@@ -161,14 +160,13 @@ function buildModBResponse({ title, textLines = [], fields = [], actionRows = []
     return { flags: MessageFlags.IsComponentsV2, components: [container] };
 }
 
-// Geriye dönük uyumluluk için wrapper: Eski createContainerMessage'ı MOD A veya MOD B'ye yönlendirir.
-function createContainerMessage(title, description, colorHex = '#2B2D31', customActionRows = [], fields = [], showBrand = false, ephemeral = false, files = []) {
+function createContainerMessage(title, description, colorHex = null, customActionRows = [], fields = [], showBrand = false, ephemeral = false, files = []) {
     let payload;
     if (showBrand) {
         payload = buildModAPanel({ title, description, actionRows: customActionRows });
     } else {
         const textLines = description ? description.split('\n\n') : [];
-        payload = buildModBResponse({ title, textLines, fields, actionRows: customActionRows, color: colorHex, files });
+        payload = buildModBResponse({ title, textLines, fields, actionRows: customActionRows, files });
     }
     
     if (ephemeral) {
