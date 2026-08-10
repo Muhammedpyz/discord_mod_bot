@@ -145,7 +145,7 @@ module.exports = {
                     const oldNick = oldMember.nickname || oldMember.user.username;
                     const newNick = newMember.nickname || newMember.user.username;
                     const payload = createV2Message({
-                        title: 'İsim Değişikliği (Nickname) 🏷️',
+                        title: 'İsim Değişikliği (Nickname)',
                         description: `**Kullanıcı:** ${newMember.user.tag} (<@${userId}>)\n\n**Eski Adı:** \`${oldNick}\`\n**Yeni Adı:** \`${newNick}\``,
                         color: COLORS.INFO
                     });
