@@ -37,7 +37,7 @@ module.exports = {
                 if (!channel) continue;
 
                 // Ticket kategorisi ve altındaki kanalları atla
-                if (id === ticketCategoryId || channel.parentId === ticketCategoryId) {
+                if (ticketCategoryId && (id === ticketCategoryId || channel.parentId === ticketCategoryId)) {
                     skippedCount++;
                     
                     // Ticket kategorisine Banlı rolü için ViewChannel: true verebiliriz, eğer kapalıysa
