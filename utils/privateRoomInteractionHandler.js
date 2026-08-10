@@ -208,17 +208,29 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
 
                 const formattedRoomName = roomName.trim();
 
+                let bannedRoleId = null;
+                try {
+                    const configRows = await conn.query('SELECT banned_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
+                    if (configRows.length > 0) bannedRoleId = configRows[0].banned_role_id;
+                } catch(e) {}
+
+                const overwrites = [
+                    { id: interaction.guild.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] },
+                    // Sahibe fazladan yetki vermiyoruz (ManageChannels yok), sadece panelden işlem yapabilir.
+                    { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] }
+                ];
+
+                if (bannedRoleId) {
+                    overwrites.push({ id: bannedRoleId, deny: [PermissionFlagsBits.ViewChannel] });
+                }
+
                 // Ses Kanalı Oluştur
                 const newChannel = await interaction.guild.channels.create({
                     name: formattedRoomName,
                     type: ChannelType.GuildVoice,
                     parent: category.id,
                     userLimit: 0,
-                    permissionOverwrites: [
-                        { id: interaction.guild.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] },
-                        // Sahibe fazladan yetki vermiyoruz (ManageChannels yok), sadece panelden işlem yapabilir.
-                        { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] }
-                    ]
+                    permissionOverwrites: overwrites
                 });
 
                 // Veritabanına Ekle

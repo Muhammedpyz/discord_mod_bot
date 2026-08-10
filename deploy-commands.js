@@ -25,12 +25,7 @@ const rest = new REST().setToken(process.env.DISCORD_TOKEN);
 
 (async () => {
     try {
-        console.log(`Global komutlar siliniyor...`);
-        await rest.put(
-            Routes.applicationCommands(process.env.CLIENT_ID),
-            { body: [] },
-        );
-        console.log(`Global komutlar silindi.`);
+        console.log(`Global komutlari silme islemi atlandi.`);
 
         const guilds = ['1062369725067304990', '1441769969133293621'];
         for (const guildId of guilds) {
