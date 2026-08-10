@@ -152,10 +152,9 @@ async function createTicket(interaction, reason, category = 'Diğer') {
             title: `Destek Talebi: ${interaction.user.tag}`,
             description: `${pingText}\n\n**Talep Sebebi:**\n${reason}\n\nLütfen sorununuzu detaylı bir şekilde anlatıp yetkililerin yanıt vermesini bekleyin. Cezaya itiraz ediyorsanız kanıt sunmayı unutmayın.`,
             color: COLORS.TICKET,
-            fields: []
+            fields: [],
+            actionRows: [row]
         });
-        
-        payload.components = [row];
 
         await ticketChannel.send(payload).catch(e => console.error("Kanal mesaj hatası", e));
         await interaction.editReply({ content: `Talebiniz başarıyla oluşturuldu: <#${ticketChannel.id}>` }).catch(()=>{});
