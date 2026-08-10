@@ -45,6 +45,50 @@ module.exports = {
             }
         }
 
+        // --- Detaylı Sunucu Logları (Kanal & Rol) ---
+        if (auditLogEntry.executor && auditLogEntry.executor.id !== client.user.id) {
+            let config;
+            try {
+                config = await getGuildConfig(guild.id);
+            } catch(e) {}
+
+            if (config && config.log_channel_id) {
+                const { createV2Message } = require('../utils/uiBuilder');
+                let logTitle = null;
+                let logDesc = null;
+                const executorMention = `<@${auditLogEntry.executor.id}>`;
+
+                if (auditLogEntry.action === AuditLogEvent.ChannelCreate) {
+                    logTitle = 'Kanal Oluşturuldu 📝';
+                    logDesc = `**Yetkili:** ${executorMention}\n**Kanal:** <#${auditLogEntry.targetId}> (\`${auditLogEntry.target.name}\`)`;
+                } else if (auditLogEntry.action === AuditLogEvent.ChannelDelete) {
+                    logTitle = 'Kanal Silindi 🗑️';
+                    logDesc = `**Yetkili:** ${executorMention}\n**Kanal:** \`${auditLogEntry.target.name}\``;
+                } else if (auditLogEntry.action === AuditLogEvent.RoleCreate) {
+                    logTitle = 'Rol Oluşturuldu 🛡️';
+                    logDesc = `**Yetkili:** ${executorMention}\n**Rol:** <@&${auditLogEntry.targetId}> (\`${auditLogEntry.target.name}\`)`;
+                } else if (auditLogEntry.action === AuditLogEvent.RoleDelete) {
+                    logTitle = 'Rol Silindi 🗑️';
+                    logDesc = `**Yetkili:** ${executorMention}\n**Rol:** \`${auditLogEntry.target.name}\``;
+                } else if (auditLogEntry.action === AuditLogEvent.RoleUpdate) {
+                    const permChange = auditLogEntry.changes?.find(c => c.key === 'permissions');
+                    if (permChange) {
+                        logTitle = 'Rol Yetkileri Değiştirildi ⚠️';
+                        logDesc = `**Yetkili:** ${executorMention}\n**Rol:** <@&${auditLogEntry.targetId}>\n*Bu rolün yetkileri güncellendi!*`;
+                    }
+                }
+
+                if (logTitle && logDesc) {
+                    const payload = createV2Message({
+                        title: logTitle,
+                        description: logDesc,
+                        color: COLORS.WARNING
+                    });
+                    await sendLog(guild, payload, 'system').catch(()=>{});
+                }
+            }
+        }
+
         if (!auditLogEntry.executor || auditLogEntry.executor.id === client.user.id) return;
         
         if (auditLogEntry.executor.id === guild.ownerId) return;

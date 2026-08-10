@@ -138,6 +138,20 @@ module.exports = {
             await checkRoleAdded(config.text_mute_role_id, 'mute', 'Metin Susturma Rolü');
             await checkRoleAdded(config.voice_mute_role_id, 'mute', 'Ses Susturma Rolü');
             await checkRoleAdded(config.banned_role_id, 'ban', 'Yasaklı (Banned) Rolü');
+            
+            // 4. İsim (Nickname) Değişikliği Tespiti
+            if (oldMember.nickname !== newMember.nickname) {
+                if (config.log_channel_id) {
+                    const oldNick = oldMember.nickname || oldMember.user.username;
+                    const newNick = newMember.nickname || newMember.user.username;
+                    const payload = createV2Message({
+                        title: 'İsim Değişikliği (Nickname) 🏷️',
+                        description: `**Kullanıcı:** ${newMember.user.tag} (<@${userId}>)\n\n**Eski Adı:** \`${oldNick}\`\n**Yeni Adı:** \`${newNick}\``,
+                        color: COLORS.INFO
+                    });
+                    await sendLog(newMember.guild, payload, 'system').catch(()=>{});
+                }
+            }
 
         } catch (err) {
             console.error("guildMemberUpdate hatası:", err);

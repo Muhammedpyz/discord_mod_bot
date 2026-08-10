@@ -27,5 +27,29 @@ module.exports = {
                 if (conn) conn.release();
             }
         }
+
+        if (oldMessage && oldMessage.content === newMessage.content) return; // No content change
+        if (oldMessage.author?.bot) return;
+
+        let config;
+        try {
+            const { getGuildConfig } = require('../db');
+            config = await getGuildConfig(newMessage.guild.id);
+        } catch (e) {}
+
+        if (config && config.log_channel_id) {
+            const { sendLog } = require('../utils/logger');
+            const { createV2Message, COLORS } = require('../utils/uiBuilder');
+            
+            const oldContent = oldMessage.content ? oldMessage.content : '[Boş veya sadece eklenti]';
+            const newContent = newMessage.content ? newMessage.content : '[Boş veya sadece eklenti]';
+
+            const payload = createV2Message({
+                title: 'Mesaj Düzenlendi',
+                description: `**Kullanıcı:** ${oldMessage.author.tag} (<@${oldMessage.author.id}>)\n**Kanal:** <#${oldMessage.channel.id}>\n\n**Eski Mesaj:**\n\`\`\`text\n${oldContent.length > 1000 ? oldContent.substring(0, 1000) + '...' : oldContent}\n\`\`\`\n**Yeni Mesaj:**\n\`\`\`text\n${newContent.length > 1000 ? newContent.substring(0, 1000) + '...' : newContent}\n\`\`\`\n[Mesaja Git](${newMessage.url})`,
+                color: COLORS.WARNING
+            });
+            await sendLog(newMessage.guild, payload, 'system').catch(()=>{});
+        }
     }
 };
