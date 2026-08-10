@@ -60,7 +60,7 @@ function parseDiscordMarkdown(content, guild = null) {
         } else if (guild && guild.client && guild.client.users.cache.has(id)) {
             name = guild.client.users.cache.get(id).tag || guild.client.users.cache.get(id).username;
         }
-        return `<span class="discord-mention" title="Kullanıcı ID: ${id}">@${escapeHtml(name)} <span style="font-size: 0.8em; opacity: 0.7;">(${id})</span></span>`;
+        return `<span class="discord-mention has-tooltip" data-tooltip="Kullanıcı ID: ${id}">@${escapeHtml(name)}</span>`;
     });
     
     html = html.replace(/&lt;#(\d+)&gt;/g, (match, id) => {
@@ -68,7 +68,7 @@ function parseDiscordMarkdown(content, guild = null) {
         if (guild && guild.channels && guild.channels.cache.has(id)) {
             name = guild.channels.cache.get(id).name;
         }
-        return `<span class="discord-mention" title="Kanal ID: ${id}">#${escapeHtml(name)} <span style="font-size: 0.8em; opacity: 0.7;">(${id})</span></span>`;
+        return `<span class="discord-mention has-tooltip" data-tooltip="Kanal ID: ${id}">#${escapeHtml(name)}</span>`;
     });
     
     html = html.replace(/&lt;@&amp;(\d+)&gt;/g, (match, id) => {
@@ -76,7 +76,7 @@ function parseDiscordMarkdown(content, guild = null) {
         if (guild && guild.roles && guild.roles.cache.has(id)) {
             name = guild.roles.cache.get(id).name;
         }
-        return `<span class="discord-mention" title="Rol ID: ${id}">@${escapeHtml(name)} <span style="font-size: 0.8em; opacity: 0.7;">(${id})</span></span>`;
+        return `<span class="discord-mention has-tooltip" data-tooltip="Rol ID: ${id}">@${escapeHtml(name)}</span>`;
     });
 
     // Line breaks
@@ -340,11 +340,11 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
                 if (refContent.length > 50) refContent = refContent.substring(0, 50) + '...';
                 
                 replyHtml = `
-                    <div class="discord-replied-message" style="margin-bottom: 4px; display: flex; align-items: center; color: #b5bac1; font-size: 14px;">
-                        <span style="content: ''; display: inline-block; width: 30px; height: 12px; border-left: 2px solid #4e5058; border-top: 2px solid #4e5058; border-top-left-radius: 6px; margin-right: 4px; margin-bottom: 6px;"></span>
-                        <img src="${refMsg.author_avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}" style="width: 16px; height: 16px; border-radius: 50%; margin-right: 4px;" />
-                        <span style="font-weight: 500; margin-right: 4px;">@${refAuthorName}</span>
-                        <span style="cursor: pointer;">${refContent}</span>
+                    <div class="discord-replied-message">
+                        <div class="discord-reply-spine"></div>
+                        <img src="${refMsg.author_avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="discord-reply-avatar" />
+                        <span class="discord-reply-author has-tooltip" data-tooltip="ID: ${refMsg.author_id}">@${refAuthorName}</span>
+                        <span class="discord-reply-content">${refContent}</span>
                     </div>`;
             }
         }
@@ -421,9 +421,9 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
                     </div>
                     <div class="discord-message-body">
                         <div class="discord-message-header">
-                            <span class="discord-author-name" title="ID: ${authorId}">${authorName} <span style="font-size: 0.8em; color: #80848e; font-weight: normal;">(${authorId})</span></span>
+                            <span class="discord-author-name has-tooltip" data-tooltip="Kullanıcı ID: ${authorId}">${authorName}</span>
                             ${isBot ? '<span class="discord-bot-badge">BOT</span>' : ''}
-                            <span class="discord-timestamp" title="Message ID: ${msg.id}">${dateStr} <span style="font-size: 0.9em; margin-left: 6px;">| Mesaj ID: ${msg.id || 'Bilinmiyor'}</span></span>
+                            <span class="discord-timestamp has-tooltip" data-tooltip="Mesaj ID: ${msg.id || 'Bilinmiyor'}">${dateStr}</span>
                             ${deletedBadge}
                         </div>
                         <div class="discord-message-content">
@@ -1018,6 +1018,89 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
         .discord-btn-danger { background-color: #DA373C; }
         .discord-btn-link { background-color: #4E5058; }
         .discord-v2-text { margin-bottom: 4px; }
+
+        /* Premium Tooltips */
+        .has-tooltip {
+            position: relative;
+            cursor: pointer;
+        }
+        .has-tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #111214;
+            color: #dbdee1;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.24);
+            pointer-events: none;
+            z-index: 100;
+            opacity: 1;
+            animation: tooltip-fade 0.15s ease-in-out;
+        }
+        .has-tooltip:hover::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 5px;
+            border-style: solid;
+            border-color: #111214 transparent transparent transparent;
+            pointer-events: none;
+            z-index: 100;
+        }
+        @keyframes tooltip-fade {
+            from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        /* Beautiful Replied Messages */
+        .discord-replied-message {
+            display: flex;
+            align-items: center;
+            color: #b5bac1;
+            font-size: 14px;
+            margin-bottom: 4px;
+            position: relative;
+        }
+        .discord-reply-spine {
+            width: 32px;
+            height: 12px;
+            border-left: 2px solid #4e5058;
+            border-top: 2px solid #4e5058;
+            border-top-left-radius: 6px;
+            margin-right: 4px;
+            margin-bottom: 6px;
+            transform: translateY(2px);
+        }
+        .discord-reply-avatar {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 4px;
+            user-select: none;
+        }
+        .discord-reply-author {
+            font-weight: 500;
+            margin-right: 4px;
+            color: #f2f3f5;
+        }
+        .discord-reply-content {
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 60%;
+        }
+        .discord-reply-content:hover {
+            color: #dbdee1;
+        }
     </style>
 </head>
 <body>
