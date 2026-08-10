@@ -115,6 +115,10 @@ module.exports = {
             if (action === 'close' || action === 'ticket_close_btn') {
                 return closeTicketChannel(interaction);
             }
+            if (action === 'claim' || action === 'ticket_claim_btn') {
+                const { claimTicketChannel } = require('../utils/ticketManager');
+                return claimTicketChannel(interaction);
+            }
         }
 
         // MOD NAMESPACE

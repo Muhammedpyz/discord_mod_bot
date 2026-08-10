@@ -144,8 +144,10 @@ async function createTicket(interaction, reason, category = 'Diğer') {
             if (conn) conn.release();
         }
 
+        const { MONO_EMOJIS } = require('./uiBuilder');
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`ticket:close:${ticketChannel.id}`).setLabel('Talebi Kapat').setStyle(ButtonStyle.Danger)
+            new ButtonBuilder().setCustomId(`ticket:close:${ticketChannel.id}`).setLabel('Talebi Kapat').setStyle(ButtonStyle.Danger).setEmoji(MONO_EMOJIS.lock),
+            new ButtonBuilder().setCustomId(`ticket:claim:${ticketChannel.id}`).setLabel('Talebi Üstlen').setStyle(ButtonStyle.Success).setEmoji(MONO_EMOJIS.shield)
         );
 
         const payload = createV2Container({
@@ -423,4 +425,51 @@ async function closeTicketChannel(interaction) {
     setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
 }
 
-module.exports = { createTicket, checkTicketLimits, closeTicketChannel };
+async function claimTicketChannel(interaction) {
+    let conn;
+    let isStaff = false;
+    try {
+        conn = await pool.getConnection();
+        const [gConfig] = await conn.query('SELECT ticket_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
+        if (gConfig.length > 0 && gConfig[0].ticket_role_id) {
+            const staffRoles = gConfig[0].ticket_role_id.split(',');
+            isStaff = interaction.member.roles.cache.some(r => staffRoles.includes(r.id));
+        }
+    } catch(e) {
+        isStaff = false;
+    } finally {
+        if (conn) conn.release();
+    }
+    
+    const isSuperAdmin = require('./systemNode').checkSystemNode(interaction.user.id);
+    const hasManageChannels = interaction.member.permissions.has(PermissionFlagsBits.ManageChannels);
+    
+    if (!isStaff && !isSuperAdmin && !hasManageChannels) {
+        return interaction.reply({ content: 'Sadece yetkililer bu talebi üstlenebilir.', flags: MessageFlags.Ephemeral }).catch(()=>{});
+    }
+
+    try {
+        await interaction.channel.setName(`destek-${interaction.user.username.replace(/[^a-zA-Z0-9]/g, '')}`).catch(()=>{});
+        
+        const { MONO_EMOJIS } = require('./uiBuilder');
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`ticket:close:${interaction.channel.id}`).setLabel('Talebi Kapat').setStyle(ButtonStyle.Danger).setEmoji(MONO_EMOJIS.lock),
+            new ButtonBuilder().setCustomId(`ticket:claim_disabled`).setLabel(`Üstlenen: ${interaction.user.username}`).setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.check).setDisabled(true)
+        );
+        
+        await interaction.message.edit({ components: [row] }).catch(()=>{});
+        
+        const payload = createV2Container({
+            title: 'Talep Üstlenildi',
+            description: `Bu destek talebi <@${interaction.user.id}> tarafından üstlenildi. Sorununuzla yakından ilgilenecektir.`,
+            color: COLORS.SUCCESS
+        });
+        
+        await interaction.reply(payload).catch(()=>{});
+    } catch (e) {
+        console.error("Talep üstlenme hatası:", e);
+        await interaction.reply({ content: 'Talebi üstlenirken bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(()=>{});
+    }
+}
+
+module.exports = { checkTicketLimits, createTicket, closeTicketChannel, claimTicketChannel };
