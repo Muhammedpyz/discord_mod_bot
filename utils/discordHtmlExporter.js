@@ -308,7 +308,7 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
                 }
 
                 embedsHtml += `
-                    <div class="discord-embed" style="border-left-color: ${colorHex};">
+                    <div class="discord-embed">
                         ${embedTitle ? `<div class="discord-embed-title">${embedTitle}</div>` : ''}
                         ${embedDesc ? `<div class="discord-embed-description">${embedDesc}</div>` : ''}
                         ${fieldsHtml}
@@ -830,7 +830,6 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
         /* Embeds */
         .discord-embed {
             background-color: var(--bg-secondary);
-            border-left: 4px solid var(--brand-color);
             border-radius: 4px;
             padding: 8px 16px 16px 12px;
             margin-top: 4px;
