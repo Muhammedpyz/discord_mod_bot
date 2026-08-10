@@ -82,6 +82,7 @@ module.exports = {
         let conn2;
         let isMuted = false;
         let activeWarnsCount = 0;
+        let globalInviter = null;
         try {
             conn2 = await pool.getConnection();
             
@@ -91,11 +92,39 @@ module.exports = {
             const [warnRows] = await conn2.query('SELECT COUNT(id) as count FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [member.guild.id, member.id]);
             activeWarnsCount = Number(warnRows[0].count);
             
+            let inviter = null;
+            if (client.invites && client.invites.has(member.guild.id)) {
+                try {
+                    const cachedInvites = client.invites.get(member.guild.id);
+                    const newInvites = await member.guild.invites.fetch();
+                    const usedInvite = newInvites.find(inv => {
+                        const cachedUses = cachedInvites.get(inv.code) || 0;
+                        return inv.uses > cachedUses;
+                    });
+                    
+                    if (usedInvite) {
+                        inviter = usedInvite.inviterId;
+                        globalInviter = inviter;
+                        for (const [code, inv] of newInvites) {
+                            cachedInvites.set(code, inv.uses);
+                        }
+                    }
+                } catch (e) {}
+            }
+
             await conn2.query(`
                 INSERT INTO members (user_id, username, is_in_guild, last_join)
                 VALUES (?, ?, TRUE, NOW())
                 ON DUPLICATE KEY UPDATE username = ?, is_in_guild = TRUE, last_join = NOW()
             `, [member.id, member.user.username, member.user.username]);
+
+            if (inviter) {
+                await conn2.query(`
+                    INSERT INTO invite_tracking (guild_id, user_id, inviter_id, joined_at)
+                    VALUES (?, ?, ?, NOW())
+                    ON DUPLICATE KEY UPDATE inviter_id = ?, joined_at = NOW()
+                `, [member.guild.id, member.id, inviter, inviter]);
+            }
         } catch (err) {
             console.error("Member DB check/insert error:", err);
         } finally {
@@ -202,9 +231,12 @@ module.exports = {
                 ];
                 const randomMsg = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)].replace('{user}', `<@${member.id}>`);
                 
+                let inviteText = '';
+                if (globalInviter) inviteText = `\n**Davet Eden:** <@${globalInviter}>`;
+
                 const payload = createV2Message({
                     title: 'Sunucuya Katılım',
-                    description: `<@${member.id}>\n\n**${randomMsg}**\n\nSeninle beraber toplam **${member.guild.memberCount}** kişi olduk.`,
+                    description: `<@${member.id}>\n\n**${randomMsg}**${inviteText}\n\nSeninle beraber toplam **${member.guild.memberCount}** kişi olduk.`,
                     color: COLORS.SUCCESS
                 });
                 

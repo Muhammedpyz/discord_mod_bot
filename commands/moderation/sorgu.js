@@ -57,9 +57,11 @@ module.exports = {
             const joinDate = targetMember?.joinedTimestamp ? `<t:${Math.floor(targetMember.joinedTimestamp / 1000)}:F>` : 'Bilinmiyor';
             const createDate = `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:F>`;
 
+            const { MONO_EMOJIS } = require('../../utils/uiBuilder');
+
             const rawFields = [
-                { name: 'Roller', value: roles.length > 200 ? roles.substring(0, 200) + '...' : roles },
-                { name: 'Ceza Istatistikleri', value: `Aktif Uyarı: **${activeWarns}** | Toplam Uyarı: **${totalWarns}**\nToplam Susturulma: **${totalMutes}** | Toplam Ticket: **${totalTickets}**` }
+                { name: `<:mono:${MONO_EMOJIS.shield}> Roller`, value: roles.length > 200 ? roles.substring(0, 200) + '...' : roles },
+                { name: `<:mono:${MONO_EMOJIS.warning}> Ceza Istatistikleri`, value: `Aktif Uyarı: **${activeWarns}** | Toplam Uyarı: **${totalWarns}**\nToplam Susturulma: **${totalMutes}** | Toplam Ticket: **${totalTickets}**` }
             ];
 
             // 2. Eğer hedef kullanıcı YETKİLİ ise, yetkili işlem gecmisini de getir!
@@ -111,23 +113,23 @@ module.exports = {
                     console.error('sorgu.js Audit log hatası:', e);
                 } 
                 
-                staffDesc = `\n\n**Yetkili İşlem Geçmişi (Ozet):**\n` +
-                             `- Verdigi Uyarı: **${totalWarnsGiven}** | Sildigi Mesaj: **${totalDels}** | Kapattigi Ticket: **${totalTicketsClosed}**\n` +
-                             `- Ban: **${totalBans}** | Kick: **${totalKicks}** | Timeout: **${totalTimeouts}** | Rol: **${totalRoles}**\n\n` +
-                             `*(Detaylar için aşağıdaki menuden "Yetkili İşlem Geçmişi"ni secin.)*`;
-                rawFields.push({ name: 'Yetkili Istatistikleri', value: staffDesc });
+                staffDesc = `**<:mono:${MONO_EMOJIS.crown}> Moderasyon Özeti:**\n`;
+                staffDesc += `└ Toplam İşlem: **${totalWarnsGiven + totalDels + totalTicketsClosed + totalBans + totalKicks + totalTimeouts + totalRoles}**\n`;
+                staffDesc += `└ Atılan Uyarı: **${totalWarnsGiven}**\n`;
+                staffDesc += `└ Kapatılan Bilet: **${totalTicketsClosed}**\n`;
+                staffDesc += `└ Atılan Ban: **${totalBans}** | Kick: **${totalKicks}** | Mute: **${totalTimeouts}**\n`;
+                staffDesc += `└ Silinen Mesaj (Clear): **${totalDels}**\n`;
+
+                rawFields.push({ name: `<:mono:${MONO_EMOJIS.settings}> Yetkili Geçmişi (Sicil)`, value: staffDesc });
             }
 
-            const payload = buildModAPanel({
-                title: 'Kullanıcı Sorgu Paneli',
-                description: `**Kullanıcı:** ${targetUser.tag}\n**ID:** \`${targetUser.id}\`\n**Hesap Oluşturma:** ${createDate}\n**Sunucuya Katılım:** ${joinDate}\n\n` +
-                             `**Roller:**\n${roles.length > 200 ? roles.substring(0, 200) + '...' : roles}\n\n` +
-                             `**Ceza Istatistikleri:**\nAktif Uyarı: **${activeWarns}** | Toplam Uyarı: **${totalWarns}**\nToplam Susturulma: **${totalMutes}** | Toplam Ticket: **${totalTickets}**` +
-                             (isTargetStaff ? staffDesc : ''),
-                navRow: createSorguMenu(targetUser.id, 'sorgu_overview', isTargetStaff),
-                actionRows: [],
-                showSocials: true
-            });
+            const payload = createContainerMessage(
+                'Kullanıcı Sorgu Paneli',
+                `Aşağıda <@${targetUser.id}> adlı kullanıcının detaylı sicil bilgilerine ulaşabilirsiniz.\n\n**Kayıt Tarihi:** ${createDate}\n**Sunucuya Katılım:** ${joinDate}`,
+                isTargetStaff ? '#3498DB' : '#2ECC71',
+                [createSorguMenu(targetUser.id, 'sorgu_overview', isTargetStaff)],
+                rawFields
+            );
 
             await interaction.editReply(payload);
         } catch (err) {

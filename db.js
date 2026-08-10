@@ -77,6 +77,18 @@ async function initDB() {
             )
         `);
 
+        // Invite Tracking
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS invite_tracking (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(25),
+                user_id VARCHAR(25),
+                inviter_id VARCHAR(25),
+                joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_user_guild (user_id, guild_id)
+            )
+        `);
+
         // 2. Filtered Words
         await conn.query(`
             CREATE TABLE IF NOT EXISTS filtered_words (

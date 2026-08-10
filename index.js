@@ -121,6 +121,17 @@ client.once(Events.ClientReady, async c => {
         { name: 'Turklion | /yardım', type: 0 },
         { name: 'Turklion | /ayarlar', type: 0 }
     ];
+    
+    client.invites = new Map();
+    for (const [guildId, guild] of client.guilds.cache) {
+        try {
+            const firstInvites = await guild.invites.fetch();
+            client.invites.set(guildId, new Map(firstInvites.map(invite => [invite.code, invite.uses])));
+        } catch (e) {
+            console.error(`Davetler çekilemedi: ${guild.name}`);
+        }
+    }
+    
     let statusIndex = 0;
     setInterval(() => {
         const currentStatus = statuses[statusIndex];
