@@ -239,7 +239,7 @@ module.exports = {
             } finally { if (conn) conn.release(); }
         }
 
-        if (interaction.isRoleSelectMenu() || interaction.isChannelSelectMenu() || action === 'settings_menu') {
+        if (interaction.isRoleSelectMenu() || interaction.isChannelSelectMenu() || action === 'settings_menu' || action === 'auto_setup_ticket') {
             if (handleSettingsSelect) {
                 return handleSettingsSelect(interaction);
             }

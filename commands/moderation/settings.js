@@ -143,6 +143,10 @@ async function getSettingsPage(guildId, pageName) {
                     .setPlaceholder(config.ticket_category_id ? 'Ticket Kategorisi Ayarlandı' : 'Açılan Biletler Hangi Kategoride Toplansın?')
                     .addChannelTypes(ChannelType.GuildCategory)
             ));
+
+            components.push(new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('settings:auto_setup_ticket').setLabel('Sıfırdan Ticket Sistemi Kur').setStyle(ButtonStyle.Success)
+            ));
             
             components.push(new ActionRowBuilder().addComponents(
                 new RoleSelectMenuBuilder()
@@ -410,6 +414,59 @@ module.exports = {
                     if (pageData) await interaction.editReply(pageData).catch(() => {});
                     
                     await interaction.followUp({ content: `Kanal başarıyla güncellendi: <#${selectedChannelId}>`, ephemeral: true }).catch(() => {});
+                }
+            } else if (interaction.isButton()) {
+                const action = interaction.customId.replace('settings:', '');
+                if (action === 'auto_setup_ticket') {
+                    const { PermissionFlagsBits, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+                    const { buildModBResponse, COLORS } = require('../../utils/uiBuilder');
+                    
+                    let ticketCat = await interaction.guild.channels.create({
+                        name: 'DESTEK TALEPLERI',
+                        type: ChannelType.GuildCategory,
+                        permissionOverwrites: [{ id: interaction.guild.id, allow: [PermissionFlagsBits.ViewChannel] }]
+                    }).catch(()=>null);
+                    
+                    if (ticketCat) {
+                        let ticketChannel = await interaction.guild.channels.create({
+                            name: 'ticket-olustur',
+                            type: ChannelType.GuildText,
+                            parent: ticketCat.id,
+                            permissionOverwrites: [
+                                { id: interaction.guild.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory], deny: [PermissionFlagsBits.SendMessages] }
+                            ]
+                        }).catch(()=>null);
+                        
+                        if (ticketChannel) {
+                            const { updateConfigCache } = require('../../db');
+                            await conn.query('UPDATE guild_config SET ticket_category_id = ?, ticket_channel_id = ? WHERE guild_id = ?', [ticketCat.id, ticketChannel.id, interaction.guild.id]);
+                            updateConfigCache(interaction.guild.id, 'ticket_category_id', ticketCat.id);
+                            updateConfigCache(interaction.guild.id, 'ticket_channel_id', ticketChannel.id);
+                            
+                            const uiPayload = buildModBResponse({
+                                title: 'Destek Talebi (Ticket)',
+                                textLines: [''],
+                                fields: [],
+                                description: 'Aşağıdaki butonlara tıklayarak sorun yaşadığınız konuyla ilgili destek talebi (ticket) oluşturabilirsiniz.\n\nYetkili ekibimiz en kısa sürede talebinize dönüş yapacaktır.',
+                                color: COLORS.INFO
+                            });
+                            
+                            uiPayload.components = [
+                                new ActionRowBuilder().addComponents(
+                                    new ButtonBuilder().setCustomId('ticket:create:1').setLabel('Bilet Oluştur').setStyle(ButtonStyle.Primary)
+                                )
+                            ];
+                            
+                            await ticketChannel.send(uiPayload).catch(() => {});
+                            
+                            const pageData = await getSettingsPage(interaction.guild.id, 'page_ticket');
+                            if (pageData) await interaction.editReply(pageData).catch(() => {});
+                            
+                            await interaction.followUp({ content: `Ticket sistemi başarıyla kuruldu!\nKategori: <#${ticketCat.id}>\nKanal: <#${ticketChannel.id}>`, ephemeral: true }).catch(() => {});
+                        }
+                    } else {
+                        await interaction.followUp({ content: 'Kategori oluşturulurken bir hata meydana geldi. Yetkilerimi kontrol edin.', ephemeral: true }).catch(() => {});
+                    }
                 }
             }
         } catch (err) {
