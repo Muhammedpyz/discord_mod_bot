@@ -28,6 +28,16 @@ module.exports = {
             const bannedRoleId = rows[0].banned_role_id;
             const ticketCategoryId = rows[0].ticket_category_id;
 
+            // Banlı rolünün sunucu genelindeki tüm yetkilerini (Administrator vs.) tamamen sıfırla
+            try {
+                const roleObj = interaction.guild.roles.cache.get(bannedRoleId) || await interaction.guild.roles.fetch(bannedRoleId);
+                if (roleObj) {
+                    await roleObj.setPermissions([]);
+                }
+            } catch (e) {
+                console.log("Rol yetkileri sıfırlanırken hata:", e);
+            }
+
             let updatedCount = 0;
             let skippedCount = 0;
 
@@ -40,7 +50,7 @@ module.exports = {
                 if (ticketCategoryId && (id === ticketCategoryId || channel.parentId === ticketCategoryId)) {
                     skippedCount++;
                     
-                    // Ticket kategorisine Banlı rolü için ViewChannel: true verebiliriz, eğer kapalıysa
+                    // Ticket sistemi herkes tarafından (özellikle banlılar tarafından) görülebilmeli
                     try {
                         await channel.permissionOverwrites.edit(bannedRoleId, { ViewChannel: true });
                     } catch (e) {}
@@ -48,9 +58,10 @@ module.exports = {
                     continue;
                 }
 
-                // Diğer kanallarda Banlı rolünü ViewChannel: false yap
+                // Diğer tüm kanallarda Banlı rolünü ve Everyone rolünü ViewChannel: false yap (Özel Kanal)
                 try {
                     await channel.permissionOverwrites.edit(bannedRoleId, { ViewChannel: false });
+                    await channel.permissionOverwrites.edit(interaction.guild.id, { ViewChannel: false });
                     updatedCount++;
                 } catch (e) {
                     // Yetki eksikliği vs. olabilir
@@ -60,7 +71,8 @@ module.exports = {
             const payload = buildModBResponse({
                 title: 'Karantina Ayarlandı',
                 textLines: [
-                    `Sunucudaki **${updatedCount}** kanal başarıyla tarandı ve <@&${bannedRoleId}> rolüne gizlendi.`,
+                    `Sunucudaki **${updatedCount}** kanal başarıyla **Özel Kanal** yapıldı (@everyone'a gizlendi) ve <@&${bannedRoleId}> rolü tamamen mühürlendi.`,
+                    `Banlı Rolünün sunucu genelindeki tüm yönetici vb. yetkileri sıfırlandı.`,
                     `Ticket sistemine ait **${skippedCount}** kanal ise karantina dışında bırakıldı.`
                 ],
                 color: COLORS.SUCCESS
