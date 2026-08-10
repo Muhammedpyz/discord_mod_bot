@@ -35,7 +35,7 @@ module.exports = {
             }
 
             try {
-                const dmPayload = createContainerMessage('Sunucudan Atildiniz', `**${interaction.guild.name}** sunucusundan atildiniz.\n**Sebep:** ${reason}`, '#FF5500');
+                const dmPayload = createContainerMessage('Sunucudan Atildiniz', `**${interaction.guild.name}** sunucusundan atildiniz.\n**Sebep:** ${reason}`, '#2B2D31');
                 await targetUser.send(dmPayload);
             } catch (dmError) {
                 console.log('Kullanıcıya bildirim gönderilemedi.');
@@ -56,13 +56,13 @@ module.exports = {
                 if (conn) conn.release();
             }
 
-            const payload = createContainerMessage(`${EMOJIS.kick} Kullanıcı Sunucudan Atildi`, `<@${targetUser.id}> sunucudan atildi.\n**Sebep:** ${reason}`, '#FF5500');
+            const payload = createContainerMessage(`${EMOJIS.kick} Kullanıcı Sunucudan Atildi`, `<@${targetUser.id}> sunucudan atildi.\n**Sebep:** ${reason}`, '#2B2D31');
             await interaction.reply(payload);
 
             const logPayload = createContainerMessage(
                 `${EMOJIS.cross} Kullanıcı Atildi`,
                 '',
-                '#FF5500',
+                '#2B2D31',
                 [],
                 [
                     { name: 'Atilan Üye', value: `<@${targetUser.id}> (${targetUser.tag})`, inline: true },

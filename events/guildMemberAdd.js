@@ -5,6 +5,7 @@ const { pool, getGuildConfig } = require('../db');
 const { sendLog } = require('../utils/logger');
 
 const joinCache = new Map();
+const inviteFetchLocks = new Map();
 
 module.exports = {
     name: Events.GuildMemberAdd,
@@ -109,7 +110,16 @@ module.exports = {
             if (client.invites && client.invites.has(member.guild.id)) {
                 try {
                     const cachedInvites = client.invites.get(member.guild.id);
-                    const newInvites = await member.guild.invites.fetch();
+                    let newInvites;
+                    if (inviteFetchLocks.has(member.guild.id)) {
+                        newInvites = await inviteFetchLocks.get(member.guild.id);
+                    } else {
+                        const fetchPromise = member.guild.invites.fetch().finally(() => {
+                            setTimeout(() => inviteFetchLocks.delete(member.guild.id), 2000);
+                        });
+                        inviteFetchLocks.set(member.guild.id, fetchPromise);
+                        newInvites = await fetchPromise;
+                    }
                     const usedInvite = newInvites.find(inv => {
                         const cachedUses = cachedInvites.get(inv.code) || 0;
                         return inv.uses > cachedUses;

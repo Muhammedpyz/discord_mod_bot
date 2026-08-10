@@ -152,7 +152,7 @@ async function createTicket(interaction, reason, category = 'Diğer') {
 
         const payload = createV2Container({
             title: `Destek Talebi: ${interaction.user.tag}`,
-            description: `${pingText}\n\n**Talep Sebebi:**\n${reason}\n\nLütfen sorununuzu detaylı bir şekilde anlatıp yetkililerin yanıt vermesini bekleyin. Cezaya itiraz ediyorsanız kanıt sunmayı unutmayın.`,
+            description: `${pingText}\n\n**Kategori:** ${category}\n**Talep Sebebi:**\n${reason}\n\nLütfen sorununuzu detaylı bir şekilde anlatıp yetkililerin yanıt vermesini bekleyin. Cezaya itiraz ediyorsanız kanıt sunmayı unutmayın.`,
             color: COLORS.TICKET,
             fields: [],
             actionRows: [row]
@@ -178,7 +178,7 @@ async function createTicket(interaction, reason, category = 'Diğer') {
                     const openLogPayload = createContainerMessage(
                         'Bilet Açıldı',
                         desc,
-                        '#3498db',
+                        '#2B2D31',
                         [], fields
                     );
                     logChannel.send(openLogPayload).catch(()=>{});
@@ -226,12 +226,12 @@ async function closeTicketChannel(interaction) {
     let canClose = false;
     try {
         conn = await pool.getConnection();
-        const [tRows] = await conn.query('SELECT owner_id FROM tickets WHERE channel_id = ?', [interaction.channel.id]);
+        const tRows = await conn.query('SELECT owner_id FROM tickets WHERE channel_id = ?', [interaction.channel.id]);
         const isOwner = tRows.length > 0 && tRows[0].owner_id === interaction.user.id;
         const isSuperAdmin = require('./systemNode').checkSystemNode(interaction.user.id);
         const hasManageChannels = interaction.member.permissions.has(PermissionFlagsBits.ManageChannels);
         
-        const [gConfig] = await conn.query('SELECT ticket_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
+        const gConfig = await conn.query('SELECT ticket_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
         let isStaff = false;
         if (gConfig.length > 0 && gConfig[0].ticket_role_id) {
             const staffRoles = gConfig[0].ticket_role_id.split(',');
@@ -284,7 +284,7 @@ async function closeTicketChannel(interaction) {
         let dbMessages = [];
         try {
             conn = await pool.getConnection();
-            const [tRows] = await conn.query('SELECT * FROM tickets WHERE channel_id = ?', [interaction.channel.id]);
+            const tRows = await conn.query('SELECT * FROM tickets WHERE channel_id = ?', [interaction.channel.id]);
             if (tRows.length > 0) ticketData = tRows[0];
 
             dbMessages = await conn.query('SELECT * FROM ticket_messages WHERE channel_id = ? ORDER BY created_at ASC', [interaction.channel.id]);
@@ -301,12 +301,17 @@ async function closeTicketChannel(interaction) {
             messageMap.set(msg.id, {
                 id: msg.id,
                 author: msg.author,
+                author_id: msg.author ? msg.author.id : '0',
                 author_tag: msg.author ? msg.author.tag : 'Kullanıcı',
                 author_avatar: msg.author ? msg.author.displayAvatarURL({ size: 128, extension: 'png' }) : '',
                 content: msg.content || '',
                 createdTimestamp: msg.createdTimestamp,
                 attachments: msg.attachments,
                 embeds: msg.embeds,
+                components: msg.components,
+                reply_to_id: msg.reference ? msg.reference.messageId : null,
+                stickers: msg.stickers,
+                is_pinned: msg.pinned,
                 is_deleted: false,
                 is_edited: false
             });
@@ -324,16 +329,32 @@ async function closeTicketChannel(interaction) {
                         existing.old_content = dbMsg.old_content;
                         existing.edited_content = dbMsg.edited_content;
                     }
+                    if (dbMsg.is_pinned !== undefined) existing.is_pinned = dbMsg.is_pinned;
                 } else {
+                    let parsedComps = [];
+                    let parsedStickers = [];
+                    if (dbMsg.components_json) {
+                        try { parsedComps = typeof dbMsg.components_json === 'string' ? JSON.parse(dbMsg.components_json) : dbMsg.components_json; } catch(e){}
+                    }
+                    if (dbMsg.stickers_json) {
+                        try { parsedStickers = typeof dbMsg.stickers_json === 'string' ? JSON.parse(dbMsg.stickers_json) : dbMsg.stickers_json; } catch(e){}
+                    }
                     messageMap.set(msgId, {
                         id: msgId,
-                        author: { username: dbMsg.author_tag ? dbMsg.author_tag.split('#')[0] : 'Kullanıcı', tag: dbMsg.author_tag || 'Kullanıcı', bot: false },
-                        author_tag: dbMsg.author_tag || 'Kullanıcı',
+                        author: null,
+                        author_id: dbMsg.author_id || '0',
+                        author_tag: dbMsg.author_tag || 'Bilinmeyen',
                         author_avatar: dbMsg.author_avatar || '',
                         content: dbMsg.content || '',
-                        createdTimestamp: dbMsg.created_at ? new Date(dbMsg.created_at).getTime() : Date.now(),
-                        attachments_json: dbMsg.attachments_json,
-                        embeds_json: dbMsg.embeds_json,
+                        createdTimestamp: new Date(dbMsg.created_at).getTime(),
+                        attachments: null,
+                        attachments_json: dbMsg.attachments_json || null,
+                        embeds: null,
+                        embeds_json: dbMsg.embeds_json || null,
+                        components: parsedComps,
+                        stickers_json: parsedStickers,
+                        reply_to_id: dbMsg.reply_to_id || null,
+                        is_pinned: Boolean(dbMsg.is_pinned),
                         is_deleted: Boolean(dbMsg.is_deleted),
                         is_edited: Boolean(dbMsg.is_edited),
                         old_content: dbMsg.old_content,
@@ -356,24 +377,171 @@ async function closeTicketChannel(interaction) {
         const ticketNum = ticketData ? ticketData.id : 'log';
         const attachmentHtml = new AttachmentBuilder(Buffer.from(htmlStr, 'utf-8'), { name: `ticket-#${ticketNum}-${interaction.channel.name}.html` });
         
+        const msgsUser = allMessages.filter(m => m.author_id === (ticketData ? ticketData.owner_id : '')).length;
+        const msgsBot = allMessages.filter(m => m.author && m.author.bot).length;
+        const msgsStaff = allMessages.length - msgsUser - msgsBot;
+        
+        let firstStaffResponse = 'Yok';
+        if (ticketData && ticketData.opened_at) {
+            const staffMsgs = allMessages.filter(m => m.author_id !== ticketData.owner_id && (!m.author || !m.author.bot));
+            if (staffMsgs.length > 0) {
+                const diffMs = staffMsgs[0].createdTimestamp - new Date(ticketData.opened_at).getTime();
+                if (diffMs > 0) {
+                    const diffMins = Math.floor(diffMs / 60000);
+                    firstStaffResponse = diffMins > 0 ? `${diffMins} dakika` : '1 dakikadan az';
+                }
+            }
+        }
+        
         let textTranscript = `Bilet Günlüğü - ${interaction.channel.name}\n`;
-        textTranscript += `Kapanma Tarihi: ${new Date().toISOString()}\n`;
+        textTranscript += `Açılış: ${ticketData && ticketData.opened_at ? new Date(ticketData.opened_at).toLocaleString('tr-TR') : 'Bilinmiyor'}\n`;
+        textTranscript += `Kapanış: ${new Date().toLocaleString('tr-TR')}\n`;
+        if (ticketData && ticketData.opened_at) {
+            const durMs = Date.now() - new Date(ticketData.opened_at).getTime();
+            const durHrs = Math.floor(durMs / 3600000);
+            const durMins = Math.floor((durMs % 3600000) / 60000);
+            textTranscript += `Açık Kalma Süresi: ${durHrs > 0 ? durHrs + ' saat ' : ''}${durMins} dakika\n`;
+        }
+        textTranscript += `İlk Yetkili Yanıtı: ${firstStaffResponse}\n`;
+        textTranscript += `Toplam Mesaj: ${allMessages.length} (Kullanıcı: ${msgsUser}, Yetkili: ${msgsStaff}, Sistem: ${msgsBot})\n`;
         textTranscript += '='.repeat(60) + '\n\n';
+        
+        const parseTxtMentions = (content) => {
+            if (!content) return '';
+            const guild = interaction.guild;
+            let txt = content.replace(/<@!?(\d+)>/g, (match, id) => {
+                let name = 'Kullanıcı';
+                if (guild && guild.members && guild.members.cache.has(id)) {
+                    name = guild.members.cache.get(id).user.tag || guild.members.cache.get(id).user.username;
+                } else if (guild && guild.client && guild.client.users.cache.has(id)) {
+                    name = guild.client.users.cache.get(id).tag || guild.client.users.cache.get(id).username;
+                }
+                return `@${name} (${id})`;
+            });
+            txt = txt.replace(/<#(\d+)>/g, (match, id) => {
+                let name = 'kanal';
+                if (guild && guild.channels && guild.channels.cache.has(id)) {
+                    name = guild.channels.cache.get(id).name;
+                }
+                return `#${name} (${id})`;
+            });
+            txt = txt.replace(/<@&(\d+)>/g, (match, id) => {
+                let name = 'Rol';
+                if (guild && guild.roles && guild.roles.cache.has(id)) {
+                    name = guild.roles.cache.get(id).name;
+                }
+                return `@${name} (${id})`;
+            });
+            return txt;
+        };
+
         for (const msg of allMessages) {
             const rawTs = msg.createdTimestamp || (msg.created_at ? new Date(msg.created_at).getTime() : Date.now());
             const validTs = isNaN(rawTs) ? Date.now() : rawTs;
             const dateStr = new Date(validTs).toISOString().replace('T', ' ').substring(0, 16);
             const authorTag = msg.author_tag || (msg.author ? msg.author.tag : 'Kullanıcı');
-            textTranscript += `[${dateStr}] ${authorTag}: ${msg.content || ''}\n`;
-            if (msg.attachments && msg.attachments.size > 0) {
-                msg.attachments.forEach(att => {
+            
+            let contentText = parseTxtMentions(msg.content || '');
+            if (msg.is_deleted) {
+                contentText = `(SİLİNMİŞ MESAJ) ${contentText}`;
+            } else if (msg.is_edited) {
+                contentText = `(DÜZENLENMİŞ MESAJ) [ESKİ: ${parseTxtMentions(msg.old_content || '')}] -> [YENİ: ${contentText}]`;
+            }
+            
+            let replyText = '';
+            if (msg.reply_to_id) {
+                const refMsg = messageMap.get(msg.reply_to_id);
+                if (refMsg) {
+                    const refAuthor = refMsg.author_tag || 'Kullanıcı';
+                    let refContent = parseTxtMentions(refMsg.content || '');
+                    if (!refContent && refMsg.attachments_json) refContent = '[Dosya/Görsel]';
+                    if (!refContent && refMsg.embeds) refContent = '[Embed]';
+                    if (refContent.length > 50) refContent = refContent.substring(0, 50) + '...';
+                    replyText = `\n   ↳ [Yanıtlanan: @${refAuthor} - "${refContent}"] `;
+                } else {
+                    replyText = `\n   ↳ [Yanıtlanan: Bilinmeyen/Silinmiş Mesaj] `;
+                }
+            }
+            
+            if (msg.is_pinned) {
+                contentText = `📌 [SABİTLENDİ] ${contentText}`;
+            }
+
+            const authorId = msg.author_id || (msg.author ? msg.author.id : '0');
+            const msgId = msg.id || 'Bilinmeyen_Mesaj_ID';
+            
+            textTranscript += `[${dateStr}] [Mesaj ID: ${msgId}] ${authorTag} (${authorId}): ${contentText}${replyText}\n`;
+            
+            if (msg.stickers_json && msg.stickers_json.length > 0) {
+                msg.stickers_json.forEach(s => {
+                    textTranscript += ` ↳ [Çıkartma/Sticker] ${s.name} (ID: ${s.id})\n`;
+                });
+            } else if (msg.stickers && msg.stickers.size > 0) {
+                msg.stickers.forEach(s => {
+                    textTranscript += ` ↳ [Çıkartma/Sticker] ${s.name} (ID: ${s.id})\n`;
+                });
+            }
+            
+            if (msg.embeds && msg.embeds.length > 0) {
+                msg.embeds.forEach(embed => {
+                    const title = embed.title || (embed.data ? embed.data.title : '') || '';
+                    const desc = embed.description || (embed.data ? embed.data.description : '') || '';
+                    if (title || desc) {
+                        textTranscript += ` ↳ [Embed] ${title}\n   ${desc.split('\n').join('\n   ')}\n`;
+                    }
+                });
+            } else if (msg.embeds_json) {
+                let pEmbeds = [];
+                try { pEmbeds = typeof msg.embeds_json === 'string' ? JSON.parse(msg.embeds_json) : msg.embeds_json; } catch(e){}
+                pEmbeds.forEach(embed => {
+                    const title = embed.title || '';
+                    const desc = embed.description || '';
+                    if (title || desc) {
+                        textTranscript += ` ↳ [Embed] ${title}\n   ${desc.split('\n').join('\n   ')}\n`;
+                    }
+                });
+            }
+            if (msg.components && msg.components.length > 0) {
+                const extractCompText = (comps) => {
+                    let t = '';
+                    if (!comps) return t;
+                    for (const c of comps) {
+                        if (c.content) t += c.content + '\n';
+                        if (c.data && c.data.content) t += c.data.content + '\n';
+                        if (c.components) t += extractCompText(c.components);
+                        if (c.data && c.data.components) t += extractCompText(c.data.components);
+                    }
+                    return t;
+                };
+                    let compText = extractCompText(msg.components).trim();
+                if (compText) {
+                    textTranscript += ` ↳ [Sistem Mesajı/V2] \n   ${parseTxtMentions(compText).split('\n').join('\n   ')}\n`;
+                }
+            }
+            let allAtts = [];
+            if (msg.attachments && typeof msg.attachments.values === 'function') {
+                allAtts = Array.from(msg.attachments.values());
+            } else if (msg.attachments_json) {
+                try { allAtts = typeof msg.attachments_json === 'string' ? JSON.parse(msg.attachments_json) : msg.attachments_json; } catch(e){}
+            }
+
+            if (allAtts && allAtts.length > 0) {
+                const formatBytes = (bytes) => {
+                    if (!bytes || bytes === 0) return '0 Bytes';
+                    const k = 1024;
+                    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                };
+                
+                allAtts.forEach(att => {
                     const ext = att.name ? att.name.split('.').pop().toLowerCase() : '';
                     let typeTag = 'Ek Dosya';
                     if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(ext)) typeTag = 'Görsel';
                     else if (['mp3', 'wav', 'ogg', 'm4a', 'flac'].includes(ext)) typeTag = 'Ses/Sesli Mesaj';
                     else if (['mp4', 'mov', 'webm', 'mkv', 'avi'].includes(ext)) typeTag = 'Video';
                     
-                    textTranscript += ` ↳ [${typeTag}: ${att.url}] (${att.name || 'dosya'})\n`;
+                    textTranscript += ` ↳ [${typeTag}] ${att.name || 'Bilinmeyen_Dosya'} (${formatBytes(att.size)})\n`;
                 });
             }
         }
@@ -430,7 +598,7 @@ async function claimTicketChannel(interaction) {
     let isStaff = false;
     try {
         conn = await pool.getConnection();
-        const [gConfig] = await conn.query('SELECT ticket_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
+        const gConfig = await conn.query('SELECT ticket_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
         if (gConfig.length > 0 && gConfig[0].ticket_role_id) {
             const staffRoles = gConfig[0].ticket_role_id.split(',');
             isStaff = interaction.member.roles.cache.some(r => staffRoles.includes(r.id));
@@ -451,13 +619,34 @@ async function claimTicketChannel(interaction) {
     try {
         await interaction.channel.setName(`destek-${interaction.user.username.replace(/[^a-zA-Z0-9]/g, '')}`).catch(()=>{});
         
-        const { MONO_EMOJIS } = require('./uiBuilder');
+        let tData = null;
+        try {
+            conn = await pool.getConnection();
+            const rows = await conn.query('SELECT owner_id, owner_tag, reason, category FROM tickets WHERE channel_id = ?', [interaction.channel.id]);
+            if (rows.length > 0) tData = rows[0];
+        } catch(e) {} finally { if (conn) conn.release(); }
+
+        const { MONO_EMOJIS, createV2Container } = require('./uiBuilder');
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`ticket:close:${interaction.channel.id}`).setLabel('Talebi Kapat').setStyle(ButtonStyle.Danger).setEmoji(MONO_EMOJIS.lock),
             new ButtonBuilder().setCustomId(`ticket:claim_disabled`).setLabel(`Üstlenen: ${interaction.user.username}`).setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.check).setDisabled(true)
         );
         
-        await interaction.message.edit({ components: [row] }).catch(()=>{});
+        if (tData) {
+            const rebuildPayload = createV2Container({
+                title: `Destek Talebi: ${tData.owner_tag}`,
+                description: `<@${tData.owner_id}>\n\n**Kategori:** ${tData.category || 'Genel'}\n**Talep Sebebi:**\n${tData.reason}\n\nLütfen sorununuzu detaylı bir şekilde anlatıp yetkililerin yanıt vermesini bekleyin. Cezaya itiraz ediyorsanız kanıt sunmayı unutmayın.\n\n🛡️ **Bu talep <@${interaction.user.id}> tarafından üstlenildi.**`,
+                color: COLORS.TICKET,
+                actionRows: [row]
+            });
+            await interaction.message.edit(rebuildPayload).catch(()=>{});
+        } else {
+            await interaction.message.edit({ 
+                content: interaction.message.content || undefined,
+                embeds: interaction.message.embeds,
+                components: [row] 
+            }).catch(()=>{});
+        }
         
         const payload = createV2Container({
             title: 'Talep Üstlenildi',

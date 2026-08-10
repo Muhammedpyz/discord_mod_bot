@@ -90,7 +90,7 @@ module.exports = {
         // TICKET NAMESPACE
         if (namespace === 'ticket' || action.startsWith('ticket_')) {
             
-            if (action === 'create' || action === 'ticket_create_btn') {
+            if (action === 'create' || action === 'ticket_create_btn' || action.startsWith('ticket_cat_')) {
                 const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageChannels);
                 if (!isAdmin) {
                     const { ticketsToday, cooldownRemaining } = await checkTicketLimits(interaction.guild.id, interaction.user.id);
@@ -102,6 +102,11 @@ module.exports = {
                 }
                 const modal = new ModalBuilder().setCustomId('ticket:modal:submit').setTitle('Destek Talebi (Ticket)');
                 const categoryInput = new TextInputBuilder().setCustomId('ticket_category_text').setLabel('Kategori (Örn: Hesap, Ceza, Sunucu)').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Hesabım / Ceza / Sunucu Şikayeti vb.');
+                
+                if (action === 'ticket_cat_hesap') categoryInput.setValue('Hesap İşlemleri');
+                else if (action === 'ticket_cat_ceza') categoryInput.setValue('Ceza İtiraz');
+                else if (action === 'ticket_cat_sunucu') categoryInput.setValue('Sunucu Sorunları');
+                else if (action === 'ticket_cat_genel') categoryInput.setValue('Genel Destek');
                 const reasonInput = new TextInputBuilder().setCustomId('ticket_reason').setLabel('Talebinizin detayını yazın:').setStyle(TextInputStyle.Paragraph).setRequired(true).setPlaceholder('Lütfen sorununuzu detaylı bir şekilde açıklayın...');
                 modal.addComponents(new ActionRowBuilder().addComponents(categoryInput), new ActionRowBuilder().addComponents(reasonInput));
                 return interaction.showModal(modal);

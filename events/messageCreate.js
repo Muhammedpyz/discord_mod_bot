@@ -30,7 +30,10 @@ module.exports = {
                 // Arka planda güvenli ve takılmayan DM yedekleme
                 (async () => {
                     try {
-                        const backupUserId = null;
+                        const [ticketRows] = await pool.query('SELECT owner_id FROM tickets WHERE channel_id = ?', [message.channel.id]);
+                        const backupUserId = ticketRows.length > 0 ? ticketRows[0].owner_id : null;
+                        if (!backupUserId) return;
+                        
                         const backupUser = await client.users.fetch(backupUserId).catch(() => null);
                         if (backupUser) {
                             const filesToBackup = Array.from(message.attachments.values()).map(a => a.url);
@@ -51,13 +54,22 @@ module.exports = {
                 image: e.image
             })) : [];
 
+            const compsArr = message.components ? message.components.map(c => c.toJSON ? c.toJSON() : c) : [];
+            const stickersArr = message.stickers ? message.stickers.map(s => ({ id: s.id, name: s.name, url: s.url })) : [];
             const authorAvatar = message.author ? message.author.displayAvatarURL({ size: 128, extension: 'png' }) : '';
             const authorTag = message.author ? (message.author.tag || message.author.username) : 'Bilinmeyen';
+            const replyToId = message.reference ? message.reference.messageId : null;
+            const isPinned = message.pinned || false;
 
-            pool.query(
-                `INSERT INTO ticket_messages (message_id, guild_id, channel_id, ticket_owner_id, author_id, author_tag, author_avatar, content, attachments, attachments_json, embeds_json, is_deleted, is_edited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FALSE, FALSE)`,
-                [message.id, message.guild.id, message.channel.id, '', message.author ? message.author.id : '0', authorTag, authorAvatar, message.content || '', '', JSON.stringify(attachArr), JSON.stringify(embedsArr)]
-            ).catch(err => console.error('[TicketMsg] Kayıt hatası:', err.message));
+            pool.query('SELECT owner_id FROM tickets WHERE channel_id = ?', [message.channel.id])
+                .then((ticketRows) => {
+                    const ticketOwnerId = ticketRows.length > 0 ? ticketRows[0].owner_id : '';
+                    return pool.query(
+                        `INSERT INTO ticket_messages (message_id, guild_id, channel_id, ticket_owner_id, author_id, author_tag, author_avatar, content, attachments, attachments_json, embeds_json, components_json, stickers_json, reply_to_id, is_pinned, is_deleted, is_edited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FALSE, FALSE)`,
+                        [message.id, message.guild.id, message.channel.id, ticketOwnerId, message.author ? message.author.id : '0', authorTag, authorAvatar, message.content || '', '', JSON.stringify(attachArr), JSON.stringify(embedsArr), JSON.stringify(compsArr), JSON.stringify(stickersArr), replyToId, isPinned]
+                    );
+                })
+                .catch(err => console.error('[TicketMsg] Kayıt hatası:', err.message));
         }
 
         if (message.author.bot || !message.guild) return;

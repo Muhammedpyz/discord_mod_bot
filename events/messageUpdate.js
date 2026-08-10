@@ -7,20 +7,32 @@ module.exports = {
         if (!newMessage || !newMessage.channel || !newMessage.channel.name) return;
 
         if (newMessage.channel.name.startsWith('destek-')) {
-            if (oldMessage && oldMessage.content === newMessage.content) return; // No content change
+            const isContentChanged = oldMessage && oldMessage.content !== newMessage.content;
+            const isPinChanged = oldMessage && oldMessage.pinned !== newMessage.pinned;
+            if (!isContentChanged && !isPinChanged) return; // No relevant change
 
             const messageId = newMessage.id;
             const channelId = newMessage.channel.id;
-            const oldContent = oldMessage ? oldMessage.content : '';
-            const newContent = newMessage.content || '';
 
             let conn;
             try {
                 conn = await pool.getConnection();
-                await conn.query(
-                    'UPDATE ticket_messages SET is_edited = TRUE, old_content = ?, edited_content = ? WHERE message_id = ? OR (channel_id = ? AND content = ?)',
-                    [oldContent, newContent, messageId, channelId, oldContent]
-                );
+                
+                if (isContentChanged) {
+                    const oldContent = oldMessage ? oldMessage.content : '';
+                    const newContent = newMessage.content || '';
+                    await conn.query(
+                        'UPDATE ticket_messages SET is_edited = TRUE, old_content = ?, edited_content = ? WHERE message_id = ? OR (channel_id = ? AND content = ?)',
+                        [oldContent, newContent, messageId, channelId, oldContent]
+                    );
+                }
+                
+                if (isPinChanged) {
+                    await conn.query(
+                        'UPDATE ticket_messages SET is_pinned = ? WHERE message_id = ?',
+                        [newMessage.pinned, messageId]
+                    );
+                }
             } catch (err) {
                 console.error('[TicketUpdateLog] Hata:', err);
             } finally {

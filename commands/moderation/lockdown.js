@@ -37,7 +37,7 @@ module.exports = {
                 const payload = createContainerMessage(
                     `${EMOJIS.lock} Kanal Kilitlendi`,
                     'Sunucu guvenligi sebebiyle bu kanala mesaj gonderimi yetkililer tarafından gecici olarak durdurulmustur.',
-                    '#E74C3C'
+                    '#2B2D31'
                 );
                 
                 await interaction.reply(payload);
@@ -47,7 +47,7 @@ module.exports = {
                 const payload = createContainerMessage(
                     `${EMOJIS.unlock} Kanal Erisime Acildi`,
                     'Kanal kısıtlaması kaldırılmış olup, sohbet erişimi tekrar aktif edilmistir.',
-                    '#2ECC71'
+                    '#2B2D31'
                 );
                 
                 await interaction.reply(payload);
@@ -56,7 +56,7 @@ module.exports = {
             const logPayload = createContainerMessage(
                 state === 'lock' ? `${EMOJIS.lock} Kanal Kilitlendi` : `${EMOJIS.unlock} Kanal Kilidi Acildi`,
                 '',
-                state === 'lock' ? '#E74C3C' : '#2ECC71',
+                '#2B2D31',
                 [],
                 [
                     { name: 'Kanal', value: `<#${interaction.channel.id}>`, inline: true },

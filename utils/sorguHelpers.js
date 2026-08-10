@@ -328,7 +328,7 @@ async function handleSorguSelect(interaction, value, targetId) {
             const payload = createContainerMessage(
                 'Kullanıcı Sorgu Paneli',
                 `Aşağıda <@${targetId}> adlı kullanıcının detaylı sicil bilgilerine ulaşabilirsiniz.\n\n**Kayıt Tarihi:** ${createDate}\n**Sunucuya Katılım:** ${joinDate}`,
-                isStaff ? '#3498DB' : '#2ECC71',
+                '#2B2D31',
                 [createSorguMenu(targetId, 'sorgu_overview', isStaff)],
                 fieldsArr
             );

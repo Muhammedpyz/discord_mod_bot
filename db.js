@@ -133,6 +133,30 @@ async function initDB() {
         try { await conn.query('ALTER TABLE mutes ADD COLUMN moderator_id VARCHAR(25)'); } catch (e) {}
         try { await conn.query('ALTER TABLE mutes ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'); } catch (e) {}
 
+        // Role Memory System
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS role_memory (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(25) NOT NULL,
+                user_id VARCHAR(25) NOT NULL,
+                roles TEXT NOT NULL,
+                action_type VARCHAR(25) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Moderatör Notları
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS mod_notes (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(25) NOT NULL,
+                user_id VARCHAR(25) NOT NULL,
+                moderator_id VARCHAR(25) NOT NULL,
+                note TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
         // 5. Whitelists
         await conn.query(`
             CREATE TABLE IF NOT EXISTS whitelists (
@@ -280,10 +304,14 @@ async function initDB() {
         try { await conn.query('ALTER TABLE ticket_messages ADD COLUMN author_avatar VARCHAR(255)'); } catch (e) {}
         try { await conn.query('ALTER TABLE ticket_messages ADD COLUMN attachments_json LONGTEXT'); } catch (e) {}
         try { await conn.query('ALTER TABLE ticket_messages ADD COLUMN embeds_json LONGTEXT'); } catch (e) {}
+        try { await conn.query('ALTER TABLE ticket_messages ADD COLUMN components_json LONGTEXT'); } catch (e) {}
         try { await conn.query('ALTER TABLE ticket_messages ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE'); } catch (e) {}
         try { await conn.query('ALTER TABLE ticket_messages ADD COLUMN is_edited BOOLEAN DEFAULT FALSE'); } catch (e) {}
         try { await conn.query('ALTER TABLE ticket_messages ADD COLUMN edited_content TEXT'); } catch (e) {}
         try { await conn.query('ALTER TABLE ticket_messages ADD COLUMN old_content TEXT'); } catch (e) {}
+        try { await conn.query('ALTER TABLE ticket_messages ADD COLUMN reply_to_id VARCHAR(25)'); } catch (e) {}
+        try { await conn.query('ALTER TABLE ticket_messages ADD COLUMN stickers_json LONGTEXT'); } catch (e) {}
+        try { await conn.query('ALTER TABLE ticket_messages ADD COLUMN is_pinned BOOLEAN DEFAULT FALSE'); } catch (e) {}
         // İlk açılışta config'i cache'le
         const rows = await conn.query('SELECT * FROM guild_config');
         for (const row of rows) {

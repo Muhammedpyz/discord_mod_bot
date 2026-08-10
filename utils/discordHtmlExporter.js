@@ -13,7 +13,7 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
-function parseDiscordMarkdown(content) {
+function parseDiscordMarkdown(content, guild = null) {
     if (!content) return '';
     let html = escapeHtml(content);
 
@@ -42,9 +42,31 @@ function parseDiscordMarkdown(content) {
     html = html.replace(/^-#\s+(.+)$/gm, '<span class="discord-subtext">$1</span>');
 
     // Mentions <@ID>, <#ID>, <@&ID>
-    html = html.replace(/&lt;@!?(\d+)&gt;/g, '<span class="discord-mention">@Kullanıcı</span>');
-    html = html.replace(/&lt;#(\d+)&gt;/g, '<span class="discord-mention">#kanal</span>');
-    html = html.replace(/&lt;@&amp;(\d+)&gt;/g, '<span class="discord-mention">@Rol</span>');
+    html = html.replace(/&lt;@!?(\d+)&gt;/g, (match, id) => {
+        let name = 'Kullanıcı';
+        if (guild && guild.members && guild.members.cache.has(id)) {
+            name = guild.members.cache.get(id).user.tag || guild.members.cache.get(id).user.username;
+        } else if (guild && guild.client && guild.client.users.cache.has(id)) {
+            name = guild.client.users.cache.get(id).tag || guild.client.users.cache.get(id).username;
+        }
+        return `<span class="discord-mention" title="Kullanıcı ID: ${id}">@${escapeHtml(name)} <span style="font-size: 0.8em; opacity: 0.7;">(${id})</span></span>`;
+    });
+    
+    html = html.replace(/&lt;#(\d+)&gt;/g, (match, id) => {
+        let name = 'kanal';
+        if (guild && guild.channels && guild.channels.cache.has(id)) {
+            name = guild.channels.cache.get(id).name;
+        }
+        return `<span class="discord-mention" title="Kanal ID: ${id}">#${escapeHtml(name)} <span style="font-size: 0.8em; opacity: 0.7;">(${id})</span></span>`;
+    });
+    
+    html = html.replace(/&lt;@&amp;(\d+)&gt;/g, (match, id) => {
+        let name = 'Rol';
+        if (guild && guild.roles && guild.roles.cache.has(id)) {
+            name = guild.roles.cache.get(id).name;
+        }
+        return `<span class="discord-mention" title="Rol ID: ${id}">@${escapeHtml(name)} <span style="font-size: 0.8em; opacity: 0.7;">(${id})</span></span>`;
+    });
 
     // Line breaks
     html = html.replace(/\n/g, '<br>');
@@ -71,6 +93,30 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
     const ticketCategory = escapeHtml(ticketData ? ticketData.category || 'Genel' : 'Genel');
     const ticketReason = escapeHtml(ticketData ? ticketData.reason || 'Belirtilmemiş' : 'Belirtilmemiş');
     const ticketDate = ticketData && ticketData.opened_at ? new Date(ticketData.opened_at).toLocaleString('tr-TR') : new Date().toLocaleString('tr-TR');
+
+    const msgsUser = messages.filter(m => m.author_id === (ticketData ? ticketData.owner_id : '')).length;
+    const msgsBot = messages.filter(m => m.author && m.author.bot).length;
+    const msgsStaff = messages.length - msgsUser - msgsBot;
+    
+    let firstStaffResponse = 'Yok';
+    if (ticketData && ticketData.opened_at) {
+        const staffMsgs = messages.filter(m => m.author_id !== ticketData.owner_id && (!m.author || !m.author.bot));
+        if (staffMsgs.length > 0) {
+            const diffMs = staffMsgs[0].createdTimestamp - new Date(ticketData.opened_at).getTime();
+            if (diffMs > 0) {
+                const diffMins = Math.floor(diffMs / 60000);
+                firstStaffResponse = diffMins > 0 ? `${diffMins} dakika` : '1 dakikadan az';
+            }
+        }
+    }
+    
+    let durationStr = 'Bilinmiyor';
+    if (ticketData && ticketData.opened_at) {
+        const durMs = Date.now() - new Date(ticketData.opened_at).getTime();
+        const durHrs = Math.floor(durMs / 3600000);
+        const durMins = Math.floor((durMs % 3600000) / 60000);
+        durationStr = `${durHrs > 0 ? durHrs + ' saat ' : ''}${durMins} dakika`;
+    }
 
     let messagesHtml = '';
     let lastAuthorId = null;
@@ -104,9 +150,11 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
             lastTimestamp = timestamp;
         }
 
-        let contentParsed = parseDiscordMarkdown(msg.content || msg.edited_content || '');
-        const oldContentParsed = msg.old_content ? parseDiscordMarkdown(msg.old_content) : '';
+        let contentParsed = parseDiscordMarkdown(msg.content || msg.edited_content || '', guild);
+        let oldContentParsed = '';
 
+        if (msg.old_content) oldContentParsed = parseDiscordMarkdown(msg.old_content, guild);
+        
         const deletedBadge = isDeleted ? '<span class="discord-deleted-badge">SILINMIS MESAJ</span>' : '';
         const editedBadge = isEdited ? '<span class="discord-edited-badge">(duzenlendi)</span>' : '';
 
@@ -177,6 +225,28 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
             attachmentsHtml += '</div>';
         }
 
+        // Stickers HTML
+        let stickersHtml = '';
+        let stickersList = [];
+        if (msg.stickers && msg.stickers.size > 0) {
+            stickersList = Array.from(msg.stickers.values());
+        } else if (msg.stickers_json) {
+            try { stickersList = typeof msg.stickers_json === 'string' ? JSON.parse(msg.stickers_json) : msg.stickers_json; } catch(e){}
+        }
+
+        if (stickersList && stickersList.length > 0) {
+            stickersHtml += '<div class="discord-attachments">';
+            for (const sticker of stickersList) {
+                const stickerUrl = sticker.url || `https://media.discordapp.net/stickers/${sticker.id}.png`;
+                stickersHtml += `
+                    <div class="discord-image-attachment">
+                        <img src="${stickerUrl}" alt="${escapeHtml(sticker.name || 'Çıkartma')}" title="${escapeHtml(sticker.name || 'Çıkartma')}" loading="lazy" style="width: 160px; height: 160px; object-fit: contain;" />
+                    </div>`;
+            }
+            stickersHtml += '</div>';
+        }
+
+
         // Check for inline Tenor / Giphy / Direct Image URLs in content
         if (msg.content && (!attList || attList.length === 0)) {
             const urlRegex = /(https?:\/\/[^\s<]+)/g;
@@ -212,7 +282,7 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
             for (const embed of embedsList) {
                 const colorHex = embed.color ? '#' + embed.color.toString(16).padStart(6, '0') : '#2b2d31';
                 const embedTitle = escapeHtml(embed.title);
-                const embedDesc = parseDiscordMarkdown(embed.description);
+                const embedDesc = parseDiscordMarkdown(embed.description, guild);
 
                 let fieldsHtml = '';
                 if (embed.fields && embed.fields.length > 0) {
@@ -221,7 +291,7 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
                         fieldsHtml += `
                             <div class="discord-embed-field ${field.inline ? 'inline' : ''}">
                                 <div class="discord-embed-field-name">${escapeHtml(field.name)}</div>
-                                <div class="discord-embed-field-value">${parseDiscordMarkdown(field.value)}</div>
+                                <div class="discord-embed-field-value">${parseDiscordMarkdown(field.value, guild)}</div>
                             </div>`;
                     }
                     fieldsHtml += '</div>';
@@ -248,7 +318,45 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
             }
         }
 
+        let replyHtml = '';
+        if (msg.reply_to_id) {
+            const refMsg = messages.find(m => m.id === msg.reply_to_id);
+            if (refMsg) {
+                const refAuthorName = escapeHtml(refMsg.author_tag || 'Kullanıcı');
+                let refContent = escapeHtml(refMsg.content || '');
+                if (!refContent && refMsg.attachments_json) refContent = '[Dosya/Görsel]';
+                if (!refContent && refMsg.embeds) refContent = '[Embed]';
+                if (refContent.length > 50) refContent = refContent.substring(0, 50) + '...';
+                
+                replyHtml = `
+                    <div class="discord-replied-message" style="margin-bottom: 4px; display: flex; align-items: center; color: #b5bac1; font-size: 14px;">
+                        <span style="content: ''; display: inline-block; width: 30px; height: 12px; border-left: 2px solid #4e5058; border-top: 2px solid #4e5058; border-top-left-radius: 6px; margin-right: 4px; margin-bottom: 6px;"></span>
+                        <img src="${refMsg.author_avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}" style="width: 16px; height: 16px; border-radius: 50%; margin-right: 4px;" />
+                        <span style="font-weight: 500; margin-right: 4px;">@${refAuthorName}</span>
+                        <span style="cursor: pointer;">${refContent}</span>
+                    </div>`;
+            }
+        }
+
         let bodyHtml = '';
+        if (msg.components && msg.components.length > 0) {
+            const extractCompText = (comps) => {
+                let t = '';
+                if (!comps) return t;
+                for (const c of comps) {
+                    if (c.content) t += c.content + '\n';
+                    if (c.data && c.data.content) t += c.data.content + '\n';
+                    if (c.components) t += extractCompText(c.components);
+                    if (c.data && c.data.components) t += extractCompText(c.data.components);
+                }
+                return t;
+            };
+            const compText = extractCompText(msg.components).trim();
+            if (compText) {
+                contentParsed += (contentParsed ? '<br><br>' : '') + '<div class="discord-v2-container"><strong>Sistem Mesajı (V2):</strong><br>' + parseDiscordMarkdown(compText, guild) + '</div>';
+            }
+        }
+        
         if (isDeleted) {
             bodyHtml = `
                 <div class="discord-deleted-box">
@@ -265,6 +373,10 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
             bodyHtml = contentParsed ? `<div class="discord-text">${contentParsed} ${editedBadge}</div>` : '';
         }
 
+        if (msg.is_pinned) {
+            editedBadge += ' <span style="color: #ed4245; font-size: 0.8em; margin-left: 6px; font-weight: bold; background: rgba(237, 66, 69, 0.1); padding: 2px 4px; border-radius: 4px;">📌 SABİTLENDİ</span>';
+        }
+
         if (isGrouped) {
             messagesHtml += `
                 <div class="discord-message grouped ${isDeleted ? 'is-deleted' : ''}">
@@ -273,8 +385,10 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
                     </div>
                     <div class="discord-message-body">
                         <div class="discord-message-content">
+                            ${replyHtml}
                             ${bodyHtml}
                             ${attachmentsHtml}
+                            ${stickersHtml}
                             ${embedsHtml}
                         </div>
                     </div>
@@ -287,14 +401,16 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
                     </div>
                     <div class="discord-message-body">
                         <div class="discord-message-header">
-                            <span class="discord-author-name">${authorName}</span>
+                            <span class="discord-author-name" title="ID: ${authorId}">${authorName} <span style="font-size: 0.8em; color: #80848e; font-weight: normal;">(${authorId})</span></span>
                             ${isBot ? '<span class="discord-bot-badge">BOT</span>' : ''}
-                            <span class="discord-timestamp">${dateStr}</span>
+                            <span class="discord-timestamp" title="Message ID: ${msg.id}">${dateStr} <span style="font-size: 0.9em; margin-left: 6px;">| Mesaj ID: ${msg.id || 'Bilinmiyor'}</span></span>
                             ${deletedBadge}
                         </div>
                         <div class="discord-message-content">
+                            ${replyHtml}
                             ${bodyHtml}
                             ${attachmentsHtml}
+                            ${stickersHtml}
                             ${embedsHtml}
                         </div>
                     </div>
@@ -811,6 +927,27 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
             </div>
             <h1 class="discord-channel-start-title">#${channelName} kanalına hoş geldiniz!</h1>
             <p class="discord-channel-start-desc">Bu, #${channelName} destek kanalının başlangıcıdır.</p>
+        </div>
+        
+        <div style="background: rgba(43, 45, 49, 0.5); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; margin: 16px 16px 24px 16px; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="font-weight: 600; color: #f2f3f5; font-size: 16px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #5865f2;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                Bilet İstatistikleri ve Rapor
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #949ba4;">AÇIK KALMA SÜRESİ</span>
+                    <span style="font-size: 14px; color: #dbdee1; font-weight: 500;">${durationStr}</span>
+                </div>
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #949ba4;">İLK YETKİLİ YANITI</span>
+                    <span style="font-size: 14px; color: #dbdee1; font-weight: 500;">${firstStaffResponse}</span>
+                </div>
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #949ba4;">TOPLAM MESAJ</span>
+                    <span style="font-size: 14px; color: #dbdee1; font-weight: 500;">${messages.length} <span style="font-size: 12px; color: #80848e;">(${msgsUser} K. / ${msgsStaff} Y. / ${msgsBot} S.)</span></span>
+                </div>
+            </div>
         </div>
 
         <!-- Messages Flow -->

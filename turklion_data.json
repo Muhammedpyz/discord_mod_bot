@@ -1,0 +1,2237 @@
+{
+  "roles": [
+    {
+      "id": "1441769969133293621",
+      "name": "@everyone",
+      "permissions": [
+        "CreateInstantInvite",
+        "AddReactions",
+        "Stream",
+        "ViewChannel",
+        "SendMessages",
+        "EmbedLinks",
+        "AttachFiles",
+        "ReadMessageHistory",
+        "UseExternalEmojis",
+        "Connect",
+        "Speak",
+        "UseVAD",
+        "ChangeNickname",
+        "UseApplicationCommands",
+        "RequestToSpeak",
+        "CreatePublicThreads",
+        "CreatePrivateThreads",
+        "UseExternalStickers",
+        "SendMessagesInThreads",
+        "UseEmbeddedActivities",
+        "UseSoundboard",
+        "UseExternalSounds",
+        "SendVoiceMessages",
+        "SetVoiceChannelStatus",
+        "SendPolls",
+        "UseExternalApps"
+      ]
+    },
+    {
+      "id": "1441769996664442962",
+      "name": "Yönetici",
+      "permissions": [
+        "Administrator"
+      ]
+    },
+    {
+      "id": "1441770022086246531",
+      "name": "Geliştirici",
+      "permissions": []
+    },
+    {
+      "id": "1441770043560951808",
+      "name": "Ekosistem",
+      "permissions": []
+    },
+    {
+      "id": "1441770091959025735",
+      "name": "Moderatör",
+      "permissions": []
+    },
+    {
+      "id": "1441770145985859698",
+      "name": "Discord Moderatör",
+      "permissions": []
+    },
+    {
+      "id": "1441770177502122106",
+      "name": "LVIP+",
+      "permissions": []
+    },
+    {
+      "id": "1441770342585598032",
+      "name": "LVIP",
+      "permissions": []
+    },
+    {
+      "id": "1441770372222550027",
+      "name": "VIP+",
+      "permissions": []
+    },
+    {
+      "id": "1441770392166465577",
+      "name": "VIP",
+      "permissions": []
+    },
+    {
+      "id": "1441770414396412006",
+      "name": "Oyuncu",
+      "permissions": []
+    },
+    {
+      "id": "1441771252653097020",
+      "name": "Asistan",
+      "permissions": []
+    },
+    {
+      "id": "1441771539153420329",
+      "name": "Yardımcı",
+      "permissions": []
+    },
+    {
+      "id": "1515271651191816313",
+      "name": "SVIP",
+      "permissions": []
+    },
+    {
+      "id": "1515271877998678116",
+      "name": "MVIP",
+      "permissions": []
+    },
+    {
+      "id": "1515272198460412016",
+      "name": "Mimar",
+      "permissions": []
+    },
+    {
+      "id": "1521955058579800236",
+      "name": "🦁",
+      "permissions": [
+        "Administrator"
+      ]
+    },
+    {
+      "id": "1525179656528068740",
+      "name": "GOD",
+      "permissions": [
+        "CreateInstantInvite",
+        "KickMembers",
+        "BanMembers",
+        "ManageChannels",
+        "ManageGuild",
+        "AddReactions",
+        "ViewAuditLog",
+        "PrioritySpeaker",
+        "Stream",
+        "ViewChannel",
+        "SendMessages",
+        "SendTTSMessages",
+        "ManageMessages",
+        "EmbedLinks",
+        "AttachFiles",
+        "ReadMessageHistory",
+        "MentionEveryone",
+        "UseExternalEmojis",
+        "Connect",
+        "Speak",
+        "MuteMembers",
+        "DeafenMembers",
+        "MoveMembers",
+        "UseVAD",
+        "ChangeNickname",
+        "ManageNicknames",
+        "ManageRoles",
+        "ManageWebhooks",
+        "ManageEmojisAndStickers",
+        "ManageGuildExpressions",
+        "UseApplicationCommands",
+        "RequestToSpeak",
+        "ManageThreads",
+        "CreatePublicThreads",
+        "CreatePrivateThreads",
+        "UseExternalStickers",
+        "SendMessagesInThreads",
+        "UseEmbeddedActivities",
+        "ModerateMembers",
+        "UseSoundboard",
+        "CreateGuildExpressions",
+        "CreateEvents",
+        "SendPolls",
+        "UseExternalApps"
+      ]
+    },
+    {
+      "id": "1525245624566415522",
+      "name": "The Türklions.",
+      "permissions": []
+    },
+    {
+      "id": "1529580311439216862",
+      "name": "Server Booster",
+      "permissions": [
+        "CreateInstantInvite",
+        "AddReactions",
+        "Stream",
+        "ViewChannel",
+        "SendMessages",
+        "EmbedLinks",
+        "AttachFiles",
+        "ReadMessageHistory",
+        "MentionEveryone",
+        "UseExternalEmojis",
+        "Connect",
+        "Speak",
+        "UseVAD",
+        "ChangeNickname",
+        "UseApplicationCommands",
+        "RequestToSpeak",
+        "CreatePublicThreads",
+        "CreatePrivateThreads",
+        "UseExternalStickers",
+        "SendMessagesInThreads",
+        "UseEmbeddedActivities",
+        "UseSoundboard",
+        "CreateGuildExpressions",
+        "CreateEvents",
+        "UseExternalSounds",
+        "SendVoiceMessages",
+        "SetVoiceChannelStatus",
+        "SendPolls",
+        "UseExternalApps"
+      ]
+    },
+    {
+      "id": "1529853100834427060",
+      "name": "Bots",
+      "permissions": [
+        "CreateInstantInvite",
+        "KickMembers",
+        "BanMembers",
+        "ManageChannels",
+        "ManageGuild",
+        "AddReactions",
+        "ViewAuditLog",
+        "PrioritySpeaker",
+        "Stream",
+        "ViewChannel",
+        "SendMessages",
+        "SendTTSMessages",
+        "ManageMessages",
+        "EmbedLinks",
+        "AttachFiles",
+        "ReadMessageHistory",
+        "MentionEveryone",
+        "UseExternalEmojis",
+        "Connect",
+        "Speak",
+        "MuteMembers",
+        "DeafenMembers",
+        "MoveMembers",
+        "UseVAD",
+        "ChangeNickname",
+        "ManageNicknames",
+        "ManageRoles",
+        "ManageWebhooks",
+        "ManageEmojisAndStickers",
+        "ManageGuildExpressions",
+        "UseApplicationCommands",
+        "RequestToSpeak",
+        "ManageThreads",
+        "CreatePublicThreads",
+        "CreatePrivateThreads",
+        "UseExternalStickers",
+        "SendMessagesInThreads",
+        "UseEmbeddedActivities",
+        "ModerateMembers",
+        "UseSoundboard",
+        "CreateGuildExpressions",
+        "CreateEvents",
+        "SendPolls",
+        "UseExternalApps"
+      ]
+    },
+    {
+      "id": "1530570813005238394",
+      "name": "ULTRA",
+      "permissions": [
+        "CreateInstantInvite",
+        "KickMembers",
+        "BanMembers",
+        "ManageChannels",
+        "ManageGuild",
+        "AddReactions",
+        "ViewAuditLog",
+        "PrioritySpeaker",
+        "Stream",
+        "ViewChannel",
+        "SendMessages",
+        "SendTTSMessages",
+        "ManageMessages",
+        "EmbedLinks",
+        "AttachFiles",
+        "ReadMessageHistory",
+        "MentionEveryone",
+        "UseExternalEmojis",
+        "Connect",
+        "Speak",
+        "MuteMembers",
+        "DeafenMembers",
+        "MoveMembers",
+        "UseVAD",
+        "ChangeNickname",
+        "ManageNicknames",
+        "ManageRoles",
+        "ManageWebhooks",
+        "ManageEmojisAndStickers",
+        "ManageGuildExpressions",
+        "UseApplicationCommands",
+        "RequestToSpeak",
+        "ManageThreads",
+        "CreatePublicThreads",
+        "CreatePrivateThreads",
+        "UseExternalStickers",
+        "SendMessagesInThreads",
+        "UseEmbeddedActivities",
+        "ModerateMembers",
+        "UseSoundboard",
+        "CreateGuildExpressions",
+        "CreateEvents",
+        "SendPolls",
+        "UseExternalApps"
+      ]
+    },
+    {
+      "id": "1530998313695051959",
+      "name": "yeni rol",
+      "permissions": []
+    },
+    {
+      "id": "1530998354027483378",
+      "name": "Medya Sorumlusu",
+      "permissions": []
+    },
+    {
+      "id": "1530998566351536138",
+      "name": "yeni rol",
+      "permissions": []
+    },
+    {
+      "id": "1532095267208433956",
+      "name": "Nyx",
+      "permissions": [
+        "Administrator"
+      ]
+    },
+    {
+      "id": "1532112403154862252",
+      "name": "Uyarı",
+      "permissions": []
+    },
+    {
+      "id": "1532112752234070178",
+      "name": "Uyarı 2",
+      "permissions": []
+    },
+    {
+      "id": "1532112809704427550",
+      "name": "Ban",
+      "permissions": []
+    }
+  ],
+  "channels": [
+    {
+      "id": "1515347095954002071",
+      "name": "📦・skyblock-ticaret",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515273075690569868",
+      "name": "Lobi",
+      "type": 4,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "AddReactions",
+            "ViewChannel",
+            "SendMessages"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515347748608540712",
+      "name": "yetkili-sohbet",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: Moderatör",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Asistan",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Yönetici",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Mimar",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Yardımcı",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Geliştirici",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        }
+      ]
+    },
+    {
+      "id": "1515347970990669834",
+      "name": "📺・youtuber-sohbet",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515349072989651064",
+      "name": "mesaj-logları",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515347459948413070",
+      "name": "📜・ekip-tanıtım",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515348687868395570",
+      "name": "📺 | Yayın Odası 1",
+      "type": 2,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515273235246219445",
+      "name": "Hesap Eşle",
+      "type": 4,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515348936372781077",
+      "name": "güvenlik-logları",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515347120125902909",
+      "name": "📦・factions-ticaret",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515273836445044736",
+      "name": "AFK",
+      "type": 4,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515273784964153375",
+      "name": "Yönetim",
+      "type": 4,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel",
+            "Connect"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1532113776726249522",
+      "name": "OZEL ODALAR",
+      "type": 4,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1533551356952969397",
+      "name": "hatalar",
+      "type": 15,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Geliştirici",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: The Türklions.",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        }
+      ]
+    },
+    {
+      "id": "1515346907013189632",
+      "name": "🤖・uygulama-komutları",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1532113783953031371",
+      "name": "oda-olustur",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel",
+            "SendMessages"
+          ]
+        },
+        {
+          "target": "User: 1176622088837148732",
+          "allow": [
+            "ViewChannel",
+            "SendMessages"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515273316980752465",
+      "name": "Ticaret Merkezi",
+      "type": 4,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1530571257936875530",
+      "name": "yapılcaklar-liste",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515348058680983714",
+      "name": "⛔ | Personel harici giremez",
+      "type": 2,
+      "overrides": [
+        {
+          "target": "Role: Moderatör",
+          "allow": [
+            "ViewChannel",
+            "Connect"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel",
+            "Connect"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Geliştirici",
+          "allow": [
+            "ViewChannel",
+            "Connect"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Yönetici",
+          "allow": [
+            "ViewChannel",
+            "Connect"
+          ],
+          "deny": []
+        }
+      ]
+    },
+    {
+      "id": "1515347637149237408",
+      "name": "🔗・youtuber-başvuru",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "AddReactions",
+            "ViewChannel",
+            "SendMessages"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515273177742315520",
+      "name": "Merkez",
+      "type": 4,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515346863371325563",
+      "name": "📷・fotoğraf-galerisi",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": []
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515349028706189502",
+      "name": "ses-logları",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515348290747764736",
+      "name": "discord-mod-sohbet",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Discord Moderatör",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1532701108886311102",
+      "name": "yetkili-duyuru",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Geliştirici",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": [
+            "SendMessages"
+          ]
+        },
+        {
+          "target": "Role: Medya Sorumlusu",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": [
+            "SendMessages"
+          ]
+        },
+        {
+          "target": "Role: The Türklions.",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": [
+            "SendMessages"
+          ]
+        },
+        {
+          "target": "Role: GOD",
+          "allow": [
+            "CreateInstantInvite",
+            "AddReactions",
+            "ViewChannel",
+            "SendMessages",
+            "SendTTSMessages",
+            "ManageMessages",
+            "EmbedLinks",
+            "AttachFiles",
+            "ReadMessageHistory",
+            "MentionEveryone",
+            "UseExternalEmojis",
+            "UseApplicationCommands",
+            "ManageThreads",
+            "CreatePublicThreads",
+            "CreatePrivateThreads",
+            "UseExternalStickers",
+            "SendMessagesInThreads",
+            "UseEmbeddedActivities",
+            "SendVoiceMessages",
+            "SendPolls",
+            "UseExternalApps",
+            "PinMessages",
+            "BypassSlowmode"
+          ],
+          "deny": []
+        }
+      ]
+    },
+    {
+      "id": "1515350559983538186",
+      "name": "forum",
+      "type": 15,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515346823026442331",
+      "name": "💎・vip-sohbet",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: VIP",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: SVIP",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: MVIP",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: VIP+",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: LVIP+",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: LVIP",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        }
+      ]
+    },
+    {
+      "id": "1515348705010651327",
+      "name": "📺 | Yayın Odası 2",
+      "type": 2,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515348555412537344",
+      "name": "🔉 | Sesli Sohbet 1",
+      "type": 2,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515346556453257437",
+      "name": "📣・duyuru",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "AddReactions",
+            "ViewChannel",
+            "SendMessages"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515348860770324500",
+      "name": "💤 | Uzakta",
+      "type": 2,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515347140736581802",
+      "name": "📦・survival-ticaret",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515347066673565877",
+      "name": "🥇・seviyeler",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515273459993940028",
+      "name": "Personel",
+      "type": 4,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1530983298711552120",
+      "name": "toplantı-özet",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: Moderatör",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Asistan",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Discord Moderatör",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Yönetici",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Mimar",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Yardımcı",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Geliştirici",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        }
+      ]
+    },
+    {
+      "id": "1515273534266409000",
+      "name": "Sesli Sohbet",
+      "type": 4,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1532094618550796398",
+      "name": "ticket-log",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: Moderatör",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Asistan",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Discord Moderatör",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: GOD",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Ekosistem",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: ULTRA",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Mimar",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Yardımcı",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Medya Sorumlusu",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Geliştirici",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: The Türklions.",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        }
+      ]
+    },
+    {
+      "id": "1515273913083494410",
+      "name": "🔗・hesap-eşle",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515347398560579724",
+      "name": "👋・arkadaş-arama",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515348589834928158",
+      "name": "🔉 | Sesli Sohbet 2",
+      "type": 2,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515346606948487249",
+      "name": "📈・sıralama-bilgi",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "AddReactions",
+            "ViewChannel",
+            "SendMessages"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515273372764868728",
+      "name": "Başvurular",
+      "type": 4,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "AddReactions",
+            "ViewChannel",
+            "SendMessages"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515348214008774796",
+      "name": "🏦 | Toplantı odası",
+      "type": 2,
+      "overrides": [
+        {
+          "target": "Role: Moderatör",
+          "allow": [
+            "ViewChannel",
+            "Connect"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Asistan",
+          "allow": [
+            "ViewChannel",
+            "Connect"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Yönetici",
+          "allow": [
+            "ViewChannel",
+            "Connect"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel",
+            "Connect"
+          ]
+        },
+        {
+          "target": "Role: Mimar",
+          "allow": [
+            "ViewChannel",
+            "Connect"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Yardımcı",
+          "allow": [
+            "ViewChannel",
+            "Connect"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Geliştirici",
+          "allow": [
+            "ViewChannel",
+            "Connect"
+          ],
+          "deny": []
+        }
+      ]
+    },
+    {
+      "id": "1515347801008246795",
+      "name": "üst-yönetim-sohbet",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Moderatör",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Geliştirici",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Yönetici",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        }
+      ]
+    },
+    {
+      "id": "1536344366782881893",
+      "name": "DESTEK TALEPLERI",
+      "type": 4,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        }
+      ]
+    },
+    {
+      "id": "1515349373284909276",
+      "name": "yüksek-güvenlikli-oda",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1536344369072840781",
+      "name": "ticket-olustur",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [
+            "ViewChannel",
+            "ReadMessageHistory"
+          ],
+          "deny": [
+            "SendMessages"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515273645528715434",
+      "name": "Yayın Odası",
+      "type": 4,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515349122503282740",
+      "name": "eşleme-logları",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1530999722951577763",
+      "name": "server-önerileri",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: Moderatör",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: GOD",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Ekosistem",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: ULTRA",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Medya Sorumlusu",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Geliştirici",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: The Türklions.",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        }
+      ]
+    },
+    {
+      "id": "1515348503562289282",
+      "name": "🔧 | Yetkili Sohbet",
+      "type": 2,
+      "overrides": [
+        {
+          "target": "Role: Moderatör",
+          "allow": [
+            "ViewChannel",
+            "Connect"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Asistan",
+          "allow": [
+            "ViewChannel",
+            "Connect"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Yönetici",
+          "allow": [
+            "ViewChannel",
+            "Connect"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel",
+            "Connect"
+          ]
+        },
+        {
+          "target": "Role: Mimar",
+          "allow": [
+            "ViewChannel",
+            "Connect"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Yardımcı",
+          "allow": [
+            "ViewChannel",
+            "Connect"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Geliştirici",
+          "allow": [
+            "ViewChannel",
+            "Connect"
+          ],
+          "deny": []
+        }
+      ]
+    },
+    {
+      "id": "1515346673738453205",
+      "name": "💡・oylama",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "AddReactions",
+            "ViewChannel",
+            "SendMessages"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1536098423244324975",
+      "name": "plan",
+      "type": 15,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Geliştirici",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: GOD",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: The Türklions.",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: ULTRA",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        }
+      ]
+    },
+    {
+      "id": "1515346736921444482",
+      "name": "🎉・çekiliş",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "AddReactions",
+            "ViewChannel",
+            "SendMessages"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515348600773673061",
+      "name": "🔉 | Sesli Sohbet 3",
+      "type": 2,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1532113785345671399",
+      "name": "Oda Olustur",
+      "type": 2,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515347839818141777",
+      "name": "mimar-sohbet",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Mimar",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Yönetici",
+          "allow": [
+            "ViewChannel"
+          ],
+          "deny": []
+        }
+      ]
+    },
+    {
+      "id": "1515350478635143178",
+      "name": "🎨・tasarım-paylaşım",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1524377640553811988",
+      "name": "📣・ön-izleme",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "AddReactions",
+            "ViewChannel",
+            "SendMessages"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515348141660962879",
+      "name": "💻 | Geliştirme ofisi",
+      "type": 2,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel",
+            "Connect"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Geliştirici",
+          "allow": [
+            "ViewChannel",
+            "Connect"
+          ],
+          "deny": []
+        }
+      ]
+    },
+    {
+      "id": "1515348907591471184",
+      "name": "giriş-çıkış",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515347339961962638",
+      "name": "Sosyal",
+      "type": 4,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515346532420026389",
+      "name": "📰・kurallar",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": [
+            "AddReactions",
+            "ViewChannel",
+            "SendMessages"
+          ]
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1515346805808959538",
+      "name": "💭・genel-sohbet",
+      "type": 0,
+      "overrides": [
+        {
+          "target": "Role: @everyone",
+          "allow": [],
+          "deny": []
+        },
+        {
+          "target": "Role: Ban",
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -2,6 +2,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('disc
 const { sendLog } = require('../../utils/logger');
 const { validateModTarget } = require('../../utils/permissions');
 const { pool } = require('../../db');
+const { restoreRoles } = require('../../utils/roleMemory');
 const { createContainerMessage, EMOJIS } = require('../../utils/uiBuilder');
 
 module.exports = {
@@ -43,20 +44,13 @@ module.exports = {
                 return interaction.editReply({ content: validation.reason });
             }
 
-            const roleRows = await pool.query('SELECT role_id FROM user_roles WHERE user_id = ? AND guild_id = ?', [targetUser.id, interaction.guild.id]);
-            const rolesToRestore = roleRows.map(row => row.role_id).filter(id => interaction.guild.roles.cache.has(id));
-            
             await targetMember.roles.remove(bannedRoleId);
-            
-            if (rolesToRestore.length > 0) {
-                await targetMember.roles.add(rolesToRestore);
-                await pool.query('DELETE FROM user_roles WHERE user_id = ? AND guild_id = ?', [targetUser.id, interaction.guild.id]);
-            }
+            await restoreRoles(targetMember, 'warn3_ban');
 
             const logPayload = createContainerMessage(
                 `${EMOJIS.unlock} Sunucu Yasağı Kaldırıldı`,
                 '',
-                '#2ECC71',
+                '#2B2D31',
                 [],
                 [
                     { name: 'Kullanıcı', value: `${targetUser.tag} (${targetUser.id})`, inline: true },
@@ -69,7 +63,7 @@ module.exports = {
             const successPayload = createContainerMessage(
                 `${EMOJIS.unlock} Başarılı`,
                 `**<@${targetUser.id}>** adlı kullanıcının sunucu yasağı başarıyla kaldırıldı.`,
-                '#00FF00'
+                '#2B2D31'
             );
             return interaction.editReply(successPayload);
 

@@ -2,6 +2,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('disc
 const { sendLog } = require('../../utils/logger');
 const { validateModTarget } = require('../../utils/permissions');
 const { pool } = require('../../db');
+const { restoreRoles } = require('../../utils/roleMemory');
 const { createContainerMessage, EMOJIS } = require('../../utils/uiBuilder');
 
 module.exports = {
@@ -44,6 +45,13 @@ module.exports = {
             if (rolesToRemove.length > 0) {
                 await targetMember.roles.remove(rolesToRemove);
             }
+            
+            if (config && config.text_mute_role_id && rolesToRemove.includes(config.text_mute_role_id)) {
+                await restoreRoles(targetMember, 'mute');
+            }
+            if (config && config.voice_mute_role_id && rolesToRemove.includes(config.voice_mute_role_id)) {
+                await restoreRoles(targetMember, 'voice_mute');
+            }
 
             if (targetMember.communicationDisabledUntilTimestamp) {
                 await targetMember.timeout(null);
@@ -54,7 +62,7 @@ module.exports = {
             const logPayload = createContainerMessage(
                 `${EMOJIS.unlock} Susturma Kaldırıldı`,
                 '',
-                '#00FF00',
+                '#2B2D31',
                 [],
                 [
                     { name: 'Kullanıcı', value: `${targetUser.tag} (${targetUser.id})`, inline: true },
@@ -67,7 +75,7 @@ module.exports = {
             const successPayload = createContainerMessage(
                 `${EMOJIS.unlock} Başarılı`,
                 `**<@${targetUser.id}>** adlı kullanıcının susturması başarıyla kaldırıldı.`,
-                '#00FF00'
+                '#2B2D31'
             );
             return interaction.editReply(successPayload);
 

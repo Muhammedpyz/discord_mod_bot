@@ -35,9 +35,14 @@ module.exports = {
                         image: e.image
                     })) : [];
 
+                    const compsArr = message.components ? message.components.map(c => c.toJSON ? c.toJSON() : c) : [];
+                    const stickersArr = message.stickers ? message.stickers.map(s => ({ id: s.id, name: s.name, url: s.url })) : [];
+                    const replyToId = message.reference ? message.reference.messageId : null;
+                    const isPinned = message.pinned || false;
+
                     await conn.query(
-                        `INSERT INTO ticket_messages (message_id, guild_id, channel_id, ticket_owner_id, author_id, author_tag, author_avatar, content, attachments_json, embeds_json, is_deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
-                        [messageId, guildId, channelId, '', message.author ? message.author.id : '0', authorTag, authorAvatar, message.content, JSON.stringify(attachArr), JSON.stringify(embedsArr)]
+                        `INSERT INTO ticket_messages (message_id, guild_id, channel_id, ticket_owner_id, author_id, author_tag, author_avatar, content, attachments_json, embeds_json, components_json, stickers_json, reply_to_id, is_pinned, is_deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+                        [messageId, guildId, channelId, '', message.author ? message.author.id : '0', authorTag, authorAvatar, message.content, JSON.stringify(attachArr), JSON.stringify(embedsArr), JSON.stringify(compsArr), JSON.stringify(stickersArr), replyToId, isPinned]
                     );
                 }
             } catch (err) {

@@ -39,7 +39,7 @@ module.exports = {
                 const payload = createContainerMessage(
                     'Kullanıcı Eklendi',
                     `**<@${targetUser.id}>** bu destek talebine dahil edildi.`,
-                    '#2ECC71'
+                    '#2B2D31'
                 );
                 await interaction.editReply(payload);
 
@@ -53,7 +53,7 @@ module.exports = {
                 const payload = createContainerMessage(
                     'Kullanıcı Çıkarıldı',
                     `**<@${targetUser.id}>** bu destek talebinden çıkarıldı.`,
-                    '#E74C3C'
+                    '#2B2D31'
                 );
                 await interaction.editReply(payload);
             }

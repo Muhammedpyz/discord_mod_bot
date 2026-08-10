@@ -3,6 +3,7 @@ const { pool } = require('../../db');
 const { createContainerMessage, EMOJIS } = require('../../utils/uiBuilder');
 const { validateModTarget } = require('../../utils/permissions');
 const { sendLog } = require('../../utils/logger');
+const { saveRolesAndApplyMute } = require('../../utils/roleMemory');
 const { issueWarning } = require('../../utils/warningManager');
 
 function parseDuration(str) {
@@ -77,9 +78,11 @@ module.exports = {
 
                 const [configRows] = await conn.query('SELECT text_mute_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
                 if (configRows.length > 0 && configRows[0].text_mute_role_id) {
+                    await saveRolesAndApplyMute(targetMember, 'mute');
+                    
                     const muteRoleId = configRows[0].text_mute_role_id;
                     try {
-                        await targetMember.roles.add(muteRoleId);
+                        await targetMember.roles.add(muteRoleId, 'Susturma İşlemi');
                     } catch (e) {
                         console.error("Mute rolü verilemedi:", e);
                     }
@@ -95,7 +98,7 @@ module.exports = {
                     const dmPayload = createContainerMessage(
                         'Sunucuda Susturuldunuz',
                         `**${interaction.guild.name}** sunucusunda metin kanallarinda gecici olarak susturuldunuz.\n\n**Yetkili:** <@${interaction.user.id}>\n**Sure:** ${durationStr}\n**Sebep:** ${reason}`,
-                        '#FF8800'
+                        '#2B2D31'
                     );
                     await targetUser.send(dmPayload);
                 } catch (dmError) {
@@ -112,7 +115,7 @@ module.exports = {
                 const payload = createContainerMessage(
                     `${EMOJIS.warning} Kullanıcı Susturuldu`,
                     `<@${targetUser.id}> adlı kullanıcıya **${durationStr}** süreyle zaman aşımı uygulandı.\n**Sebep:** ${reason}${extraMsg}`,
-                    '#FF8800'
+                    '#2B2D31'
                 );
                 
                 await interaction.reply(payload);
@@ -120,7 +123,7 @@ module.exports = {
                 const logPayload = createContainerMessage(
                     `${EMOJIS.warning} Kullanıcı Susturuldu`,
                     '',
-                    '#FF8800',
+                    '#2B2D31',
                     [],
                     [
                         { name: 'Susturulan Üye', value: `<@${targetUser.id}> (${targetUser.tag})`, inline: true },

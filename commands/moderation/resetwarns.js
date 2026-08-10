@@ -60,7 +60,7 @@ module.exports = {
                 const payload = createContainerMessage(
                     'Uyarı Sıfırlama İşlemi',
                     `<@${targetUser.id}> adlı kullanıcının toplam **${affected}** adet aktif uyarısı başarıyla sıfırlanmıştır.`,
-                    '#2ECC71'
+                    '#2B2D31'
                 );
                     
                 await interaction.editReply(payload);
@@ -68,7 +68,7 @@ module.exports = {
                 const logPayload = createContainerMessage(
                     'Uyarılar Sıfırlandı',
                     '',
-                    '#FFAA00',
+                    '#2B2D31',
                     [],
                     [
                         { name: 'Kullanıcı', value: `<@${targetUser.id}>`, inline: true },

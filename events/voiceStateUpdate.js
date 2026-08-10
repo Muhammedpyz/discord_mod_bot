@@ -242,7 +242,7 @@ module.exports = {
                                     const transferPayload = createContainerMessage(
                                         'Sahiplik Devri',
                                         'Oda sahibi 5 dakikadan uzun süredir odada değil.\nAşağıdaki butona tıklayan ilk kişi odanın yeni sahibi olur!',
-                                        '#FFAA00',
+                                        '#2B2D31',
                                         [row]
                                     );
                                     await ch.send(transferPayload).catch(()=>{});

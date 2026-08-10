@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
 const { COLORS, buildModAPanel, buildModBResponse } = require('../../utils/uiBuilder');
 const { pool } = require('../../db');
+const wait = require('node:timers/promises').setTimeout;
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -63,6 +64,7 @@ module.exports = {
                     await channel.permissionOverwrites.edit(bannedRoleId, { ViewChannel: false });
                     await channel.permissionOverwrites.edit(interaction.guild.id, { ViewChannel: false });
                     updatedCount++;
+                    await wait(800); // Discord API Rate-Limit koruması (800ms bekleme)
                 } catch (e) {
                     // Yetki eksikliği vs. olabilir
                 }

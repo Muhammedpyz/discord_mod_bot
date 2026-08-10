@@ -3,6 +3,17 @@ const { escapeMarkdown } = require('discord.js');
 
 async function sendErrorLog(interaction, error, context) {
     console.error(`[Error] Context: ${context} | Message: ${error.message}`);
+    if (!interaction || !interaction.guild) return;
+    try {
+        const payload = createContainerMessage(
+            'Sistem Hatası',
+            `**Bağlam:** ${context}\n**Hata:** ${error.message}`,
+            '#2B2D31'
+        );
+        await sendLog(interaction.guild, payload, 'system');
+    } catch (e) {
+        console.error("Error sending error log:", e);
+    }
 }
 
 async function getLogChannel(client, guildId, type = 'voice') {

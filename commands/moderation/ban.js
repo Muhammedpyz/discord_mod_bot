@@ -17,19 +17,13 @@ module.exports = {
             option.setName('sebep')
                 .setDescription('Yasaklama sebebi')
                 .setRequired(false))
-        .addIntegerOption(option =>
-            option.setName('gün')
-                .setDescription('Silinecek mesaj geçmişi (Gün)')
-                .setRequired(false)
-                .setMinValue(0)
-                .setMaxValue(7))
         .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
 
     async execute(interaction) {
         try {
             const targetUser = interaction.options.getUser('kullanıcı');
             const reason = interaction.options.getString('sebep') || 'Belirtilmedi';
-            const deleteDays = interaction.options.getInteger('delete_messages') || 0;
+
 
             const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
             
@@ -49,7 +43,7 @@ module.exports = {
                 const dmPayload = createContainerMessage(
                     'Sunucudan Yasaklandiniz', 
                     `**${interaction.guild.name}** sunucusunda yasaklandınız.\n**Sebep:** ${reason}\n\nEger bu yasağın haksız olduğunu düşünüyorsanız aşağıdaki butona tıklayarak itiraz formunu doldurabilirsiniz.`,
-                    '#FF0000',
+                    '#2B2D31',
                     [row]
                 );
 
@@ -100,7 +94,7 @@ module.exports = {
                 const payload = createContainerMessage(
                     `${EMOJIS.ban} Kullanıcı Yasaklandı`,
                     `<@${targetUser.id}> adlı kullanıcıya yasaklı rolü verildi ve diğer rolleri alındı.\n**Sebep:** ${reason}`,
-                    '#FF0000'
+                    '#2B2D31'
                 );
                 
                 await interaction.reply(payload);
@@ -108,7 +102,7 @@ module.exports = {
                 const logPayload = createContainerMessage(
                     'Kullanıcı Yasaklandı',
                     '',
-                    '#FF0000',
+                    '#2B2D31',
                     [],
                     [
                         { name: 'Yasaklanan Üye', value: `<@${targetUser.id}> (${targetUser.tag})`, inline: true },

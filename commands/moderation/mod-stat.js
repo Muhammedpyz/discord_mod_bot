@@ -76,7 +76,7 @@ module.exports = {
             const payload = createContainerMessage(
                 'Yetkili Liderlik Tablosu',
                 `Sunucuda en çok moderasyon işlemi yapan ilk 10 yetkili aşağıda listelenmiştir.\n\n${description}`,
-                '#FFD700'
+                '#2B2D31'
             );
 
             await interaction.editReply(payload);

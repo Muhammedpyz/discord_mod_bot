@@ -3,6 +3,7 @@ const { pool } = require('../../db');
 const { createContainerMessage } = require('../../utils/uiBuilder');
 const { validateModTarget } = require('../../utils/permissions');
 const { sendLog } = require('../../utils/logger');
+const { saveRolesAndApplyMute } = require('../../utils/roleMemory');
 const { issueWarning } = require('../../utils/warningManager');
 
 function parseDuration(str) {
@@ -66,22 +67,22 @@ module.exports = {
             try {
                 conn = await pool.getConnection();
 
-                if (!targetMember.voice.channel) {
-                    return interaction.reply({ content: 'Kullanıcı şu anda herhangi bir ses kanalında değil. Sadece ses kanalindaki kullanıcılara sesli susturma işleme alinabilir.', flags: MessageFlags.Ephemeral });
-                }
-
-                try {
-                    await targetMember.voice.setMute(true, `Moderator: ${interaction.user.tag} | Sebep: ${reason}`);
-                    await targetMember.voice.setDeaf(true, `Moderator: ${interaction.user.tag} | Sebep: ${reason}`);
-                } catch (e) {
-                    return interaction.reply({ content: `Sesli kanalda susturulma gerceklestirilemedi. Bot yetkilerini kontrol ediniz. Hata: ${e.message}`, flags: MessageFlags.Ephemeral });
+                if (targetMember.voice.channel) {
+                    try {
+                        await targetMember.voice.setMute(true, `Moderator: ${interaction.user.tag} | Sebep: ${reason}`);
+                        await targetMember.voice.setDeaf(true, `Moderator: ${interaction.user.tag} | Sebep: ${reason}`);
+                    } catch (e) {
+                        console.error(`Sesli kanalda susturulma gerceklestirilemedi. Hata: ${e.message}`);
+                    }
                 }
 
                 const [configRows] = await conn.query('SELECT voice_mute_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
                 if (configRows.length > 0 && configRows[0].voice_mute_role_id) {
+                    await saveRolesAndApplyMute(targetMember, 'voice_mute');
+                    
                     const muteRoleId = configRows[0].voice_mute_role_id;
                     try {
-                        await targetMember.roles.add(muteRoleId);
+                        await targetMember.roles.add(muteRoleId, 'Ses Susturma İşlemi');
                     } catch (e) {
                         console.error("Ses mute rolü verilemedi:", e);
                     }
@@ -97,7 +98,7 @@ module.exports = {
                     const dmPayload = createContainerMessage(
                         'Ses Kanallarinda Susturuldunuz',
                         `**${interaction.guild.name}** sunucusunda ses kanallarinda sagirlastirildiniz ve susturuldunuz.\n\n**Yetkili:** <@${interaction.user.id}>\n**Sure:** ${durationStr}\n**Sebep:** ${reason}`,
-                        '#FF8800'
+                        '#2B2D31'
                     );
                     await targetUser.send(dmPayload);
                 } catch (dmError) {
@@ -114,7 +115,7 @@ module.exports = {
                 const payload = createContainerMessage(
                     'Kullanıcı Ses Kanallarinda Susturuldu',
                     `<@${targetUser.id}> adlı kullanıcı **${durationStr}** süreyle ses kanallarinda sagirlastirildi ve susturuldu.\n**Sebep:** ${reason}${extraMsg}`,
-                    '#3498DB'
+                    '#2B2D31'
                 );
                 
                 await interaction.reply(payload);
@@ -122,7 +123,7 @@ module.exports = {
                 const logPayload = createContainerMessage(
                     'Kullanıcı Susturuldu (Voice)',
                     '',
-                    '#FF8800',
+                    '#2B2D31',
                     [],
                     [
                         { name: 'Susturulan Üye', value: `<@${targetUser.id}> (${targetUser.tag})`, inline: true },

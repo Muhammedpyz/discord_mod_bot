@@ -107,24 +107,9 @@ module.exports.issueWarning = async function(guild, user, moderatorId, reason) {
                     try {
                         const member = await guild.members.fetch(user.id);
                         if (member) {
-                            const rolesToKeep = member.roles.cache
-                                .filter(r => !r.editable || r.id === guild.id)
-                                .map(r => r.id);
-                            
-                            const rolesToSave = member.roles.cache
-                                .filter(r => r.editable && r.id !== guild.id && r.id !== bannedRoleId)
-                                .map(r => r.id);
-
-                            if (!rolesToKeep.includes(bannedRoleId)) {
-                                rolesToKeep.push(bannedRoleId);
-                            }
-                            
-                            await member.roles.set(rolesToKeep);
-
-                            if (rolesToSave.length > 0) {
-                                const values = rolesToSave.map(rId => [user.id, guild.id, rId]);
-                                await conn.query('INSERT IGNORE INTO user_roles (user_id, guild_id, role_id) VALUES ?', [values]);
-                            }
+                            const { saveRolesAndApplyMute } = require('./roleMemory');
+                            await saveRolesAndApplyMute(member, 'warn3_ban');
+                            await member.roles.add(bannedRoleId);
                             extraAction = `\nKullanıcı kural ihlali sınırına (3) ulaştığı için diğer rolleri alındı ve <@&${bannedRoleId}> rolü tanımlandı.`;
                             dmInfo += `\n\n**Önemli Bildirim:** Kural ihlali sınırına ulaştığınız için sunucuda yetkileriniz kısıtlanmıştır. Durumu görüşmek için bir destek talebi açabilirsiniz.`;
                         }

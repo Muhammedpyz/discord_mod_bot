@@ -5,7 +5,7 @@ const { buildModBResponse } = require('../utils/uiBuilder');
 const memberAddDebounce = new Map();
 const memberRemoveDebounce = new Map();
 
-function logSystemEvent(guild, title, fields, colorHex = '#3498DB', logType = 'system') {
+function logSystemEvent(guild, title, fields, colorHex = '#2B2D31', logType = 'system') {
     const payload = buildModBResponse({ title, fields, color: colorHex });
     sendLog(guild, payload, logType);
 }
@@ -36,7 +36,7 @@ module.exports = [
             { name: 'Zaman', value: now }
         ];
 
-        logSystemEvent(ban.guild, 'Uye Yasaklandi (Ban)', fields, '#FF0000');
+        logSystemEvent(ban.guild, 'Uye Yasaklandi (Ban)', fields, '#2B2D31');
     }
 },
 {
@@ -67,7 +67,7 @@ module.exports = [
                 fields.push({ name: 'Toplam Katilim', value: `${data.items.length} uye` });
             }
             const title = data.items.length > 1 ? `Toplu ${data.items.length} Uye Katildi` : 'Yeni Uye Katildi';
-            logSystemEvent(member.guild, title, fields, '#00FF00');
+            logSystemEvent(member.guild, title, fields, '#2B2D31');
         }, 3000);
     }
 },
@@ -112,7 +112,7 @@ module.exports = [
                 fields.push({ name: 'Toplam Ayrilis', value: `${data.items.length} uye` });
             }
             const title = data.items.length > 1 ? `Toplu ${data.items.length} Uye Ayrildi` : 'Uye Ayrildi';
-            logSystemEvent(member.guild, title, fields, '#FF5500');
+            logSystemEvent(member.guild, title, fields, '#2B2D31');
         }, 3000);
     }
 },
@@ -139,7 +139,7 @@ module.exports = [
             { name: 'Zaman', value: now }
         ];
 
-        logSystemEvent(emoji.guild, 'Emoji Guncellendi', fields, '#00AAFF');
+        logSystemEvent(emoji.guild, 'Emoji Guncellendi', fields, '#2B2D31');
     }
 },
 {
@@ -161,7 +161,7 @@ module.exports = [
             { name: 'Zaman', value: now }
         ];
 
-        logSystemEvent(channel.guild, 'Webhook Guncellendi', fields, '#FF9900');
+        logSystemEvent(channel.guild, 'Webhook Guncellendi', fields, '#2B2D31');
     }
 },
 {
@@ -186,7 +186,7 @@ module.exports = [
             { name: 'Zaman', value: now }
         ];
 
-        logSystemEvent(ban.guild, 'Yasaklama (Ban) Kaldirildi', fields, '#00FF00');
+        logSystemEvent(ban.guild, 'Yasaklama (Ban) Kaldirildi', fields, '#2B2D31');
     }
 },
 {
@@ -214,7 +214,7 @@ module.exports = [
             { name: 'Zaman', value: now }
         ];
 
-        logSystemEvent(invite.guild, 'Yeni Davet Baglantisi Olusturuldu', fields, '#00FFAA');
+        logSystemEvent(invite.guild, 'Yeni Davet Baglantisi Olusturuldu', fields, '#2B2D31');
     }
 },
 {
@@ -239,7 +239,7 @@ module.exports = [
             { name: 'Zaman', value: now }
         ];
 
-        logSystemEvent(invite.guild, 'Davet Baglantisi Silindi', fields, '#FFAA00');
+        logSystemEvent(invite.guild, 'Davet Baglantisi Silindi', fields, '#2B2D31');
     }
 },
 {
@@ -265,7 +265,7 @@ module.exports = [
                 { name: 'Zaman', value: now }
             ];
 
-            logSystemEvent(newChannel.guild, 'Kanal Isin Degisikligi', fields, '#00AAFF');
+            logSystemEvent(newChannel.guild, 'Kanal Isin Degisikligi', fields, '#2B2D31');
         }
     }
 }

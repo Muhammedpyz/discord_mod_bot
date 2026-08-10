@@ -36,17 +36,36 @@ module.exports = {
             try { targetMember = await interaction.guild.members.fetch(targetUser.id); } catch { targetMember = null; }
 
             // 1. Normal Kullanıcı Istatistikleri (Ceza Geçmişi vs.)
-            const [warnRows] = await conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [interaction.guild.id, targetUser.id]);
+            const [
+                [warnRows],
+                [totalWarnRows],
+                [muteRows],
+                [ticketRows]
+            ] = await Promise.all([
+                conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [interaction.guild.id, targetUser.id]),
+                conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]),
+                conn.query('SELECT COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]),
+                conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND owner_id = ?', [interaction.guild.id, targetUser.id])
+            ]);
+
             const activeWarns = Number(warnRows[0]?.cnt || 0);
-
-            const [totalWarnRows] = await conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]);
             const totalWarns = Number(totalWarnRows[0]?.cnt || 0);
-
-            const [muteRows] = await conn.query('SELECT COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]);
             const totalMutes = Number(muteRows[0]?.cnt || 0);
-
-            const [ticketRows] = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND owner_id = ?', [interaction.guild.id, targetUser.id]);
             const totalTickets = Number(ticketRows[0]?.cnt || 0);
+
+            const noteRowsQuery = await conn.query('SELECT COUNT(*) as cnt FROM mod_notes WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]);
+            const totalNotes = Number(noteRowsQuery[0]?.cnt || 0);
+
+            const canSeeNotes = interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers) || interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.BanMembers) || interaction.member.permissions.has(PermissionFlagsBits.ManageRoles);
+            let lastNotesText = totalNotes === 0 ? 'Not bulunmuyor.' : 'Notları görüntüleme yetkiniz yok.';
+            if (canSeeNotes && totalNotes > 0) {
+                const lastNotesRows = await conn.query('SELECT moderator_id, note FROM mod_notes WHERE guild_id = ? AND user_id = ? ORDER BY id DESC LIMIT 3', [interaction.guild.id, targetUser.id]);
+                if (Array.isArray(lastNotesRows)) {
+                    lastNotesText = lastNotesRows.map(n => `- <@${n.moderator_id}>: ${n.note}`).join('\n');
+                } else {
+                    lastNotesText = '- <@' + lastNotesRows.moderator_id + '>: ' + lastNotesRows.note;
+                }
+            }
 
             const roles = targetMember ? targetMember.roles.cache
                 .filter(r => r.id !== interaction.guild.id)
@@ -61,7 +80,8 @@ module.exports = {
 
             const rawFields = [
                 { name: `<:mono:${MONO_EMOJIS.shield}> Roller`, value: roles.length > 200 ? roles.substring(0, 200) + '...' : roles },
-                { name: `<:mono:${MONO_EMOJIS.warning}> Ceza Istatistikleri`, value: `Aktif Uyarı: **${activeWarns}** | Toplam Uyarı: **${totalWarns}**\nToplam Susturulma: **${totalMutes}** | Toplam Ticket: **${totalTickets}**` }
+                { name: `<:mono:${MONO_EMOJIS.warning}> Ceza Istatistikleri`, value: `Aktif Uyarı: **${activeWarns}** | Toplam Uyarı: **${totalWarns}**\nToplam Susturulma: **${totalMutes}** | Toplam Ticket: **${totalTickets}**` },
+                { name: `<:mono:${MONO_EMOJIS.pin}> Moderatör Notları: ${totalNotes} adet`, value: lastNotesText }
             ];
 
             // 2. Eğer hedef kullanıcı YETKİLİ ise, yetkili işlem gecmisini de getir!
@@ -77,9 +97,15 @@ module.exports = {
 
             // Eğer önceden yetkiliyse ve şu an yetkisi yoksa, ama veritabanında işlemi varsa yine yetkili say
             if (!isTargetStaff) {
-                const [checkRows] = await conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetUser.id]);
-                const [checkMuteRows] = await conn.query('SELECT COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetUser.id]);
-                const [checkTicketRows] = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetUser.id]);
+                const [
+                    [checkRows],
+                    [checkMuteRows],
+                    [checkTicketRows]
+                ] = await Promise.all([
+                    conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetUser.id]),
+                    conn.query('SELECT COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetUser.id]),
+                    conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetUser.id])
+                ]);
                 if (Number(checkRows[0]?.cnt) > 0 || Number(checkMuteRows[0]?.cnt) > 0 || Number(checkTicketRows[0]?.cnt) > 0) {
                     isTargetStaff = true;
                 }
@@ -146,7 +172,7 @@ module.exports = {
             const payload = createContainerMessage(
                 'Kullanıcı Sorgu Paneli',
                 `Aşağıda <@${targetUser.id}> adlı kullanıcının detaylı sicil bilgilerine ulaşabilirsiniz.\n\n**Kayıt Tarihi:** ${createDate}\n**Sunucuya Katılım:** ${joinDate}`,
-                isTargetStaff ? '#3498DB' : '#2ECC71',
+                '#2B2D31',
                 [createSorguMenu(targetUser.id, 'sorgu_overview', isTargetStaff)],
                 rawFields
             );
