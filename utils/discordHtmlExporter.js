@@ -167,7 +167,7 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
         if (msg.old_content) oldContentParsed = parseDiscordMarkdown(msg.old_content, guild);
         
         const deletedBadge = isDeleted ? '<span class="discord-deleted-badge">SILINMIS MESAJ</span>' : '';
-        const editedBadge = isEdited ? '<span class="discord-edited-badge">(duzenlendi)</span>' : '';
+        let editedBadge = isEdited ? '<span class="discord-edited-badge">(duzenlendi)</span>' : '';
 
         // Attachments HTML
         let attachmentsHtml = '';
