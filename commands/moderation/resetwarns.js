@@ -31,6 +31,32 @@ module.exports = {
 
                 const affected = result.affectedRows !== undefined ? result.affectedRows : 0;
 
+                if (affected > 0) {
+                    const [configRows] = await conn.query('SELECT warn1_role_id, warn2_role_id, banned_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
+                    if (configRows.length > 0) {
+                        const config = configRows[0];
+                        const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+                        if (member) {
+                            const rolesToRemove = [];
+                            if (config.warn1_role_id && member.roles.cache.has(config.warn1_role_id)) rolesToRemove.push(config.warn1_role_id);
+                            if (config.warn2_role_id && member.roles.cache.has(config.warn2_role_id)) rolesToRemove.push(config.warn2_role_id);
+                            if (config.banned_role_id && member.roles.cache.has(config.banned_role_id)) rolesToRemove.push(config.banned_role_id);
+                            if (rolesToRemove.length > 0) {
+                                await member.roles.remove(rolesToRemove, 'Uyarı temizleme: Uyarı rolleri otomatik kaldırıldı.').catch(()=>{});
+                                
+                                if (config.banned_role_id && rolesToRemove.includes(config.banned_role_id)) {
+                                    const [roleRows] = await conn.query('SELECT role_id FROM user_roles WHERE user_id = ? AND guild_id = ?', [targetUser.id, interaction.guild.id]);
+                                    const rolesToRestore = roleRows.map(row => row.role_id).filter(id => interaction.guild.roles.cache.has(id));
+                                    if (rolesToRestore.length > 0) {
+                                        await member.roles.add(rolesToRestore, 'Uyarı temizleme: Eski roller geri yüklendi.').catch(()=>{});
+                                        await conn.query('DELETE FROM user_roles WHERE user_id = ? AND guild_id = ?', [targetUser.id, interaction.guild.id]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 const payload = createContainerMessage(
                     'Uyarı Sıfırlama İşlemi',
                     `<@${targetUser.id}> adlı kullanıcının toplam **${affected}** adet aktif uyarısı başarıyla sıfırlanmıştır.`,

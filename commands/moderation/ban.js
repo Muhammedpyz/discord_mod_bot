@@ -77,11 +77,20 @@ module.exports = {
                     .filter(r => !r.editable || r.id === interaction.guild.id)
                     .map(r => r.id);
                 
+                const rolesToSave = targetMember.roles.cache
+                    .filter(r => r.editable && r.id !== interaction.guild.id && r.id !== bannedRoleId)
+                    .map(r => r.id);
+
                 if (!rolesToKeep.includes(bannedRoleId)) {
                     rolesToKeep.push(bannedRoleId);
                 }
                 
                 await targetMember.roles.set(rolesToKeep, `Moderator: ${interaction.user.tag} | Sebep: ${reason}`);
+
+                if (rolesToSave.length > 0) {
+                    const values = rolesToSave.map(rId => [targetUser.id, interaction.guild.id, rId]);
+                    await conn.query('INSERT IGNORE INTO user_roles (user_id, guild_id, role_id) VALUES ?', [values]);
+                }
 
                 await conn.query(
                     'INSERT INTO mutes (guild_id, user_id, moderator_id, action_type, expires_at, reason) VALUES (?, ?, ?, ?, NULL, ?)',
