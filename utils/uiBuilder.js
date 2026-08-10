@@ -53,12 +53,12 @@ for (const [name, id] of Object.entries(MONO_EMOJIS)) {
 
 const COLORS = {
     PRIMARY: 0x2B2D31,
-    BRAND: 0xC0392B,
-    SUCCESS: 0x2ECC71,
-    ERROR: 0xE74C3C,
-    WARNING: 0xF1C40F,
-    LOG: 0x3498DB,
-    INFO: 0x9B59B6
+    BRAND: 0x2B2D31,
+    SUCCESS: 0x2B2D31,
+    ERROR: 0x2B2D31,
+    WARNING: 0x2B2D31,
+    LOG: 0x2B2D31,
+    INFO: 0x2B2D31
 };
 
 function resolveColor(color) {
