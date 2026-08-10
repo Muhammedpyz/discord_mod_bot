@@ -58,14 +58,27 @@ module.exports = {
             return;
         }
 
-        if (isSuspicious && dbLogChannelId) {
+        if (dbLogChannelId) {
             const channel = member.guild.channels.cache.get(dbLogChannelId);
             if (channel) {
                 const buttons = createModActionButtons(member.id);
+                
+                const creationDate = member.user.createdAt.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const ageDays = Math.round(accountAgeDays);
+                
+                let badges = 'Yok';
+                if (member.user.flags && member.user.flags.toArray().length > 0) {
+                    badges = member.user.flags.toArray().join(', ').replace(/HypeSquadOnlineHouse1/g, 'Bravery').replace(/HypeSquadOnlineHouse2/g, 'Brilliance').replace(/HypeSquadOnlineHouse3/g, 'Balance').replace(/PremiumEarlySupporter/g, 'Erken Destekçi').replace(/ActiveDeveloper/g, 'Aktif Geliştirici');
+                }
+                
+                let riskText = isSuspicious ? '**RİSKLİ (7 günden yeni hesap)**' : 'Güvenli (Eski Hesap)';
+                let colorToUse = isSuspicious ? COLORS.ERROR : COLORS.INFO;
+
                 const payload = createV2Message({
-                    title: 'Yeni Hesap Katılımı',
-                    description: `**Kullanıcı:** ${member.user.tag} (${member.id})\n**Yetkili:** Sistem\n**Sebep:** Hesap ${Math.round(accountAgeDays)} gün önce açılmış. Şüpheli durum olabilir.`,
-                    color: COLORS.WARNING,
+                    title: 'Giriş: Detaylı Kullanıcı Raporu',
+                    description: `**Kullanıcı:** <@${member.id}>\n**Kullanıcı Adı:** \`${member.user.tag}\`\n**ID:** \`${member.id}\`\n\n**Hesap Türü:** ${member.user.bot ? 'Bot 🤖' : 'İnsan 👤'}\n**Hesap Kuruluş Tarihi:** ${creationDate} (${ageDays} gün önce)\n**Rozetleri (Badges):** ${badges}\n\n**Güvenlik Durumu:** ${riskText}`,
+                    color: colorToUse,
+                    thumbnail: member.user.displayAvatarURL({ dynamic: true, size: 256 }),
                     actionRows: [buttons]
                 });
                 await sendLog(member.guild, payload, 'system').catch(()=>{});
