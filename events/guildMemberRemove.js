@@ -22,7 +22,7 @@ module.exports = {
                 WHERE user_id = ?
             `, [member.user.username, member.id]);
             
-            const [ticketRows] = await conn.query('SELECT channel_id FROM tickets WHERE guild_id = ? AND owner_id = ? AND status = "open"', [member.guild.id, member.id]);
+            const ticketRows = await conn.query('SELECT channel_id FROM tickets WHERE guild_id = ? AND owner_id = ? AND status = "open"', [member.guild.id, member.id]);
             if (ticketRows.length > 0) {
                 const { closeTicketChannel } = require('../utils/ticketManager');
                 for (const row of ticketRows) {
