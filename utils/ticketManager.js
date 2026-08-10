@@ -432,6 +432,10 @@ async function closeTicketChannel(interaction) {
                 }
                 return `@${name} (${id})`;
             });
+            // Emojis
+            txt = txt.replace(/<(a?):([a-zA-Z0-9_]+):(\d+)>/g, (match, anim, name) => {
+                return `[:${name}:]`;
+            });
             // Strip Markdown for clean TXT
             txt = txt.replace(/\*\*(.*?)\*\*/g, '$1');
             txt = txt.replace(/\*(.*?)\*/g, '$1');
