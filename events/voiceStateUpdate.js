@@ -120,15 +120,27 @@ module.exports = {
                         await conn.query('UPDATE guild_setup SET active_rooms_category_id = ? WHERE guild_id = ?', [categoryId, guildId]);
                     }
 
+                    let bannedRoleId = null;
+                    try {
+                        const configRows = await conn.query('SELECT banned_role_id FROM guild_config WHERE guild_id = ?', [guildId]);
+                        if (configRows.length > 0) bannedRoleId = configRows[0].banned_role_id;
+                    } catch(e) {}
+
+                    const overwrites = [
+                        { id: guildId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] },
+                        { id: member.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] }
+                    ];
+
+                    if (bannedRoleId) {
+                        overwrites.push({ id: bannedRoleId, deny: [PermissionFlagsBits.ViewChannel] });
+                    }
+
                     const newChannel = await newState.guild.channels.create({
                         name: `${member.user.username} Odasi`,
                         type: ChannelType.GuildVoice,
                         parent: categoryId,
                         userLimit: 0,
-                        permissionOverwrites: [
-                            { id: guildId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] },
-                            { id: member.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] }
-                        ]
+                        permissionOverwrites: overwrites
                     });
 
                     await conn.query('INSERT INTO active_rooms (channel_id, owner_id, guild_id) VALUES (?, ?, ?)', [newChannel.id, member.id, guildId]);
