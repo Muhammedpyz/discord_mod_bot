@@ -145,6 +145,13 @@ async function getSettingsPage(guildId, pageName) {
             ));
 
             components.push(new ActionRowBuilder().addComponents(
+                new ChannelSelectMenuBuilder()
+                    .setCustomId('select_log_ticket_channel')
+                    .setPlaceholder(config.log_ticket_channel_id ? 'Ticket Log Kanalı Ayarlandı' : 'Ticket Log Kanalını Seçin')
+                    .addChannelTypes(ChannelType.GuildText)
+            ));
+
+            components.push(new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('settings:auto_setup_ticket').setLabel('Sıfırdan Ticket Sistemi Kur').setStyle(ButtonStyle.Success)
             ));
             
@@ -453,7 +460,10 @@ module.exports = {
                             
                             uiPayload.components = [
                                 new ActionRowBuilder().addComponents(
-                                    new ButtonBuilder().setCustomId('ticket:create:1').setLabel('Bilet Oluştur').setStyle(ButtonStyle.Primary)
+                                    new ButtonBuilder().setCustomId('ticket_cat_hesap').setLabel('Hesap İşlemleri').setStyle(ButtonStyle.Primary),
+                                    new ButtonBuilder().setCustomId('ticket_cat_ceza').setLabel('Ceza İtiraz').setStyle(ButtonStyle.Danger),
+                                    new ButtonBuilder().setCustomId('ticket_cat_sunucu').setLabel('Sunucu Sorunları').setStyle(ButtonStyle.Secondary),
+                                    new ButtonBuilder().setCustomId('ticket_cat_genel').setLabel('Genel Destek').setStyle(ButtonStyle.Success)
                                 )
                             ];
                             
