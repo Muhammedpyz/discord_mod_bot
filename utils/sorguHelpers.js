@@ -162,10 +162,18 @@ async function handleSorguSelect(interaction, value, targetId) {
                 value: `**Tarih:** <t:${Math.floor(new Date(m.created_at).getTime() / 1000)}:f>\n**Sebep:** ${m.reason || 'Belirtilmemis'}`
             }));
             if (fields.length === 0) fields.push({ name: 'Kayıt Yok', value: 'Hiç uyarı vermemiş.' });
+            
+            const actionRows = [];
+            if (rows.length > 0) {
+                actionRows.push(new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId(`sorgu:export_staff_warns:${targetId}`).setLabel(`Verilen Uyarıları İndir (.txt - ${rows.length})`).setStyle(ButtonStyle.Primary)
+                ));
+            }
+            
             const payload = buildSorguPanel({
                 title: `Yetkili: Verilen Uyarılar - ${userName}`,
                 description: `Toplam **${rows.length}** uyarı verdi (Son 10 gösteriliyor).`,
-                fields, navRow: createSorguMenu(targetId, 'sorgu_staff_warns', isStaff)
+                fields, navRow: createSorguMenu(targetId, 'sorgu_staff_warns', isStaff), actionRows
             });
             return interaction.editReply(payload);
         }
@@ -177,10 +185,18 @@ async function handleSorguSelect(interaction, value, targetId) {
                 value: `**Tür:** ${m.action_type}\n**Tarih:** <t:${Math.floor(new Date(m.created_at).getTime() / 1000)}:f>\n**Sebep:** ${m.reason || 'Belirtilmemis'}`
             }));
             if (fields.length === 0) fields.push({ name: 'Kayıt Yok', value: 'Hiç ceza atmamış.' });
+            
+            const actionRows = [];
+            if (rows.length > 0) {
+                actionRows.push(new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId(`sorgu:export_staff_mutes:${targetId}`).setLabel(`Atılan Cezaları İndir (.txt - ${rows.length})`).setStyle(ButtonStyle.Primary)
+                ));
+            }
+            
             const payload = buildSorguPanel({
                 title: `Yetkili: Atılan Mute/Ban/Kick - ${userName}`,
                 description: `Toplam **${rows.length}** ceza attı (Son 10 gösteriliyor).`,
-                fields, navRow: createSorguMenu(targetId, 'sorgu_staff_mutes', isStaff)
+                fields, navRow: createSorguMenu(targetId, 'sorgu_staff_mutes', isStaff), actionRows
             });
             return interaction.editReply(payload);
         }
@@ -192,10 +208,18 @@ async function handleSorguSelect(interaction, value, targetId) {
                 value: `**Hedef:** <@${m.user_id}>\n**İçerik:** \`${m.content?.substring(0, 50) || 'Bos'}\`\n**Tarih:** <t:${Math.floor(new Date(m.deleted_at).getTime() / 1000)}:f>`
             }));
             if (fields.length === 0) fields.push({ name: 'Kayıt Yok', value: 'Hiç mesaj silmemiş.' });
+            
+            const actionRows = [];
+            if (rows.length > 0) {
+                actionRows.push(new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId(`sorgu:export_staff_dels:${targetId}`).setLabel(`Silinen Mesajları İndir (.txt - ${rows.length})`).setStyle(ButtonStyle.Primary)
+                ));
+            }
+            
             const payload = buildSorguPanel({
                 title: `Yetkili: Silinen Mesajlar - ${userName}`,
                 description: `Toplam **${rows.length}** mesaj sildi (Son 10 gösteriliyor).`,
-                fields, navRow: createSorguMenu(targetId, 'sorgu_staff_dels', isStaff)
+                fields, navRow: createSorguMenu(targetId, 'sorgu_staff_dels', isStaff), actionRows
             });
             return interaction.editReply(payload);
         }
@@ -207,10 +231,18 @@ async function handleSorguSelect(interaction, value, targetId) {
                 value: `**Kategori:** ${m.category || 'Genel'}\n**Kapatılma Tarihi:** <t:${Math.floor(new Date(m.closed_at).getTime() / 1000)}:f>`
             }));
             if (fields.length === 0) fields.push({ name: 'Kayıt Yok', value: 'Hiç ticket kapatmamış.' });
+            
+            const actionRows = [];
+            if (rows.length > 0) {
+                actionRows.push(new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId(`sorgu:export_staff_tickets:${targetId}`).setLabel(`Kapatılan Biletleri İndir (.txt - ${rows.length})`).setStyle(ButtonStyle.Primary)
+                ));
+            }
+            
             const payload = buildSorguPanel({
                 title: `Yetkili: Kapatılan Biletler - ${userName}`,
                 description: `Toplam **${rows.length}** ticket kapattı (Son 10 gösteriliyor).`,
-                fields, navRow: createSorguMenu(targetId, 'sorgu_staff_tickets', isStaff)
+                fields, navRow: createSorguMenu(targetId, 'sorgu_staff_tickets', isStaff), actionRows
             });
             return interaction.editReply(payload);
         }
@@ -675,6 +707,51 @@ async function handleExport(interaction, exportType, targetId) {
             for (const act of allActions) {
                 const dateStr = new Date(act.date).toLocaleString('tr-TR');
                 txtContent += `[Tarih: ${dateStr}] İşlem Turu: ${act.type}\nKime (Hedef): ${act.target}\nSebep: ${act.reason}\n-----------------------------------\n`;
+            }
+        }
+        else if (exportType === 'staff_warns') {
+            filename = `${targetId}-verdigi-uyarilar.txt`;
+            const rows = await conn.query('SELECT * FROM warnings WHERE guild_id = ? AND moderator_id = ? ORDER BY created_at DESC', [interaction.guild.id, targetId]);
+            txtContent += `VERDIGI UYARILAR DOSYASI: ${userTag} (${targetId})\n`;
+            txtContent += `Toplam Uyarı: ${rows.length}\n`;
+            txtContent += `====================================================\n\n`;
+            for (const r of rows) {
+                const date = new Date(r.created_at).toLocaleString('tr-TR');
+                txtContent += `[Uyarı #${r.id}] Kime: ${r.user_id} | Tarih: ${date}\nSebep: ${r.reason || 'Belirtilmemis'}\n-----------------------------------\n`;
+            }
+        }
+        else if (exportType === 'staff_mutes') {
+            filename = `${targetId}-attigi-cezalar.txt`;
+            const rows = await conn.query('SELECT * FROM mutes WHERE guild_id = ? AND moderator_id = ? ORDER BY created_at DESC', [interaction.guild.id, targetId]);
+            txtContent += `ATTIGI CEZALAR DOSYASI: ${userTag} (${targetId})\n`;
+            txtContent += `Toplam Ceza: ${rows.length}\n`;
+            txtContent += `====================================================\n\n`;
+            for (const r of rows) {
+                const date = r.created_at ? new Date(r.created_at).toLocaleString('tr-TR') : 'Bilinmiyor';
+                txtContent += `[Ceza #${r.id}] Tür: ${r.action_type} | Kime: ${r.user_id} | Tarih: ${date}\nSebep: ${r.reason || 'Belirtilmemis'}\n-----------------------------------\n`;
+            }
+        }
+        else if (exportType === 'staff_dels') {
+            filename = `${targetId}-sildigi-mesajlar.txt`;
+            const rows = await conn.query('SELECT * FROM deleted_messages WHERE guild_id = ? AND deleted_by = ? ORDER BY deleted_at DESC', [interaction.guild.id, targetId]);
+            txtContent += `SILDIGI MESAJLAR DOSYASI: ${userTag} (${targetId})\n`;
+            txtContent += `Toplam Mesaj: ${rows.length}\n`;
+            txtContent += `====================================================\n\n`;
+            for (const r of rows) {
+                const date = new Date(r.deleted_at).toLocaleString('tr-TR');
+                txtContent += `[Tarih: ${date}] Kanal: #${r.channel_id} | Kimin Mesajı: ${r.user_id}\nSebep: ${r.reason || 'Belirtilmedi'}\nMesaj: ${r.content || '[Icerik Yok]'}\n-----------------------------------\n`;
+            }
+        }
+        else if (exportType === 'staff_tickets') {
+            filename = `${targetId}-kapattigi-biletler.txt`;
+            const rows = await conn.query('SELECT * FROM tickets WHERE guild_id = ? AND closed_by = ? ORDER BY closed_at DESC', [interaction.guild.id, targetId]);
+            txtContent += `KAPATTIGI TICKETLAR DOSYASI: ${userTag} (${targetId})\n`;
+            txtContent += `Toplam Ticket: ${rows.length}\n`;
+            txtContent += `====================================================\n\n`;
+            for (const r of rows) {
+                const openDate = new Date(r.opened_at).toLocaleString('tr-TR');
+                const closeDate = r.closed_at ? new Date(r.closed_at).toLocaleString('tr-TR') : 'Hala Acik';
+                txtContent += `[Ticket #${r.id}] Açan: ${r.owner_id} | Kategori: ${r.category || 'Genel'}\nAçılış: ${openDate} | Kapanış: ${closeDate}\nSebep: ${r.reason || 'Belirtilmemis'}\n-----------------------------------\n`;
             }
         }
 
