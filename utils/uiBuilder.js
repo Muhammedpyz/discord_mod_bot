@@ -52,13 +52,13 @@ for (const [name, id] of Object.entries(MONO_EMOJIS)) {
 }
 
 const COLORS = {
-    PRIMARY: 0x313338,
-    BRAND: 0x313338,
-    SUCCESS: 0x313338,
-    ERROR: 0x313338,
-    WARNING: 0x313338,
-    LOG: 0x313338,
-    INFO: 0x313338
+    PRIMARY: 0x2B2D31,
+    BRAND: 0x5865F2,
+    SUCCESS: 0x57F287,
+    ERROR: 0xED4245,
+    WARNING: 0xFEE75C,
+    LOG: 0x3498DB,
+    INFO: 0x5865F2
 };
 
 function resolveColor(color) {
@@ -72,7 +72,7 @@ function resolveColor(color) {
 
 // YENİ STRICT KURAL: MOD A (Bilgilendirme Panelleri - Banner + Sections)
 function buildModAPanel({ title, description, bannerUrl = DEFAULT_BANNER_URL, actionRows = [], navRow = null, showSocials = true }) {
-    const container = new ContainerBuilder();
+    const container = new ContainerBuilder().setAccentColor(COLORS.PRIMARY);
 
     if (title) {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${title.toUpperCase()}`));
@@ -123,43 +123,46 @@ function buildModAPanel({ title, description, bannerUrl = DEFAULT_BANNER_URL, ac
 }
 
 // YENİ STRICT KURAL: MOD B (İşlevsel/Operasyonel - Sadece Metin + Butonlar)
-function buildModBResponse({ title, textLines = [], fields = [], actionRows = [], color = null, files = [] }) {
-    let contentStr = '';
-    
-    if (title) contentStr += `### ${title}\n`;
-    
+function buildModBResponse({ title, textLines = [], fields = [], actionRows = [], color = COLORS.PRIMARY, files = [] }) {
+    const { FileBuilder } = require('discord.js');
+    const container = new ContainerBuilder().setAccentColor(color || COLORS.PRIMARY);
+
+    if (title) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${title}`));
+
     if (textLines && textLines.length > 0) {
         const fullText = textLines.join('\n');
         if (fullText.trim()) {
-            contentStr += `${fullText.trim()}\n\n`;
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(fullText.trim()));
         }
     }
-    
+
+    // Fields'leri tek bir TextDisplay block olarak ekle (V2'de inline fields yok,TEK satır olarak)
     if (fields && fields.length > 0) {
         const fieldText = fields.map(f => `**${f.name}**\n${f.value}`).join('\n\n');
         if (fieldText.trim()) {
-            contentStr += `${fieldText}\n`;
+            // 4000 karakter limiti
+            const trimmed = fieldText.length > 3900 ? fieldText.slice(0, 3897) + '...' : fieldText;
+            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(trimmed));
         }
     }
-    
-    if (contentStr.length > 2000) contentStr = contentStr.slice(0, 1997) + '...';
-    
-    const payload = { content: contentStr.trim() || undefined };
-    
+
     if (actionRows && actionRows.length > 0) {
-        payload.components = actionRows;
+        for (const row of actionRows) {
+            container.addActionRowComponents(row);
+        }
     }
-    
-    // Not: Dosya ekleri (files) artık Discord v14 standart attachments dizisi olarak eklenmeli.
+
     if (files && files.length > 0) {
-        payload.files = files;
+        for (const file of files) {
+            container.addFileComponents(new FileBuilder().setURL(`attachment://${file}`));
+        }
     }
-    
-    return payload;
+
+    return { flags: MessageFlags.IsComponentsV2, components: [container] };
 }
 
 // Geriye dönük uyumluluk için wrapper: Eski createContainerMessage'ı MOD A veya MOD B'ye yönlendirir.
-function createContainerMessage(title, description, colorHex = '#313338', customActionRows = [], fields = [], showBrand = false, ephemeral = false, files = []) {
+function createContainerMessage(title, description, colorHex = '#2B2D31', customActionRows = [], fields = [], showBrand = false, ephemeral = false, files = []) {
     let payload;
     if (showBrand) {
         payload = buildModAPanel({ title, description, actionRows: customActionRows });

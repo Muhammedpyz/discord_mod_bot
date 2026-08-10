@@ -18,7 +18,7 @@ module.exports = {
             const payload = createContainerMessage(
                 `Silinen Mesaj Kaydi: ${snipe.author.tag}`,
                 (snipe.content || '*[Sadece Medya Icerigi Veya Bos Mesaj]*') + `\n\n*Silinme Zamani: <t:${Math.floor(snipe.timestamp / 1000)}:R>*` + (snipe.image ? `\n[Medya Dosyasi](${snipe.image})` : ''),
-                '#313338'
+                '#2B2D31'
             );
 
             await interaction.reply(payload);

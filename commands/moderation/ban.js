@@ -43,7 +43,7 @@ module.exports = {
                 const dmPayload = createContainerMessage(
                     'Sunucudan Yasaklandiniz', 
                     `**${interaction.guild.name}** sunucusunda yasaklandınız.\n**Sebep:** ${reason}\n\nEger bu yasağın haksız olduğunu düşünüyorsanız aşağıdaki butona tıklayarak itiraz formunu doldurabilirsiniz.`,
-                    '#313338',
+                    '#2B2D31',
                     [row]
                 );
 
@@ -94,7 +94,7 @@ module.exports = {
                 const payload = createContainerMessage(
                     `${EMOJIS.ban} Kullanıcı Yasaklandı`,
                     `<@${targetUser.id}> adlı kullanıcıya yasaklı rolü verildi ve diğer rolleri alındı.\n**Sebep:** ${reason}`,
-                    '#313338'
+                    '#2B2D31'
                 );
                 
                 await interaction.reply(payload);
@@ -102,7 +102,7 @@ module.exports = {
                 const logPayload = createContainerMessage(
                     'Kullanıcı Yasaklandı',
                     '',
-                    '#313338',
+                    '#2B2D31',
                     [],
                     [
                         { name: 'Yasaklanan Üye', value: `<@${targetUser.id}> (${targetUser.tag})`, inline: true },

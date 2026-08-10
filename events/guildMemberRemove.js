@@ -76,7 +76,7 @@ module.exports = {
                     const payload = createContainerMessage(
                         'Sunucudan Ayrılış',
                         `**${randomMsg}**\n\nGidişiyle beraber sunucuda **${member.guild.memberCount}** kişi kaldık.`,
-                        '#313338'
+                        '#2B2D31'
                     );
                         
                     await channel.send(payload).catch(e => console.error("Goodbye mesaj hatası:", e));

@@ -50,7 +50,7 @@ module.exports = {
             const logPayload = createContainerMessage(
                 `${EMOJIS.unlock} Sunucu Yasağı Kaldırıldı`,
                 '',
-                '#313338',
+                '#2B2D31',
                 [],
                 [
                     { name: 'Kullanıcı', value: `${targetUser.tag} (${targetUser.id})`, inline: true },
@@ -63,7 +63,7 @@ module.exports = {
             const successPayload = createContainerMessage(
                 `${EMOJIS.unlock} Başarılı`,
                 `**<@${targetUser.id}>** adlı kullanıcının sunucu yasağı başarıyla kaldırıldı.`,
-                '#313338'
+                '#2B2D31'
             );
             return interaction.editReply(successPayload);
 

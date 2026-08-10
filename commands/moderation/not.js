@@ -48,14 +48,14 @@ module.exports = {
                 const payload = createContainerMessage(
                     'Not Eklendi',
                     `<@${targetUser.id}> kullanıcısına not eklendi.\n**Not:** ${noteText}`,
-                    '#313338'
+                    '#2B2D31'
                 );
                 await interaction.editReply(payload);
 
                 const logPayload = createContainerMessage(
                     'Moderatör Notu Eklendi',
                     '',
-                    '#313338',
+                    '#2B2D31',
                     [],
                     [
                         { name: 'Kullanıcı', value: `<@${targetUser.id}> (${targetUser.tag || targetUser.username})`, inline: true },
@@ -78,7 +78,7 @@ module.exports = {
                     const payload = createContainerMessage(
                         'Notlar',
                         `<@${targetUser.id}> kullanıcısı için hiçbir not bulunamadı.`,
-                        '#313338'
+                        '#2B2D31'
                     );
                     return interaction.editReply(payload);
                 }
@@ -117,7 +117,7 @@ module.exports = {
                     return createContainerMessage(
                         'Kullanıcı Notları',
                         `<@${targetUser.id}> kullanıcısına ait notlar (Sayfa ${pageNum + 1}/${totalPages})`,
-                        '#313338',
+                        '#2B2D31',
                         actionRows,
                         fields
                     );
@@ -151,7 +151,7 @@ module.exports = {
                     const payload = createContainerMessage(
                         'Hata',
                         `Belirtilen ID'ye (${noteId}) sahip bir not bulunamadı.`,
-                        '#313338'
+                        '#2B2D31'
                     );
                     return interaction.editReply(payload);
                 }
@@ -163,7 +163,7 @@ module.exports = {
                     const payload = createContainerMessage(
                         'Yetkisiz İşlem',
                         'Sadece kendi eklediğiniz notları veya yöneticiyseniz diğer notları silebilirsiniz.',
-                        '#313338'
+                        '#2B2D31'
                     );
                     return interaction.editReply(payload);
                 }
@@ -173,7 +173,7 @@ module.exports = {
                 const payload = createContainerMessage(
                     'Not Silindi',
                     `ID'si ${noteId} olan not başarıyla silindi.`,
-                    '#313338'
+                    '#2B2D31'
                 );
                 await interaction.editReply(payload);
             }

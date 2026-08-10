@@ -87,7 +87,7 @@ module.exports = {
                 const payload = createContainerMessage(
                     'Sistem Kara Listesi',
                     (wordList || "Liste bos (Sistemsel Hata)") + `\n\n*Toplam ${rows.length} adet engellenmis kelime bulunmaktadir.*`,
-                    '#313338'
+                    '#2B2D31'
                 );
                     
                 return interaction.reply({ ...payload, flags: payload.flags | MessageFlags.Ephemeral });

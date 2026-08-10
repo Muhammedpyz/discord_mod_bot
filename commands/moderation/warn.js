@@ -52,7 +52,7 @@ module.exports = {
             const payload = createContainerMessage(
                 `${EMOJIS.warning} Kullanıcı Uyarıldı`, 
                 `<@${targetUser.id}> uyarıldı.\n**Sebep:** ${reason}\n**Toplam Aktif Uyarı:** ${result.totalWarns}\n*(Bu uyarı ${result.daysToAdd} gün sonra pasifleşecek)*${extraActionText}${fallbackMsg}`,
-                '#313338'
+                '#2B2D31'
             );
 
             await interaction.editReply(payload);
@@ -60,7 +60,7 @@ module.exports = {
             const logPayload = createContainerMessage(
                 `${EMOJIS.warning} Kullanıcı Uyarıldı`,
                 '',
-                '#313338',
+                '#2B2D31',
                 [],
                 [
                     { name: 'Uyarılan Üye', value: `<@${targetUser.id}> (${targetUser.tag})`, inline: true },
