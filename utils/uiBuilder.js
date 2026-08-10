@@ -52,13 +52,13 @@ for (const [name, id] of Object.entries(MONO_EMOJIS)) {
 }
 
 const COLORS = {
-    PRIMARY: 0x2B2D31,
-    BRAND: 0x2B2D31,
-    SUCCESS: 0x2B2D31,
-    ERROR: 0x2B2D31,
-    WARNING: 0x2B2D31,
-    LOG: 0x2B2D31,
-    INFO: 0x2B2D31
+    PRIMARY: 0x313338,
+    BRAND: 0x313338,
+    SUCCESS: 0x313338,
+    ERROR: 0x313338,
+    WARNING: 0x313338,
+    LOG: 0x313338,
+    INFO: 0x313338
 };
 
 function resolveColor(color) {
@@ -72,7 +72,7 @@ function resolveColor(color) {
 
 // YENİ STRICT KURAL: MOD A (Bilgilendirme Panelleri - Banner + Sections)
 function buildModAPanel({ title, description, bannerUrl = DEFAULT_BANNER_URL, actionRows = [], navRow = null, showSocials = true }) {
-    const container = new ContainerBuilder().setAccentColor(COLORS.PRIMARY);
+    const container = new ContainerBuilder();
 
     if (title) {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${title.toUpperCase()}`));
@@ -125,8 +125,8 @@ function buildModAPanel({ title, description, bannerUrl = DEFAULT_BANNER_URL, ac
 // YENİ STRICT KURAL: MOD B (İşlevsel/Operasyonel - Sadece Metin + Butonlar)
 function buildModBResponse({ title, textLines = [], fields = [], actionRows = [], color = COLORS.PRIMARY, files = [] }) {
     const { FileBuilder } = require('discord.js');
-    // Sol çubuğun gözükmemesi için Discord dark mode arka plan rengiyle aynı yapıyoruz
-    const container = new ContainerBuilder().setAccentColor(COLORS.PRIMARY);
+    // Sol çubuğun gözükmemesi için Accent Color özelliğini tamamen kaldırıyoruz
+    const container = new ContainerBuilder();
 
     if (title) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${title}`));
 
@@ -163,7 +163,7 @@ function buildModBResponse({ title, textLines = [], fields = [], actionRows = []
 }
 
 // Geriye dönük uyumluluk için wrapper: Eski createContainerMessage'ı MOD A veya MOD B'ye yönlendirir.
-function createContainerMessage(title, description, colorHex = '#2B2D31', customActionRows = [], fields = [], showBrand = false, ephemeral = false, files = []) {
+function createContainerMessage(title, description, colorHex = '#313338', customActionRows = [], fields = [], showBrand = false, ephemeral = false, files = []) {
     let payload;
     if (showBrand) {
         payload = buildModAPanel({ title, description, actionRows: customActionRows });
