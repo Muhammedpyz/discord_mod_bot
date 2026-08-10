@@ -451,19 +451,16 @@ module.exports = {
                             updateConfigCache(interaction.guild.id, 'ticket_channel_id', ticketChannel.id);
                             
                             const uiPayload = buildModBResponse({
-                                title: 'Destek Talebi (Ticket)',
+                                title: 'Destek Talebi Sistemi',
                                 textLines: [''],
                                 fields: [],
-                                description: 'Aşağıdaki butonlara tıklayarak sorun yaşadığınız konuyla ilgili destek talebi (ticket) oluşturabilirsiniz.\n\nYetkili ekibimiz en kısa sürede talebinize dönüş yapacaktır.',
+                                description: 'Bir sorununuz mu var veya bir cezaya itiraz etmek mi istiyorsunuz?\n\nAşağıdaki butona tıklayarak açılan pencereye sorun başlığınızı ve açıklamanızı yazıp destek ekibimizle anında iletişime geçebilirsiniz.',
                                 color: COLORS.INFO
                             });
                             
                             uiPayload.components = [
                                 new ActionRowBuilder().addComponents(
-                                    new ButtonBuilder().setCustomId('ticket_cat_hesap').setLabel('Hesap İşlemleri').setStyle(ButtonStyle.Primary),
-                                    new ButtonBuilder().setCustomId('ticket_cat_ceza').setLabel('Ceza İtiraz').setStyle(ButtonStyle.Danger),
-                                    new ButtonBuilder().setCustomId('ticket_cat_sunucu').setLabel('Sunucu Sorunları').setStyle(ButtonStyle.Secondary),
-                                    new ButtonBuilder().setCustomId('ticket_cat_genel').setLabel('Genel Destek').setStyle(ButtonStyle.Success)
+                                    new ButtonBuilder().setCustomId('ticket:create:1').setLabel('Bilet Oluştur').setStyle(ButtonStyle.Primary)
                                 )
                             ];
                             

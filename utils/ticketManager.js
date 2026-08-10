@@ -1,6 +1,6 @@
 const { ChannelType, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, AttachmentBuilder } = require('discord.js');
 const { pool } = require('../db');
-const { createV2Message, createContainerMessage, COLORS } = require('./uiBuilder');
+const { createV2Message, createContainerMessage, createV2Container, COLORS } = require('./uiBuilder');
 const config = require('../config.json');
 
 async function checkTicketLimits(guildId, userId) {
@@ -148,12 +148,14 @@ async function createTicket(interaction, reason, category = 'Diğer') {
             new ButtonBuilder().setCustomId(`ticket:close:${ticketChannel.id}`).setLabel('Talebi Kapat').setStyle(ButtonStyle.Danger)
         );
 
-        const payload = createV2Message({
+        const payload = createV2Container({
             title: `Destek Talebi: ${interaction.user.tag}`,
-            description: `${pingText}\n\n**Kategori:** ${category}\n**Talep Konusu:**\n${reason}\n\nLütfen yetkililerin yanıt vermesini bekleyin.`,
+            description: `${pingText}\n\n**Talep Sebebi:**\n${reason}\n\nLütfen sorununuzu detaylı bir şekilde anlatıp yetkililerin yanıt vermesini bekleyin. Cezaya itiraz ediyorsanız kanıt sunmayı unutmayın.`,
             color: COLORS.TICKET,
-            actionRows: [row]
+            fields: []
         });
+        
+        payload.components = [row];
 
         await ticketChannel.send(payload).catch(e => console.error("Kanal mesaj hatası", e));
         await interaction.editReply({ content: `Talebiniz başarıyla oluşturuldu: <#${ticketChannel.id}>` }).catch(()=>{});
