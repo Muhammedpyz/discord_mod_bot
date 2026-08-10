@@ -75,6 +75,16 @@ module.exports = {
                 isTargetStaff = true;
             }
 
+            // Eğer önceden yetkiliyse ve şu an yetkisi yoksa, ama veritabanında işlemi varsa yine yetkili say
+            if (!isTargetStaff) {
+                const [checkRows] = await conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetUser.id]);
+                const [checkMuteRows] = await conn.query('SELECT COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetUser.id]);
+                const [checkTicketRows] = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetUser.id]);
+                if (Number(checkRows[0]?.cnt) > 0 || Number(checkMuteRows[0]?.cnt) > 0 || Number(checkTicketRows[0]?.cnt) > 0) {
+                    isTargetStaff = true;
+                }
+            }
+
             let staffDesc = '';
             if (isTargetStaff) {
                 const [staffWarnRows] = await conn.query('SELECT reason, COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ? GROUP BY reason', [interaction.guild.id, targetUser.id]);

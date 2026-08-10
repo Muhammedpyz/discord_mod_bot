@@ -60,6 +60,15 @@ async function handleSorguSelect(interaction, value, targetId) {
             isStaff = true;
         }
 
+        if (!isStaff) {
+            const [checkRows] = await conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetId]);
+            const [checkMuteRows] = await conn.query('SELECT COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetId]);
+            const [checkTicketRows] = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetId]);
+            if (Number(checkRows[0]?.cnt) > 0 || Number(checkMuteRows[0]?.cnt) > 0 || Number(checkTicketRows[0]?.cnt) > 0) {
+                isStaff = true;
+            }
+        }
+
         if (value === 'sorgu_staff' && isStaff) {
             const warnRows = await conn.query('SELECT user_id, created_at, reason FROM warnings WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetId]);
             const delRows = await conn.query('SELECT user_id, deleted_at, reason FROM deleted_messages WHERE guild_id = ? AND deleted_by = ?', [interaction.guild.id, targetId]);
