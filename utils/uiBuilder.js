@@ -123,43 +123,39 @@ function buildModAPanel({ title, description, bannerUrl = DEFAULT_BANNER_URL, ac
 }
 
 // YENİ STRICT KURAL: MOD B (İşlevsel/Operasyonel - Sadece Metin + Butonlar)
-function buildModBResponse({ title, textLines = [], fields = [], actionRows = [], color = COLORS.PRIMARY, files = [] }) {
-    const { FileBuilder } = require('discord.js');
-    // Sol çubuğun gözükmemesi için Accent Color özelliğini tamamen kaldırıyoruz
-    const container = new ContainerBuilder();
-
-    if (title) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${title}`));
-
+function buildModBResponse({ title, textLines = [], fields = [], actionRows = [], color = null, files = [] }) {
+    let contentStr = '';
+    
+    if (title) contentStr += `### ${title}\n`;
+    
     if (textLines && textLines.length > 0) {
         const fullText = textLines.join('\n');
         if (fullText.trim()) {
-            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(fullText.trim()));
+            contentStr += `${fullText.trim()}\n\n`;
         }
     }
-
-    // Fields'leri tek bir TextDisplay block olarak ekle (V2'de inline fields yok,TEK satır olarak)
+    
     if (fields && fields.length > 0) {
         const fieldText = fields.map(f => `**${f.name}**\n${f.value}`).join('\n\n');
         if (fieldText.trim()) {
-            // 4000 karakter limiti
-            const trimmed = fieldText.length > 3900 ? fieldText.slice(0, 3897) + '...' : fieldText;
-            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(trimmed));
+            contentStr += `${fieldText}\n`;
         }
     }
-
+    
+    if (contentStr.length > 2000) contentStr = contentStr.slice(0, 1997) + '...';
+    
+    const payload = { content: contentStr.trim() || undefined };
+    
     if (actionRows && actionRows.length > 0) {
-        for (const row of actionRows) {
-            container.addActionRowComponents(row);
-        }
+        payload.components = actionRows;
     }
-
+    
+    // Not: Dosya ekleri (files) artık Discord v14 standart attachments dizisi olarak eklenmeli.
     if (files && files.length > 0) {
-        for (const file of files) {
-            container.addFileComponents(new FileBuilder().setURL(`attachment://${file}`));
-        }
+        payload.files = files;
     }
-
-    return { flags: MessageFlags.IsComponentsV2, components: [container] };
+    
+    return payload;
 }
 
 // Geriye dönük uyumluluk için wrapper: Eski createContainerMessage'ı MOD A veya MOD B'ye yönlendirir.
