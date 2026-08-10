@@ -165,7 +165,7 @@ async function handleSorguSelect(interaction, value, targetId) {
 
             let staffDesc = '';
             if (isStaff) {
-                const [staffWarnRows] = await conn.query('SELECT reason, COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ? GROUP BY reason', [interaction.guild.id, targetId]);
+                const staffWarnRows = await conn.query('SELECT reason, COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ? GROUP BY reason', [interaction.guild.id, targetId]);
                 let totalWarnsGiven = 0;
                 let manualWarns = 0;
                 staffWarnRows.forEach(row => {

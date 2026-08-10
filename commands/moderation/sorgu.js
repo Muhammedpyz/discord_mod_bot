@@ -87,7 +87,7 @@ module.exports = {
 
             let staffDesc = '';
             if (isTargetStaff) {
-                const [staffWarnRows] = await conn.query('SELECT reason, COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ? GROUP BY reason', [interaction.guild.id, targetUser.id]);
+                const staffWarnRows = await conn.query('SELECT reason, COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ? GROUP BY reason', [interaction.guild.id, targetUser.id]);
                 let totalWarnsGiven = 0;
                 let manualWarns = 0;
                 staffWarnRows.forEach(row => {
