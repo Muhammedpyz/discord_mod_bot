@@ -98,7 +98,7 @@ module.exports = {
                     const dmPayload = createContainerMessage(
                         'Ses Kanallarinda Susturuldunuz',
                         `**${interaction.guild.name}** sunucusunda ses kanallarinda sagirlastirildiniz ve susturuldunuz.\n\n**Yetkili:** <@${interaction.user.id}>\n**Sure:** ${durationStr}\n**Sebep:** ${reason}`,
-                        '#2B2D31'
+                        '#313338'
                     );
                     await targetUser.send(dmPayload);
                 } catch (dmError) {
@@ -115,7 +115,7 @@ module.exports = {
                 const payload = createContainerMessage(
                     'Kullanıcı Ses Kanallarinda Susturuldu',
                     `<@${targetUser.id}> adlı kullanıcı **${durationStr}** süreyle ses kanallarinda sagirlastirildi ve susturuldu.\n**Sebep:** ${reason}${extraMsg}`,
-                    '#2B2D31'
+                    '#313338'
                 );
                 
                 await interaction.reply(payload);
@@ -123,7 +123,7 @@ module.exports = {
                 const logPayload = createContainerMessage(
                     'Kullanıcı Susturuldu (Voice)',
                     '',
-                    '#2B2D31',
+                    '#313338',
                     [],
                     [
                         { name: 'Susturulan Üye', value: `<@${targetUser.id}> (${targetUser.tag})`, inline: true },

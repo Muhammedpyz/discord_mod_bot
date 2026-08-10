@@ -27,7 +27,7 @@ function channelTypeToTurkish(type) {
 
 const sysLogState = new Map();
 
-async function logSystemEvent(guild, title, fields, colorHex = '#2B2D31', logType = 'system') {
+async function logSystemEvent(guild, title, fields, colorHex = '#313338', logType = 'system') {
     let executorField = fields.find(f => f.name.includes('Yetkili') || f.name.includes('Kullanıcı') || f.name.includes('Değiştiren') || f.name.includes('Silen'));
     let executorVal = executorField ? executorField.value : 'System';
 
@@ -135,7 +135,7 @@ module.exports = [
             fields.push({ name: 'Ghost Ping Uyarısı', value: 'Etiket içeren mesaj silindi!' });
         }
 
-        logSystemEvent(message.guild, 'Mesaj Silindi', fields, '#2B2D31', 'text');
+        logSystemEvent(message.guild, 'Mesaj Silindi', fields, '#313338', 'text');
     }
 },
 {
@@ -163,7 +163,7 @@ module.exports = [
             { name: 'Bağlantı', value: `[Mesaja Git](${newMessage.url})` }
         ];
 
-        logSystemEvent(oldMessage.guild, 'Mesaj Düzenlendi', fields, '#2B2D31');
+        logSystemEvent(oldMessage.guild, 'Mesaj Düzenlendi', fields, '#313338');
     }
 },
 {
@@ -189,7 +189,7 @@ module.exports = [
                 { name: 'Değiştiren', value: executorId },
                 { name: 'Zaman', value: now }
             ];
-            logSystemEvent(newMember.guild, 'İsim (Nickname) Değiştirildi', fields, '#2B2D31');
+            logSystemEvent(newMember.guild, 'İsim (Nickname) Değiştirildi', fields, '#313338');
         }
 
         if (oldMember.roles.cache.size !== newMember.roles.cache.size) {
@@ -231,7 +231,7 @@ module.exports = [
                         fields.push({ name: 'Alınan Roller', value: Array.from(data.removed).map(id => `<@&${id}>`).join(', ') });
                     }
 
-                    logSystemEvent(newMember.guild, 'Roller Güncellendi', fields, '#2B2D31');
+                    logSystemEvent(newMember.guild, 'Roller Güncellendi', fields, '#313338');
                 }, 2000);
             }
         }
@@ -270,7 +270,7 @@ module.exports = [
                     fields.push({ name: 'Yeni Kanal', value: `<#${ch.id}> (\`${ch.name}\`) | Tür: ${channelTypeToTurkish(ch.type)}${parentInfo}` });
                 });
                 const title = otherChannels.length > 1 ? `Toplu ${otherChannels.length} Kanal Oluşturuldu` : 'Yeni Kanal Oluşturuldu';
-                logSystemEvent(channel.guild, title, fields, '#2B2D31');
+                logSystemEvent(channel.guild, title, fields, '#313338');
             }
 
             for (const ch of voiceChannels) {
@@ -318,7 +318,7 @@ module.exports = [
                     fields.push({ name: 'Silinen Kanal', value: `İsim: \`${escapeMarkdown(ch.name)}\` | Tür: ${channelTypeToTurkish(ch.type)} | ID: \`${ch.id}\`${parentInfo}` });
                 });
                 const title = otherChannels.length > 1 ? `Toplu ${otherChannels.length} Kanal Silindi` : 'Kanal Silindi';
-                logSystemEvent(data.items[0].guild, title, fields, '#2B2D31');
+                logSystemEvent(data.items[0].guild, title, fields, '#313338');
             }
 
             for (const ch of voiceChannels) {
@@ -357,7 +357,7 @@ module.exports = [
                 fields.push({ name: 'Yeni Rol', value: `<@&${r.id}> (\`${r.name}\`) | ID: \`${r.id}\`${colorHex}` });
             });
             const title = data.items.length > 1 ? `Toplu ${data.items.length} Rol Oluşturuldu` : 'Yeni Rol Oluşturuldu';
-            logSystemEvent(role.guild, title, fields, '#2B2D31');
+            logSystemEvent(role.guild, title, fields, '#313338');
         }, 3000);
     }
 },
@@ -389,7 +389,7 @@ module.exports = [
                 fields.push({ name: 'Silinen Rol', value: `İsim: \`${r.name}\` | ID: \`${r.id}\`` });
             });
             const title = data.items.length > 1 ? `Toplu ${data.items.length} Rol Silindi` : 'Rol Silindi';
-            logSystemEvent(role.guild, title, fields, '#2B2D31');
+            logSystemEvent(role.guild, title, fields, '#313338');
         }, 3000);
     }
 },
@@ -435,7 +435,7 @@ module.exports = [
                 ...changes
             ];
 
-            logSystemEvent(newChannel.guild, 'Kanal Güncellendi', fields, '#2B2D31');
+            logSystemEvent(newChannel.guild, 'Kanal Güncellendi', fields, '#313338');
         }
     }
 },
@@ -464,7 +464,7 @@ module.exports = [
             { name: 'Zaman', value: now }
         ];
 
-        logSystemEvent(ban.guild, 'Kullanıcı Yasaklandı (Ban)', fields, '#2B2D31');
+        logSystemEvent(ban.guild, 'Kullanıcı Yasaklandı (Ban)', fields, '#313338');
     }
 },
 {
@@ -489,7 +489,7 @@ module.exports = [
             { name: 'Zaman', value: now }
         ];
 
-        logSystemEvent(ban.guild, 'Yasaklama (Ban) Kaldırıldı', fields, '#2B2D31');
+        logSystemEvent(ban.guild, 'Yasaklama (Ban) Kaldırıldı', fields, '#313338');
     }
 },
 {
@@ -528,7 +528,7 @@ module.exports = [
             fields.splice(3, 0, { name: 'Sebep', value: escapeMarkdown(reason) });
         }
 
-        const color = '#2B2D31';
+        const color = '#313338';
         logSystemEvent(member.guild, action, fields, color);
     }
 },
@@ -550,7 +550,7 @@ module.exports = [
             { name: 'Zaman', value: now }
         ];
 
-        logSystemEvent(invite.guild, 'Yeni Davet Bağlantısı Oluşturuldu', fields, '#2B2D31');
+        logSystemEvent(invite.guild, 'Yeni Davet Bağlantısı Oluşturuldu', fields, '#313338');
     }
 },
 {
@@ -576,7 +576,7 @@ module.exports = [
             { name: 'Zaman', value: now }
         ];
 
-        logSystemEvent(invite.guild, 'Davet Bağlantısı Silindi', fields, '#2B2D31');
+        logSystemEvent(invite.guild, 'Davet Bağlantısı Silindi', fields, '#313338');
     }
 },
 {
@@ -615,7 +615,7 @@ module.exports = [
             ...changes
         ];
 
-        logSystemEvent(newRole.guild, 'Rol Güncellendi', fields, '#2B2D31');
+        logSystemEvent(newRole.guild, 'Rol Güncellendi', fields, '#313338');
     }
 },
 {
@@ -635,7 +635,7 @@ module.exports = [
             { name: 'Rol', value: `<@&${role.id}> (\`${escapeMarkdown(role.name)}\`)` },
             { name: 'Zaman', value: now }
         ];
-        logSystemEvent(role.guild, 'Yeni Rol Oluşturuldu', fields, '#2B2D31');
+        logSystemEvent(role.guild, 'Yeni Rol Oluşturuldu', fields, '#313338');
     }
 },
 {
@@ -655,7 +655,7 @@ module.exports = [
             { name: 'Silinen Rol', value: `\`${escapeMarkdown(role.name)}\` (ID: \`${role.id}\`)` },
             { name: 'Zaman', value: now }
         ];
-        logSystemEvent(role.guild, 'Rol Silindi', fields, '#2B2D31');
+        logSystemEvent(role.guild, 'Rol Silindi', fields, '#313338');
     }
 },
 {
@@ -681,7 +681,7 @@ module.exports = [
             { name: 'Aksiyon', value: action },
             { name: 'Zaman', value: now }
         ];
-        logSystemEvent(channel.guild, 'Webhook Güncellemesi', fields, '#2B2D31');
+        logSystemEvent(channel.guild, 'Webhook Güncellemesi', fields, '#313338');
     }
 },
 {
@@ -705,7 +705,7 @@ module.exports = [
             { name: 'Zaman', value: now },
             ...changes
         ];
-        logSystemEvent(newGuild, 'Sunucu Ayarları Güncellendi', fields, '#2B2D31');
+        logSystemEvent(newGuild, 'Sunucu Ayarları Güncellendi', fields, '#313338');
     }
 },
 {
@@ -723,7 +723,7 @@ module.exports = [
             { name: 'Ekleyen', value: executorId },
             { name: 'Emoji', value: `${emoji} (\`${emoji.name}\`)` },
             { name: 'Zaman', value: now }
-        ], '#2B2D31');
+        ], '#313338');
     }
 },
 {
@@ -741,6 +741,6 @@ module.exports = [
             { name: 'Silen', value: executorId },
             { name: 'Emoji Adı', value: `\`${emoji.name}\`` },
             { name: 'Zaman', value: now }
-        ], '#2B2D31');
+        ], '#313338');
     }
 }];

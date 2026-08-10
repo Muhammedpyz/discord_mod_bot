@@ -98,7 +98,7 @@ module.exports = {
                     const dmPayload = createContainerMessage(
                         'Sunucuda Susturuldunuz',
                         `**${interaction.guild.name}** sunucusunda metin kanallarinda gecici olarak susturuldunuz.\n\n**Yetkili:** <@${interaction.user.id}>\n**Sure:** ${durationStr}\n**Sebep:** ${reason}`,
-                        '#2B2D31'
+                        '#313338'
                     );
                     await targetUser.send(dmPayload);
                 } catch (dmError) {
@@ -115,7 +115,7 @@ module.exports = {
                 const payload = createContainerMessage(
                     `${EMOJIS.warning} Kullanıcı Susturuldu`,
                     `<@${targetUser.id}> adlı kullanıcıya **${durationStr}** süreyle zaman aşımı uygulandı.\n**Sebep:** ${reason}${extraMsg}`,
-                    '#2B2D31'
+                    '#313338'
                 );
                 
                 await interaction.reply(payload);
@@ -123,7 +123,7 @@ module.exports = {
                 const logPayload = createContainerMessage(
                     `${EMOJIS.warning} Kullanıcı Susturuldu`,
                     '',
-                    '#2B2D31',
+                    '#313338',
                     [],
                     [
                         { name: 'Susturulan Üye', value: `<@${targetUser.id}> (${targetUser.tag})`, inline: true },

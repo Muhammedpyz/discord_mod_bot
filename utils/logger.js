@@ -8,7 +8,7 @@ async function sendErrorLog(interaction, error, context) {
         const payload = createContainerMessage(
             'Sistem Hatası',
             `**Bağlam:** ${context}\n**Hata:** ${error.message}`,
-            '#2B2D31'
+            '#313338'
         );
         await sendLog(interaction.guild, payload, 'system');
     } catch (e) {

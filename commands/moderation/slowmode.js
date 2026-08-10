@@ -25,7 +25,7 @@ module.exports = {
             const payload = createContainerMessage(
                 'Yavaş Mod Guncellendi',
                 seconds === 0 ? 'Bu kanalda yavaş mod devreden çıkarıldı, mesaj gönderim hiz limiti kaldırıldı.' : `Bu kanalda yavaş mod **${seconds} saniye** olarak ayarlanmıştır.\nUyelerimiz her ${seconds} saniyede bir mesaj atabilecektir.`,
-                '#2B2D31'
+                '#313338'
             );
                 
             await interaction.reply(payload);
@@ -33,7 +33,7 @@ module.exports = {
             const logPayload = createContainerMessage(
                 'Yavaş Mod Guncellendi',
                 '',
-                '#2B2D31',
+                '#313338',
                 [],
                 [
                     { name: 'Kanal', value: `<#${interaction.channel.id}>`, inline: true },

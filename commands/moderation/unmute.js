@@ -62,7 +62,7 @@ module.exports = {
             const logPayload = createContainerMessage(
                 `${EMOJIS.unlock} Susturma Kaldırıldı`,
                 '',
-                '#2B2D31',
+                '#313338',
                 [],
                 [
                     { name: 'Kullanıcı', value: `${targetUser.tag} (${targetUser.id})`, inline: true },
@@ -75,7 +75,7 @@ module.exports = {
             const successPayload = createContainerMessage(
                 `${EMOJIS.unlock} Başarılı`,
                 `**<@${targetUser.id}>** adlı kullanıcının susturması başarıyla kaldırıldı.`,
-                '#2B2D31'
+                '#313338'
             );
             return interaction.editReply(successPayload);
 

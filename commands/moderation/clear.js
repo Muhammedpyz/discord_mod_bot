@@ -40,7 +40,7 @@ module.exports = {
             const payload = createContainerMessage(
                 `${EMOJIS.delete} Temizlik Tamamlandi`,
                 `Başarıyla **${deleted.size}** adet mesaj silindi.` + (targetUser ? `\n*(Yalnizca <@${targetUser.id}> adlı kullanıcının mesajlari)*` : '') + '\n\n*Not: 14 gunden eski mesajlar Discord API kisitlamalari geregi toplu olarak silinememektedir.*',
-                '#2B2D31'
+                '#313338'
             );
 
             await interaction.editReply(payload);
@@ -48,7 +48,7 @@ module.exports = {
             const logPayload = createContainerMessage(
                 `${EMOJIS.delete} Toplu Mesaj Silindi`,
                 '',
-                '#2B2D31',
+                '#313338',
                 [],
                 [
                     { name: 'Kanal', value: `<#${interaction.channel.id}>`, inline: true },

@@ -178,7 +178,7 @@ async function createTicket(interaction, reason, category = 'Diğer') {
                     const openLogPayload = createContainerMessage(
                         'Bilet Açıldı',
                         desc,
-                        '#2B2D31',
+                        '#313338',
                         [], fields
                     );
                     logChannel.send(openLogPayload).catch(()=>{});

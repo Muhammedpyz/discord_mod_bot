@@ -172,7 +172,7 @@ module.exports = {
             const payload = createContainerMessage(
                 'Kullanıcı Sorgu Paneli',
                 `Aşağıda <@${targetUser.id}> adlı kullanıcının detaylı sicil bilgilerine ulaşabilirsiniz.\n\n**Kayıt Tarihi:** ${createDate}\n**Sunucuya Katılım:** ${joinDate}`,
-                '#2B2D31',
+                '#313338',
                 [createSorguMenu(targetUser.id, 'sorgu_overview', isTargetStaff)],
                 rawFields
             );
