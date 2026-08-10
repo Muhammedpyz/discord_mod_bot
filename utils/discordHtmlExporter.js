@@ -351,20 +351,29 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
 
         let bodyHtml = '';
         if (msg.components && msg.components.length > 0) {
-            const extractCompText = (comps) => {
-                let t = '';
-                if (!comps) return t;
+            const renderComponentsHtml = (comps) => {
+                let html = '';
+                if (!comps) return html;
                 for (const c of comps) {
-                    if (c.content) t += c.content + '\n';
-                    if (c.data && c.data.content) t += c.data.content + '\n';
-                    if (c.components) t += extractCompText(c.components);
-                    if (c.data && c.data.components) t += extractCompText(c.data.components);
+                    const data = c.data || c;
+                    if (data.type === 1) { // ActionRow
+                        html += '<div class="discord-action-row">' + renderComponentsHtml(data.components || c.components) + '</div>';
+                    } else if (data.type === 2) { // Button
+                        const styleClass = ['secondary', 'primary', 'secondary', 'success', 'danger', 'link'][data.style] || 'secondary';
+                        const label = data.label || 'Buton';
+                        html += `<button class="discord-btn discord-btn-${styleClass}">${escapeHtml(label)}</button>`;
+                    } else if (data.content) { // TextDisplay
+                        html += '<div class="discord-v2-text">' + parseDiscordMarkdown(data.content, guild) + '</div>';
+                    } else if (c.components || data.components) { // Container/Section
+                        html += renderComponentsHtml(c.components || data.components);
+                    }
                 }
-                return t;
+                return html;
             };
-            const compText = extractCompText(msg.components).trim();
-            if (compText) {
-                contentParsed += (contentParsed ? '<br><br>' : '') + '<div class="discord-v2-container">' + parseDiscordMarkdown(compText, guild) + '</div>';
+            
+            const compHtml = renderComponentsHtml(msg.components);
+            if (compHtml) {
+                contentParsed += (contentParsed ? '<br><br>' : '') + '<div class="discord-v2-container">' + compHtml + '</div>';
             }
         }
         
@@ -986,6 +995,29 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
             max-width: 520px;
             box-sizing: border-box;
         }
+
+        .discord-action-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .discord-btn {
+            padding: 8px 16px;
+            border-radius: 3px;
+            font-size: 14px;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            color: white;
+            font-family: inherit;
+        }
+        .discord-btn-primary { background-color: #5865F2; }
+        .discord-btn-secondary { background-color: #4E5058; }
+        .discord-btn-success { background-color: #248046; }
+        .discord-btn-danger { background-color: #DA373C; }
+        .discord-btn-link { background-color: #4E5058; }
+        .discord-v2-text { margin-bottom: 4px; }
     </style>
 </head>
 <body>

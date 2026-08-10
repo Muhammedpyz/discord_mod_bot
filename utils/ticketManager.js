@@ -516,10 +516,15 @@ async function closeTicketChannel(interaction) {
                     let t = '';
                     if (!comps) return t;
                     for (const c of comps) {
-                        if (c.content) t += c.content + '\n';
-                        if (c.data && c.data.content) t += c.data.content + '\n';
-                        if (c.components) t += extractCompText(c.components);
-                        if (c.data && c.data.components) t += extractCompText(c.data.components);
+                        const data = c.data || c;
+                        if (data.type === 2) {
+                            t += `[Buton: ${data.label || 'Bilinmiyor'}] `;
+                        } else if (data.content) {
+                            t += data.content + '\n';
+                        }
+                        if (c.components || data.components) {
+                            t += extractCompText(c.components || data.components);
+                        }
                     }
                     return t;
                 };
