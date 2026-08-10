@@ -93,6 +93,46 @@ module.exports = {
             await checkWarnRoleRemoved(config.warn1_role_id, '1. Uyarı Rolü');
             await checkWarnRoleRemoved(config.warn2_role_id, '2. Uyarı Rolü');
             await checkWarnRoleRemoved(config.banned_role_id, 'Yasaklı (Banned) Rolü');
+            
+            // 4. Manuel Rol Verme Tespiti (Uyarı veya Mute rolleri el ile verilirse bot veri tabanına yazsın)
+            const checkRoleAdded = async (roleId, actionType, roleDesc) => {
+                if (!roleId) return;
+                const hadRole = oldMember.roles.cache.has(roleId);
+                const hasRole = newMember.roles.cache.has(roleId);
+                if (!hadRole && hasRole) {
+                    const { AuditLogEvent } = require('discord.js');
+                    let moderatorId = null;
+                    try {
+                        const logs = await newMember.guild.fetchAuditLogs({ limit: 5, type: AuditLogEvent.MemberRoleUpdate });
+                        const logEntry = logs.entries.find(e => e.target.id === userId && e.changes.some(c => c.key === '$add' && c.new.some(r => r.id === roleId)));
+                        if (logEntry) moderatorId = logEntry.executor.id;
+                    } catch (e) {}
+                    
+                    if (actionType === 'warn') {
+                        const [warnRows] = await conn.query('SELECT id FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
+                        if (warnRows.length === 0 || (warnRows.length === 1 && roleId === config.warn2_role_id)) {
+                            // Sadece sistemde uyarı eksikse ekle
+                            await conn.query('INSERT INTO warnings (guild_id, user_id, moderator_id, reason) VALUES (?, ?, ?, ?)', [guildId, userId, moderatorId, `Manuel olarak ${roleDesc} verildi`]);
+                        }
+                    } else if (actionType === 'mute') {
+                        const [muteRows] = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
+                        if (muteRows.length === 0) {
+                            await conn.query('INSERT INTO mutes (guild_id, user_id, moderator_id, reason, action_type) VALUES (?, ?, ?, ?, ?)', [guildId, userId, moderatorId, `Manuel olarak ${roleDesc} verildi`, roleId === config.text_mute_role_id ? 'text_mute' : 'voice_mute']);
+                        }
+                    } else if (actionType === 'ban') {
+                        const [muteRows] = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE AND action_type = "ban"', [guildId, userId]);
+                        if (muteRows.length === 0) {
+                            await conn.query('INSERT INTO mutes (guild_id, user_id, moderator_id, reason, action_type) VALUES (?, ?, ?, ?, ?)', [guildId, userId, moderatorId, 'Manuel olarak Banned rolü verildi', 'ban']);
+                        }
+                    }
+                }
+            };
+            
+            await checkRoleAdded(config.warn1_role_id, 'warn', '1. Uyarı Rolü');
+            await checkRoleAdded(config.warn2_role_id, 'warn', '2. Uyarı Rolü');
+            await checkRoleAdded(config.text_mute_role_id, 'mute', 'Metin Susturma Rolü');
+            await checkRoleAdded(config.voice_mute_role_id, 'mute', 'Ses Susturma Rolü');
+            await checkRoleAdded(config.banned_role_id, 'ban', 'Yasaklı (Banned) Rolü');
 
         } catch (err) {
             console.error("guildMemberUpdate hatası:", err);

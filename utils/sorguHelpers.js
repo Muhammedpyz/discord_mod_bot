@@ -156,8 +156,14 @@ async function handleSorguSelect(interaction, value, targetId) {
 
             let staffDesc = '';
             if (isStaff) {
-                const [staffWarnRows] = await conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetId]);
-                const totalWarnsGiven = Number(staffWarnRows[0]?.cnt || 0);
+                const [staffWarnRows] = await conn.query('SELECT reason, COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ? GROUP BY reason', [interaction.guild.id, targetId]);
+                let totalWarnsGiven = 0;
+                let manualWarns = 0;
+                staffWarnRows.forEach(row => {
+                    const c = Number(row.cnt);
+                    totalWarnsGiven += c;
+                    if (row.reason && row.reason.includes('Manuel olarak')) manualWarns += c;
+                });
 
                 const [delRows] = await conn.query('SELECT COUNT(*) as cnt FROM deleted_messages WHERE guild_id = ? AND deleted_by = ?', [interaction.guild.id, targetId]);
                 const totalDels = Number(delRows[0]?.cnt || 0);
@@ -165,14 +171,21 @@ async function handleSorguSelect(interaction, value, targetId) {
                 const [staffTicketRows] = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetId]);
                 const totalTicketsClosed = Number(staffTicketRows[0]?.cnt || 0);
 
-                let totalBans = 0, totalKicks = 0, totalTimeouts = 0, totalRoles = 0, auditWarns = 0;
+                let totalBans = 0, totalKicks = 0, totalTimeouts = 0, manualMutes = 0, manualBans = 0, totalRoles = 0;
                 
                 try {
-                    const modRows = await conn.query('SELECT action_type, COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND moderator_id = ? GROUP BY action_type', [interaction.guild.id, targetId]);
+                    const modRows = await conn.query('SELECT action_type, reason, COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND moderator_id = ? GROUP BY action_type, reason', [interaction.guild.id, targetId]);
                     modRows.forEach(row => {
-                        if (row.action_type === 'ban') totalBans += Number(row.cnt);
-                        else if (row.action_type === 'kick') totalKicks += Number(row.cnt);
-                        else if (row.action_type === 'text_mute') totalTimeouts += Number(row.cnt);
+                        const c = Number(row.cnt);
+                        if (row.action_type === 'ban') {
+                            totalBans += c;
+                            if (row.reason && row.reason.includes('Manuel olarak')) manualBans += c;
+                        }
+                        else if (row.action_type === 'kick') totalKicks += c;
+                        else if (row.action_type === 'text_mute' || row.action_type === 'voice_mute') {
+                            totalTimeouts += c;
+                            if (row.reason && row.reason.includes('Manuel olarak')) manualMutes += c;
+                        }
                     });
                 } catch(e) {}
 
@@ -192,9 +205,10 @@ async function handleSorguSelect(interaction, value, targetId) {
 
                 staffDesc = `**<:mono:${MONO_EMOJIS.crown}> Moderasyon Özeti:**\n`;
                 staffDesc += `└ Toplam İşlem: **${finalWarns + totalDels + totalTicketsClosed + totalBans + totalKicks + totalTimeouts + totalRoles}**\n`;
-                staffDesc += `└ Atılan Uyarı: **${finalWarns}**\n`;
+                staffDesc += `└ Atılan Uyarı: **${finalWarns}** *(Komut: ${finalWarns - manualWarns}, Manuel: ${manualWarns})*\n`;
                 staffDesc += `└ Kapatılan Bilet: **${totalTicketsClosed}**\n`;
-                staffDesc += `└ Atılan Ban: **${totalBans}** | Kick: **${totalKicks}** | Mute: **${totalTimeouts}**\n`;
+                staffDesc += `└ Atılan Ban: **${totalBans}** *(Komut: ${totalBans - manualBans}, Manuel: ${manualBans})*\n`;
+                staffDesc += `└ Kick: **${totalKicks}** | Mute: **${totalTimeouts}** *(Manuel Mute: ${manualMutes})*\n`;
                 staffDesc += `└ Silinen Mesaj (Clear): **${totalDels}**\n`;
             }
 

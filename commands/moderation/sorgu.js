@@ -77,8 +77,14 @@ module.exports = {
 
             let staffDesc = '';
             if (isTargetStaff) {
-                const [staffWarnRows] = await conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetUser.id]);
-                const totalWarnsGiven = Number(staffWarnRows[0]?.cnt || 0);
+                const [staffWarnRows] = await conn.query('SELECT reason, COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ? GROUP BY reason', [interaction.guild.id, targetUser.id]);
+                let totalWarnsGiven = 0;
+                let manualWarns = 0;
+                staffWarnRows.forEach(row => {
+                    const c = Number(row.cnt);
+                    totalWarnsGiven += c;
+                    if (row.reason && row.reason.includes('Manuel olarak')) manualWarns += c;
+                });
 
                 const [delRows] = await conn.query('SELECT COUNT(*) as cnt FROM deleted_messages WHERE guild_id = ? AND deleted_by = ?', [interaction.guild.id, targetUser.id]);
                 const totalDels = Number(delRows[0]?.cnt || 0);
@@ -86,18 +92,23 @@ module.exports = {
                 const [staffTicketRows] = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetUser.id]);
                 const totalTicketsClosed = Number(staffTicketRows[0]?.cnt || 0);
 
-                let totalBans = 0, totalKicks = 0, totalTimeouts = 0, totalRoles = 0, auditWarns = 0;
+                let totalBans = 0, totalKicks = 0, totalTimeouts = 0, manualMutes = 0, manualBans = 0, totalRoles = 0;
                 
                 try {
-                    const modRows = await conn.query('SELECT action_type, COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND moderator_id = ? GROUP BY action_type', [interaction.guild.id, targetUser.id]);
+                    const modRows = await conn.query('SELECT action_type, reason, COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND moderator_id = ? GROUP BY action_type, reason', [interaction.guild.id, targetUser.id]);
                     modRows.forEach(row => {
-                        if (row.action_type === 'ban') totalBans += Number(row.cnt);
-                        else if (row.action_type === 'kick') totalKicks += Number(row.cnt);
-                        else if (row.action_type === 'text_mute') totalTimeouts += Number(row.cnt);
+                        const c = Number(row.cnt);
+                        if (row.action_type === 'ban') {
+                            totalBans += c;
+                            if (row.reason && row.reason.includes('Manuel olarak')) manualBans += c;
+                        }
+                        else if (row.action_type === 'kick') totalKicks += c;
+                        else if (row.action_type === 'text_mute' || row.action_type === 'voice_mute') {
+                            totalTimeouts += c;
+                            if (row.reason && row.reason.includes('Manuel olarak')) manualMutes += c;
+                        }
                     });
-                } catch(e) {
-                    console.error('sorgu.js db mod actions fetch error:', e);
-                }
+                } catch(e) {}
 
                 try {
                     const logs = await interaction.guild.fetchAuditLogs({ limit: 100, user: targetUser.id });
@@ -109,15 +120,14 @@ module.exports = {
                             }
                         }
                     });
-                } catch (e) {
-                    console.error('sorgu.js Audit log hatası:', e);
-                } 
+                } catch (e) {} 
                 
                 staffDesc = `**<:mono:${MONO_EMOJIS.crown}> Moderasyon Özeti:**\n`;
                 staffDesc += `└ Toplam İşlem: **${totalWarnsGiven + totalDels + totalTicketsClosed + totalBans + totalKicks + totalTimeouts + totalRoles}**\n`;
-                staffDesc += `└ Atılan Uyarı: **${totalWarnsGiven}**\n`;
+                staffDesc += `└ Atılan Uyarı: **${totalWarnsGiven}** *(Komut: ${totalWarnsGiven - manualWarns}, Manuel: ${manualWarns})*\n`;
                 staffDesc += `└ Kapatılan Bilet: **${totalTicketsClosed}**\n`;
-                staffDesc += `└ Atılan Ban: **${totalBans}** | Kick: **${totalKicks}** | Mute: **${totalTimeouts}**\n`;
+                staffDesc += `└ Atılan Ban: **${totalBans}** *(Komut: ${totalBans - manualBans}, Manuel: ${manualBans})*\n`;
+                staffDesc += `└ Kick: **${totalKicks}** | Mute: **${totalTimeouts}** *(Manuel Mute: ${manualMutes})*\n`;
                 staffDesc += `└ Silinen Mesaj (Clear): **${totalDels}**\n`;
 
                 rawFields.push({ name: `<:mono:${MONO_EMOJIS.settings}> Yetkili Geçmişi (Sicil)`, value: staffDesc });
