@@ -107,6 +107,7 @@ module.exports = {
             activeWarnsCount = Number(warnRows[0]?.count || 0);
             
             let inviter = null;
+            let inviteCode = null;
             if (client.invites && client.invites.has(member.guild.id)) {
                 try {
                     const cachedInvites = client.invites.get(member.guild.id);
@@ -127,6 +128,7 @@ module.exports = {
                     
                     if (usedInvite) {
                         inviter = usedInvite.inviterId;
+                        inviteCode = usedInvite.code;
                         globalInviter = inviter;
                         for (const [code, inv] of newInvites) {
                             cachedInvites.set(code, inv.uses);
@@ -142,11 +144,12 @@ module.exports = {
             `, [member.id, member.user.username, member.user.username]);
 
             if (inviter) {
+                try { await conn2.query('ALTER TABLE invite_tracking ADD COLUMN invite_code VARCHAR(25)'); } catch(e){}
                 await conn2.query(`
-                    INSERT INTO invite_tracking (guild_id, user_id, inviter_id, joined_at)
-                    VALUES (?, ?, ?, NOW())
-                    ON DUPLICATE KEY UPDATE inviter_id = ?, joined_at = NOW()
-                `, [member.guild.id, member.id, inviter, inviter]);
+                    INSERT INTO invite_tracking (guild_id, user_id, inviter_id, invite_code, joined_at)
+                    VALUES (?, ?, ?, ?, NOW())
+                    ON DUPLICATE KEY UPDATE inviter_id = ?, invite_code = ?, joined_at = NOW()
+                `, [member.guild.id, member.id, inviter, inviteCode, inviter, inviteCode]);
             }
         } catch (err) {
             console.error("Member DB check/insert error:", err);
@@ -262,8 +265,20 @@ module.exports = {
                     description: `<@${member.id}>\n\n**${randomMsg}**${inviteText}\n\nSeninle beraber toplam **${member.guild.memberCount}** kişi olduk.`,
                     color: COLORS.SUCCESS
                 });
-                
-                await channel.send(payload).catch(e => console.error("Welcome mesaj hatası", e));
+
+                const { generateWelcomeImage } = require('../utils/imageGenerator');
+                const imageBuffer = await generateWelcomeImage(member);
+                if (imageBuffer) {
+                    const { AttachmentBuilder } = require('discord.js');
+                    const attachment = new AttachmentBuilder(imageBuffer, { name: 'welcome.png' });
+                    
+                    // Convert to V2 block logic with image
+                    const containerPayload = createContainerMessage(null, payload.content || payload.embeds[0].description, null, [], [], false, false, ['welcome.png']);
+                    containerPayload.files = [attachment];
+                    await channel.send(containerPayload).catch(e => console.error("Welcome mesaj hatası", e));
+                } else {
+                    await channel.send(payload).catch(e => console.error("Welcome mesaj hatası", e));
+                }
             }
         }
     }

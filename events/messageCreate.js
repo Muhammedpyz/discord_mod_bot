@@ -119,6 +119,29 @@ module.exports = {
                     .then(msg => setTimeout(() => msg.delete().catch(() => {}), 10000)).catch(()=>{});
             }
 
+            // --- AUTO RESPONDER ---
+            if (!message.author.bot && message.content) {
+                const lowerMsg = message.content.toLowerCase().trim();
+                let autoReplyText = null;
+
+                const selamVariations = ['sa', 'sea', 'selam', 'selamun aleykum', 'selamın aleyküm', 'selamun aleyküm', 'selamın aleykum', 'slm'];
+                if (selamVariations.includes(lowerMsg)) {
+                    autoReplyText = 'Aleykümselam, sunucumuza hoş geldin. Sana nasıl yardımcı olabiliriz?';
+                } else if (lowerMsg === 'ip' || lowerMsg === 'server ip' || lowerMsg === 'sunucu ip') {
+                    autoReplyText = 'Sunucu Bağlantı Adresi: play.turklion.net\nSürüm: 1.20.x';
+                } else if (lowerMsg === 'site' || lowerMsg === 'web sitesi' || lowerMsg === 'website') {
+                    autoReplyText = 'Resmi Web Sitemiz: https://turklion.net';
+                } else if (lowerMsg === 'instagram' || lowerMsg === 'ig' || lowerMsg === 'insta') {
+                    autoReplyText = 'Resmi Instagram Hesabımız: https://instagram.com/turklion';
+                }
+
+                if (autoReplyText) {
+                    const replyPayload = createContainerMessage(null, autoReplyText);
+                    await message.reply(replyPayload).catch(() => {});
+                }
+            }
+            // --- END AUTO RESPONDER ---
+
             // 1. Gelişmiş Anti-Link (Reklam) Filtresi
             if (config.anti_link_enabled) {
                 const linkRegex = /(https?:\/\/|www\.)?[a-zA-Z0-9-]+\.(com|net|org|gg|io|me|co|tr)(\/[^\s]*)?/gi;

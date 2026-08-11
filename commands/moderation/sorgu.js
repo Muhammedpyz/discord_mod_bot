@@ -78,8 +78,20 @@ module.exports = {
 
             const { MONO_EMOJIS } = require('../../utils/uiBuilder');
 
+            try { await conn.query('ALTER TABLE invite_tracking ADD COLUMN invite_code VARCHAR(25)'); } catch(e){}
+            const [inviteRows] = await conn.query('SELECT COUNT(*) as cnt FROM invite_tracking WHERE guild_id = ? AND inviter_id = ?', [interaction.guild.id, targetUser.id]);
+            const totalInvites = Number(inviteRows[0]?.cnt || 0);
+
+            const [invitedByRows] = await conn.query('SELECT inviter_id, invite_code FROM invite_tracking WHERE guild_id = ? AND user_id = ? LIMIT 1', [interaction.guild.id, targetUser.id]);
+            let invitedByText = 'Bilinmiyor';
+            if (invitedByRows.length > 0) {
+                const codeText = invitedByRows[0].invite_code ? ` (Link: discord.gg/${invitedByRows[0].invite_code})` : '';
+                invitedByText = `<@${invitedByRows[0].inviter_id}>${codeText}`;
+            }
+
             const rawFields = [
                 { name: `<:mono:${MONO_EMOJIS.shield}> Roller`, value: roles.length > 200 ? roles.substring(0, 200) + '...' : roles },
+                { name: `<:mono:${MONO_EMOJIS.invite}> Davet Bilgileri`, value: `**Davet Eden:** ${invitedByText}\n**Yaptığı Davet:** **${totalInvites}** kişi` },
                 { name: `<:mono:${MONO_EMOJIS.warning}> Ceza Istatistikleri`, value: `Aktif Uyarı: **${activeWarns}** | Toplam Uyarı: **${totalWarns}**\nToplam Susturulma: **${totalMutes}** | Toplam Ticket: **${totalTickets}**` },
                 { name: `<:mono:${MONO_EMOJIS.pin}> Moderatör Notları: ${totalNotes} adet`, value: lastNotesText }
             ];
