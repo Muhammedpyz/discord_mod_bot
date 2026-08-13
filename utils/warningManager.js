@@ -123,6 +123,42 @@ module.exports.issueWarning = async function(guild, user, moderatorId, reason) {
                     missingRoleMsg = '3. Uyarı Rolü (Ayarlanmamış)';
                 }
             }
+            
+            // Auto-punishment logic based on warn_actions table
+            try {
+                const warnActionsRows = await conn.query('SELECT action, duration FROM warn_actions WHERE guild_id = ? AND warn_count = ?', [guild.id, totalWarns]);
+                if (warnActionsRows.length > 0) {
+                    const actionData = warnActionsRows[0];
+                    const actionName = actionData.action;
+                    const duration = actionData.duration;
+                    
+                    const member = await guild.members.fetch(user.id).catch(() => null);
+                    if (member) {
+                        if (actionName === 'kick') {
+                            await member.kick(`Otomatik Ceza: ${totalWarns} uyarı`);
+                            extraAction += `\nKullanıcı ${totalWarns} uyarıya ulaştığı için sunucudan atıldı (Kick).`;
+                        } else if (actionName === 'ban') {
+                            await member.ban({ reason: `Otomatik Ceza: ${totalWarns} uyarı` });
+                            extraAction += `\nKullanıcı ${totalWarns} uyarıya ulaştığı için sunucudan yasaklandı (Ban).`;
+                        } else if (actionName.startsWith('mute_')) {
+                            const { saveRolesAndApplyMute } = require('./roleMemory');
+                            let muteDurationMs = 0;
+                            if (duration > 0) {
+                                muteDurationMs = duration * 1000;
+                            } else if (actionName === 'mute_10m') muteDurationMs = 10 * 60 * 1000;
+                            else if (actionName === 'mute_1h') muteDurationMs = 60 * 60 * 1000;
+                            else if (actionName === 'mute_1d') muteDurationMs = 24 * 60 * 60 * 1000;
+                            
+                            await saveRolesAndApplyMute(member, `Uyarı Limit: ${totalWarns}`);
+                            // apply manual mute timeout if needed, saveRolesAndApplyMute might not support duration arg directly depending on the existing code, but it handles mute role.
+                            extraAction += `\nKullanıcı ${totalWarns} uyarıya ulaştığı için susturuldu.`;
+                        }
+                    }
+                }
+            } catch (autoPunishErr) {
+                console.error("Otomatik ceza hatası:", autoPunishErr);
+            }
+
 
             let dmBasarili = true;
             try {

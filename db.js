@@ -43,7 +43,9 @@ async function initDB() {
                 ticket_channel_id VARCHAR(25),
                 ticket_role_id VARCHAR(255),
                 ticket_category_id VARCHAR(25),
-                log_channel_id VARCHAR(25)
+                log_channel_id VARCHAR(25),
+                starboard_channel_id VARCHAR(25),
+                starboard_threshold INT DEFAULT 3
             )
         `);
 
@@ -58,7 +60,8 @@ async function initDB() {
             try { await conn.query('ALTER TABLE guild_config MODIFY COLUMN ticket_role_id VARCHAR(255)'); } catch(e2) {}
         }
         try { await conn.query('ALTER TABLE guild_config ADD COLUMN ticket_category_id VARCHAR(25)'); } catch (e) {}
-
+        try { await conn.query('ALTER TABLE guild_config ADD COLUMN starboard_channel_id VARCHAR(25)'); } catch (e) {}
+        try { await conn.query('ALTER TABLE guild_config ADD COLUMN starboard_threshold INT DEFAULT 3'); } catch (e) {}
         // user_roles (Banlananların rollerini yedeklemek için)
         await conn.query(`
             CREATE TABLE IF NOT EXISTS user_roles (
@@ -123,6 +126,38 @@ async function initDB() {
         `);
         try { await conn.query('ALTER TABLE invite_tracking ADD COLUMN is_fake BOOLEAN DEFAULT FALSE'); } catch(e){}
         try { await conn.query('ALTER TABLE invite_tracking ADD COLUMN has_left BOOLEAN DEFAULT FALSE'); } catch(e){}
+
+        // Prefix Tracking
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_prefixes (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(25) NOT NULL,
+                prefix VARCHAR(10) NOT NULL,
+                UNIQUE KEY unique_guild_prefix (guild_id, prefix)
+            )
+        `);
+
+        // Sticky Messages
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS sticky_messages (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(25) NOT NULL,
+                channel_id VARCHAR(25) NOT NULL,
+                content TEXT NOT NULL,
+                last_message_id VARCHAR(25),
+                UNIQUE KEY unique_channel (guild_id, channel_id)
+            )
+        `);
+
+        // Blocked Channels
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS blocked_channels (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(25) NOT NULL,
+                channel_id VARCHAR(25) NOT NULL,
+                UNIQUE KEY unique_guild_channel (guild_id, channel_id)
+            )
+        `);
 
         // 2. Filtered Words
         await conn.query(`
@@ -191,6 +226,19 @@ async function initDB() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+
+        // Warn Actions
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS warn_actions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(25) NOT NULL,
+                warn_count INT NOT NULL,
+                action VARCHAR(25) NOT NULL,
+                duration INT DEFAULT 0,
+                UNIQUE KEY unique_guild_warn (guild_id, warn_count)
+            )
+        `);
+
 
         // 5. Whitelists
         await conn.query(`
@@ -348,6 +396,92 @@ async function initDB() {
         try { await conn.query('ALTER TABLE ticket_messages ADD COLUMN reply_to_id VARCHAR(25)'); } catch (e) {}
         try { await conn.query('ALTER TABLE ticket_messages ADD COLUMN stickers_json LONGTEXT'); } catch (e) {}
         try { await conn.query('ALTER TABLE ticket_messages ADD COLUMN is_pinned BOOLEAN DEFAULT FALSE'); } catch (e) {}
+        // Tag Role System
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS tag_role (
+                guild_id VARCHAR(25) PRIMARY KEY,
+                tag_text VARCHAR(50) NOT NULL,
+                role_id VARCHAR(25) NOT NULL
+            )
+        `);
+
+        // Staff Board System
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS staff_board (
+                guild_id VARCHAR(25) PRIMARY KEY,
+                channel_id VARCHAR(25) NOT NULL,
+                message_id VARCHAR(25),
+                role_ids TEXT NOT NULL
+            )
+        `);
+
+        // --- PHASE 4 USER EXPERIENCE TABLES ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS afk_users (
+                user_id VARCHAR(25) NOT NULL,
+                guild_id VARCHAR(25) NOT NULL,
+                reason VARCHAR(255) DEFAULT 'AFK',
+                set_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, guild_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS reputation (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(25) NOT NULL,
+                user_id VARCHAR(25) NOT NULL,
+                given_by VARCHAR(25) NOT NULL,
+                given_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS rep_cooldown (
+                guild_id VARCHAR(25) NOT NULL,
+                user_id VARCHAR(25) NOT NULL,
+                last_given TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (guild_id, user_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS birthdays (
+                user_id VARCHAR(25) NOT NULL,
+                guild_id VARCHAR(25) NOT NULL,
+                birth_day INT NOT NULL,
+                birth_month INT NOT NULL,
+                PRIMARY KEY (user_id, guild_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS reminders (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(25) NOT NULL,
+                user_id VARCHAR(25) NOT NULL,
+                channel_id VARCHAR(25) NOT NULL,
+                reminder_text TEXT NOT NULL,
+                remind_at TIMESTAMP NOT NULL,
+                is_sent BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS staff_applications (
+                guild_id VARCHAR(25) PRIMARY KEY,
+                panel_channel_id VARCHAR(25),
+                panel_message_id VARCHAR(25),
+                result_channel_id VARCHAR(25)
+            )
+        `);
+
+        try { await conn.query('ALTER TABLE guild_config ADD COLUMN ghost_ping_enabled BOOLEAN DEFAULT FALSE'); } catch (e) {}
+        try { await conn.query('ALTER TABLE guild_config ADD COLUMN counting_channel_id VARCHAR(25)'); } catch (e) {}
+        try { await conn.query('ALTER TABLE guild_config ADD COLUMN suggestion_channel_id VARCHAR(25)'); } catch (e) {}
+        // ---------------------------------------
+
         // İlk açılışta config'i cache'le
         const rows = await conn.query('SELECT * FROM guild_config');
         for (const row of rows) {
