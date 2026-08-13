@@ -41,7 +41,7 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        await interaction.deferReply();
+        try { await interaction.deferReply(); } catch(e) { return; }
         try {
             const subcommand = interaction.options.getSubcommand();
             const role = interaction.options.getRole('rol');
@@ -49,11 +49,11 @@ module.exports = {
 
             const botMember = await interaction.guild.members.fetch(interaction.client.user.id);
             if (botMember.roles.highest.position <= role.position) {
-                return interaction.editReply({ content: 'Bu rol benim en yüksek rolümden daha üstte veya aynı sırada, işlem yapamam.' });
+                return await interaction.editReply({ content: 'Bu rol benim en yüksek rolümden daha üstte veya aynı sırada, işlem yapamam.' }).catch(() => {});
             }
             if (interaction.user.id !== interaction.guild.ownerId) {
                 if (interaction.member.roles.highest.position <= role.position) {
-                    return interaction.editReply({ content: 'Bu rol sizin en yüksek rolünüzden daha üstte veya aynı sırada.' });
+                    return await interaction.editReply({ content: 'Bu rol sizin en yüksek rolünüzden daha üstte veya aynı sırada.' }).catch(() => {});
                 }
             }
 
@@ -72,7 +72,7 @@ module.exports = {
                 `${EMOJIS.status} İşlem Başladı`,
                 `Toplam ${membersArray.length} üye üzerinde işlem yapılıyor. Lütfen bekleyin...`,
                 '#2B2D31'
-            ));
+            )).catch(() => {});
 
             for (const member of membersArray) {
                 try {

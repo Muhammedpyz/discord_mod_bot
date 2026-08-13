@@ -13,11 +13,12 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
     
     async execute(interaction) {
+        try { await interaction.deferReply(); } catch(e) { return; }
         try {
             const seconds = interaction.options.getInteger('saniye');
             
             if (seconds < 0 || seconds > 21600) {
-                return interaction.reply({ content: 'Lütfen 0 ile 21600 saniye (6 saat) arasinda geçerli bir deger giriniz.', flags: MessageFlags.Ephemeral });
+                return await interaction.editReply({ content: 'Lütfen 0 ile 21600 saniye (6 saat) arasinda geçerli bir deger giriniz.' }).catch(() => {});
             }
             
             await interaction.channel.setRateLimitPerUser(seconds, `Slowmode ayarlandi: ${interaction.user.tag}`);
@@ -28,7 +29,7 @@ module.exports = {
                 '#2B2D31'
             );
                 
-            await interaction.reply(payload);
+            await interaction.editReply(payload).catch(() => {});
 
             const logPayload = createContainerMessage(
                 'Yavaş Mod Guncellendi',
@@ -44,11 +45,7 @@ module.exports = {
             await sendLog(interaction.guild, logPayload);
         } catch (error) {
             console.error('Slowmode hatası:', error);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Yavaş mod ayarlanirken bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            } else {
-                await interaction.reply({ content: 'Yavaş mod ayarlanirken bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
+            await interaction.editReply({ content: 'İşlem sırasında bir hata oluştu.' }).catch(() => {});
         }
     }
 };

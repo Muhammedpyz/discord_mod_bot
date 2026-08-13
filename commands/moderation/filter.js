@@ -35,6 +35,7 @@ module.exports = {
         ),
 
     async execute(interaction) {
+        try { await interaction.deferReply(); } catch(e) { return; }
         const subCmd = interaction.options.getSubcommand();
         let conn;
 
@@ -51,7 +52,7 @@ module.exports = {
                     ON DUPLICATE KEY UPDATE match_type = ?
                 `, [interaction.guild.id, word, matchType, matchType]);
                 
-                return interaction.reply({ content: `**"${word}"** kelimesi (${matchType === 'exact' ? 'Tam Eslesme' : 'Içerme'}) başarıyla kara listeye eklenmistir.`, flags: MessageFlags.Ephemeral });
+                return await interaction.editReply({ content: `**"${word}"** kelimesi (${matchType === 'exact' ? 'Tam Eslesme' : 'Içerme'}) başarıyla kara listeye eklenmistir.` }).catch(() => {});
             }
 
             if (subCmd === 'sil') {
@@ -59,16 +60,16 @@ module.exports = {
                 const result = await conn.query('DELETE FROM filtered_words WHERE guild_id = ? AND word = ?', [interaction.guild.id, word]);
                 
                 if (result.affectedRows > 0) {
-                    return interaction.reply({ content: `**"${word}"** kelimesi kara listeden cikarilmistir.`, flags: MessageFlags.Ephemeral });
+                    return await interaction.editReply({ content: `**"${word}"** kelimesi kara listeden cikarilmistir.` }).catch(() => {});
                 } else {
-                    return interaction.reply({ content: `Belirtilen **"${word}"** kelimesi sistem kara listesinde bulunamadı.`, flags: MessageFlags.Ephemeral });
+                    return await interaction.editReply({ content: `Belirtilen **"${word}"** kelimesi sistem kara listesinde bulunamadı.` }).catch(() => {});
                 }
             }
 
             if (subCmd === 'liste') {
                 const rows = await conn.query('SELECT word, match_type FROM filtered_words WHERE guild_id = ?', [interaction.guild.id]);
                 if (!rows || rows.length === 0) {
-                    return interaction.reply({ content: 'Sistem kara listesi su an bostur.', flags: MessageFlags.Ephemeral });
+                    return await interaction.editReply({ content: 'Sistem kara listesi su an bostur.' }).catch(() => {});
                 }
                 
                 const wordList = rows.map(r => `* ${r.word} (${r.match_type === 'exact' ? 'Tam Eslesme' : 'Içerme'})`).join('\n');
@@ -77,11 +78,10 @@ module.exports = {
                     const buffer = Buffer.from(wordList, 'utf-8');
                     const attachment = new AttachmentBuilder(buffer, { name: 'kara-liste.txt' });
                     
-                    return interaction.reply({ 
+                    return await interaction.editReply({ 
                         content: 'Kara liste sinir asimina ugradigi için size metin belgesi olarak iletilmistir.', 
-                        files: [attachment],
-                        flags: MessageFlags.Ephemeral 
-                    });
+                        files: [attachment]
+                    }).catch(() => {});
                 }
                 
                 const payload = createContainerMessage(
@@ -90,16 +90,12 @@ module.exports = {
                     '#2B2D31'
                 );
                     
-                return interaction.reply({ ...payload, flags: payload.flags | MessageFlags.Ephemeral });
+                return await interaction.editReply(payload).catch(() => {});
             }
 
         } catch (error) {
             console.error('Filter hatası:', error);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'İşlem sırasında sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            } else {
-                await interaction.reply({ content: 'İşlem sırasında sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
+            await interaction.editReply({ content: 'İşlem sırasında bir hata oluştu.' }).catch(() => {});
         } finally {
             if (conn) conn.release();
         }

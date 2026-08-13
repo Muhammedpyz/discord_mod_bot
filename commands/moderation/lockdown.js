@@ -17,6 +17,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
     
     async execute(interaction) {
+        try { await interaction.deferReply(); } catch(e) { return; }
         try {
             const state = interaction.options.getString('durum');
             const role = interaction.guild.roles.everyone;
@@ -25,10 +26,10 @@ module.exports = {
             const isCurrentlyLocked = permissions && permissions.deny.has(PermissionFlagsBits.SendMessages);
 
             if (state === 'lock' && isCurrentlyLocked) {
-                return interaction.reply({ content: 'Bu kanal halihazirda kilitli durumdadir.', flags: MessageFlags.Ephemeral });
+                return await interaction.editReply({ content: 'Bu kanal halihazirda kilitli durumdadir.' }).catch(() => {});
             }
             if (state === 'unlock' && !isCurrentlyLocked) {
-                return interaction.reply({ content: 'Bu kanal halihazirda acik durumdadir.', flags: MessageFlags.Ephemeral });
+                return await interaction.editReply({ content: 'Bu kanal halihazirda acik durumdadir.' }).catch(() => {});
             }
 
             if (state === 'lock') {
@@ -40,7 +41,7 @@ module.exports = {
                     '#2B2D31'
                 );
                 
-                await interaction.reply(payload);
+                await interaction.editReply(payload).catch(() => {});
             } else {
                 await interaction.channel.permissionOverwrites.edit(role, { SendMessages: null });
                 
@@ -50,7 +51,7 @@ module.exports = {
                     '#2B2D31'
                 );
                 
-                await interaction.reply(payload);
+                await interaction.editReply(payload).catch(() => {});
             }
 
             const logPayload = createContainerMessage(
@@ -66,11 +67,7 @@ module.exports = {
             await sendLog(interaction.guild, logPayload);
         } catch (error) {
             console.error('Lockdown hatası:', error);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Kanal ayarları değiştirilirken bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            } else {
-                await interaction.reply({ content: 'Kanal ayarları değiştirilirken bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
+            await interaction.editReply({ content: 'İşlem sırasında bir hata oluştu.' }).catch(() => {});
         }
     }
 };

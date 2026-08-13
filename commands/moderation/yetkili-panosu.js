@@ -24,7 +24,7 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        await interaction.deferReply();
+        try { await interaction.deferReply(); } catch(e) { return; }
         let conn;
         try {
             const subcommand = interaction.options.getSubcommand();
@@ -72,7 +72,7 @@ module.exports = {
                     `Pano başarıyla ${channel} kanalına kuruldu.`,
                     '#2B2D31'
                 );
-                await interaction.editReply(payload);
+                await interaction.editReply(payload).catch(() => {});
 
                 const logPayload = createContainerMessage(
                     'Yetkili Panosu Kuruldu',
@@ -89,7 +89,7 @@ module.exports = {
             } else if (subcommand === 'guncelle') {
                 const rows = await conn.query('SELECT channel_id, message_id, role_ids FROM staff_board WHERE guild_id = ?', [interaction.guild.id]);
                 if (rows.length === 0) {
-                    return interaction.editReply({ content: 'Bu sunucuda kurulmuş bir yetkili panosu bulunmuyor.' });
+                    return await interaction.editReply({ content: 'Bu sunucuda kurulmuş bir yetkili panosu bulunmuyor.' }).catch(() => {});
                 }
 
                 const { channel_id, message_id, role_ids } = rows[0];
@@ -97,14 +97,14 @@ module.exports = {
 
                 const channel = interaction.guild.channels.cache.get(channel_id);
                 if (!channel) {
-                    return interaction.editReply({ content: 'Pano kanalı bulunamadı.' });
+                    return await interaction.editReply({ content: 'Pano kanalı bulunamadı.' }).catch(() => {});
                 }
 
                 let message;
                 try {
                     message = await channel.messages.fetch(message_id);
                 } catch (e) {
-                    return interaction.editReply({ content: 'Pano mesajı bulunamadı.' });
+                    return await interaction.editReply({ content: 'Pano mesajı bulunamadı.' }).catch(() => {});
                 }
 
                 await interaction.guild.members.fetch();
@@ -131,7 +131,7 @@ module.exports = {
                     `Pano başarıyla güncellendi.`,
                     '#2B2D31'
                 );
-                await interaction.editReply(payload);
+                await interaction.editReply(payload).catch(() => {});
 
                 const logPayload = createContainerMessage(
                     'Yetkili Panosu Güncellendi',

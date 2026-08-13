@@ -12,7 +12,7 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        await interaction.deferReply();
+        try { await interaction.deferReply(); } catch(e) { return; }
         try {
             const targetUser = interaction.options.getUser('kullanici') || interaction.user;
             const user = await interaction.client.users.fetch(targetUser.id, { force: true });
@@ -25,7 +25,7 @@ module.exports = {
                     `Bu kullanıcının banner'ı bulunmuyor.`,
                     '#2B2D31'
                 );
-                return await interaction.editReply(noBannerPayload);
+                return await interaction.editReply(noBannerPayload).catch(() => {});
             }
 
             const payload = buildModBResponse({
@@ -34,7 +34,7 @@ module.exports = {
                 images: [bannerUrl]
             });
 
-            await interaction.editReply(payload);
+            await interaction.editReply(payload).catch(() => {});
 
         } catch (error) {
             console.error('Error in banner command:', error);

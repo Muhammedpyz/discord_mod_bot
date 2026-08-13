@@ -27,7 +27,7 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        await interaction.deferReply();
+        try { await interaction.deferReply(); } catch(e) { return; }
         let conn;
         try {
             conn = await pool.getConnection();
@@ -41,18 +41,18 @@ module.exports = {
                     'INSERT INTO birthdays (user_id, guild_id, birth_day, birth_month) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE birth_day = ?, birth_month = ?',
                     [interaction.user.id, interaction.guild.id, day, month, day, month]
                 );
-                await interaction.editReply(createContainerMessage(`${EMOJIS.announcement} Başarılı`, `Doğum gününüz **${day}/${month}** olarak kaydedildi.`, '#2B2D31'));
+                await interaction.editReply(createContainerMessage(`${EMOJIS.announcement} Başarılı`, `Doğum gününüz **${day}/${month}** olarak kaydedildi.`, '#2B2D31')).catch(() => {});
             } else if (subcommand === 'goruntule') {
                 const targetUser = interaction.options.getUser('kullanici') || interaction.user;
                 const rows = await conn.query('SELECT birth_day, birth_month FROM birthdays WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]);
                 if (rows.length > 0) {
-                    await interaction.editReply(createContainerMessage(`${EMOJIS.announcement} Doğum Günü`, `<@${targetUser.id}> kullanıcısının doğum günü: **${rows[0].birth_day}/${rows[0].birth_month}**`, '#2B2D31'));
+                    await interaction.editReply(createContainerMessage(`${EMOJIS.announcement} Doğum Günü`, `<@${targetUser.id}> kullanıcısının doğum günü: **${rows[0].birth_day}/${rows[0].birth_month}**`, '#2B2D31')).catch(() => {});
                 } else {
-                    await interaction.editReply(createContainerMessage(`${EMOJIS.cross} Bilgi Yok`, `Bu kullanıcının doğum günü bilgisi bulunmuyor.`, '#2B2D31'));
+                    await interaction.editReply(createContainerMessage(`${EMOJIS.cross} Bilgi Yok`, `Bu kullanıcının doğum günü bilgisi bulunmuyor.`, '#2B2D31')).catch(() => {});
                 }
             } else if (subcommand === 'sil') {
                 await conn.query('DELETE FROM birthdays WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, interaction.user.id]);
-                await interaction.editReply(createContainerMessage(`${EMOJIS.check} Başarılı`, `Doğum günü bilginiz silindi.`, '#2B2D31'));
+                await interaction.editReply(createContainerMessage(`${EMOJIS.check} Başarılı`, `Doğum günü bilginiz silindi.`, '#2B2D31')).catch(() => {});
             } else if (subcommand === 'yaklasanlar') {
                 const rows = await conn.query('SELECT user_id, birth_day, birth_month FROM birthdays WHERE guild_id = ?', [interaction.guild.id]);
                 
@@ -69,7 +69,7 @@ module.exports = {
                 }).sort((a, b) => a.nextDate - b.nextDate).slice(0, 10);
 
                 if (sorted.length === 0) {
-                    return await interaction.editReply(createContainerMessage(`${EMOJIS.announcement} Yaklaşan Doğum Günleri`, `Kayıtlı doğum günü bulunmuyor.`, '#2B2D31'));
+                    return await interaction.editReply(createContainerMessage(`${EMOJIS.announcement} Yaklaşan Doğum Günleri`, `Kayıtlı doğum günü bulunmuyor.`, '#2B2D31')).catch(() => {});
                 }
 
                 let text = '';
@@ -77,7 +77,7 @@ module.exports = {
                     text += `• <@${b.user_id}> - ${b.birth_day}/${b.birth_month}\n`;
                 }
 
-                await interaction.editReply(createContainerMessage(`${EMOJIS.announcement} Yaklaşan Doğum Günleri`, text, '#2B2D31'));
+                await interaction.editReply(createContainerMessage(`${EMOJIS.announcement} Yaklaşan Doğum Günleri`, text, '#2B2D31')).catch(() => {});
             }
 
         } catch (error) {

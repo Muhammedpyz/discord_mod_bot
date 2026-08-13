@@ -8,11 +8,12 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
         
     async execute(interaction, client) {
+        try { await interaction.deferReply(); } catch(e) { return; }
         try {
             const snipe = client.snipes.get(interaction.channel.id);
 
             if (!snipe) {
-                return interaction.reply({ content: 'Sistem kayitlarina gore bu kanalda yakin zamanda silinmis bir mesaj bulunmamaktadır.', flags: MessageFlags.Ephemeral });
+                return await interaction.editReply({ content: 'Sistem kayitlarina gore bu kanalda yakin zamanda silinmis bir mesaj bulunmamaktadır.' }).catch(() => {});
             }
 
             const payload = createContainerMessage(
@@ -21,14 +22,10 @@ module.exports = {
                 '#2B2D31'
             );
 
-            await interaction.reply(payload);
+            await interaction.editReply(payload).catch(() => {});
         } catch (error) {
             console.error('Snipe hatası:', error);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'İşlem gerceklestirilirken bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            } else {
-                await interaction.reply({ content: 'İşlem gerceklestirilirken bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
+            await interaction.editReply({ content: 'İşlem sırasında bir hata oluştu.' }).catch(() => {});
         }
     }
 };

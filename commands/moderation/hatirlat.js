@@ -10,7 +10,7 @@ module.exports = {
         .addStringOption(opt => opt.setName('not').setDescription('Hatırlatılacak not').setRequired(true)),
 
     async execute(interaction) {
-        await interaction.deferReply();
+        try { await interaction.deferReply(); } catch(e) { return; }
         let conn;
         try {
             const sureStr = interaction.options.getString('sure');
@@ -21,12 +21,12 @@ module.exports = {
             else if (sureStr.endsWith('h')) multiplier = 60 * 60 * 1000;
             else if (sureStr.endsWith('d')) multiplier = 24 * 60 * 60 * 1000;
             else {
-                return await interaction.editReply(createContainerMessage(`${EMOJIS.cross} Hata`, 'Geçersiz süre formatı. Geçerli formatlar: 10m, 2h, 1d', '#2B2D31'));
+                return await interaction.editReply(createContainerMessage(`${EMOJIS.cross} Hata`, 'Geçersiz süre formatı. Geçerli formatlar: 10m, 2h, 1d', '#2B2D31')).catch(() => {});
             }
 
             const val = parseInt(sureStr.slice(0, -1));
             if (isNaN(val) || val <= 0) {
-                return await interaction.editReply(createContainerMessage(`${EMOJIS.cross} Hata`, 'Geçersiz süre değeri.', '#2B2D31'));
+                return await interaction.editReply(createContainerMessage(`${EMOJIS.cross} Hata`, 'Geçersiz süre değeri.', '#2B2D31')).catch(() => {});
             }
 
             const ms = val * multiplier;
@@ -39,7 +39,7 @@ module.exports = {
             );
             const reminderId = res.insertId;
 
-            await interaction.editReply(createContainerMessage(`${EMOJIS.check} Başarılı`, `Hatırlatmanız kuruldu. **${sureStr}** sonra size hatırlatacağım.`, '#2B2D31'));
+            await interaction.editReply(createContainerMessage(`${EMOJIS.check} Başarılı`, `Hatırlatmanız kuruldu. **${sureStr}** sonra size hatırlatacağım.`, '#2B2D31')).catch(() => {});
 
             if (ms <= 24 * 60 * 60 * 1000) {
                 setTimeout(async () => {

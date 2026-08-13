@@ -23,25 +23,25 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        await interaction.deferReply();
+        try { await interaction.deferReply(); } catch(e) { return; }
         try {
             const subcommand = interaction.options.getSubcommand();
             const targetMember = interaction.options.getMember('kullanici');
             const role = interaction.options.getRole('rol');
 
             if (!targetMember) {
-                return interaction.editReply({ content: 'Kullanıcı bulunamadı.' });
+                return await interaction.editReply({ content: 'Kullanıcı bulunamadı.' }).catch(() => {});
             }
 
             // Check hierarchy
             const botMember = await interaction.guild.members.fetch(interaction.client.user.id);
             if (botMember.roles.highest.position <= role.position) {
-                return interaction.editReply({ content: 'Bu rol benim en yüksek rolümden daha üstte veya aynı sırada, bu yüzden bu rolü veremem/alamam.' });
+                return await interaction.editReply({ content: 'Bu rol benim en yüksek rolümden daha üstte veya aynı sırada, bu yüzden bu rolü veremem/alamam.' }).catch(() => {});
             }
 
             if (interaction.user.id !== interaction.guild.ownerId) {
                 if (interaction.member.roles.highest.position <= role.position) {
-                    return interaction.editReply({ content: 'Bu rol sizin en yüksek rolünüzden daha üstte veya aynı sırada.' });
+                    return await interaction.editReply({ content: 'Bu rol sizin en yüksek rolünüzden daha üstte veya aynı sırada.' }).catch(() => {});
                 }
             }
 
@@ -54,7 +54,7 @@ module.exports = {
                     `${targetMember} kullanıcısına ${role} rolü verildi.`,
                     '#2B2D31'
                 );
-                await interaction.editReply(payload);
+                await interaction.editReply(payload).catch(() => {});
             } else if (subcommand === 'al') {
                 await targetMember.roles.remove(role);
                 islemStr = 'Alındı';
@@ -63,7 +63,7 @@ module.exports = {
                     `${targetMember} kullanıcısından ${role} rolü alındı.`,
                     '#2B2D31'
                 );
-                await interaction.editReply(payload);
+                await interaction.editReply(payload).catch(() => {});
             }
 
             const logPayload = createContainerMessage(

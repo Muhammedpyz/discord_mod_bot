@@ -18,7 +18,7 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        await interaction.deferReply();
+        try { await interaction.deferReply(); } catch(e) { return; }
         let conn;
         try {
             conn = await pool.getConnection();
@@ -27,10 +27,10 @@ module.exports = {
 
             if (subcommand === 'ver') {
                 if (targetUser.id === interaction.user.id) {
-                    return await interaction.editReply(createContainerMessage(`${EMOJIS.cross} Hata`, 'Kendinize itibar puanı veremezsiniz.', '#2B2D31'));
+                    return await interaction.editReply(createContainerMessage(`${EMOJIS.cross} Hata`, 'Kendinize itibar puanı veremezsiniz.', '#2B2D31')).catch(() => {});
                 }
                 if (targetUser.bot) {
-                    return await interaction.editReply(createContainerMessage(`${EMOJIS.cross} Hata`, 'Botlara itibar puanı veremezsiniz.', '#2B2D31'));
+                    return await interaction.editReply(createContainerMessage(`${EMOJIS.cross} Hata`, 'Botlara itibar puanı veremezsiniz.', '#2B2D31')).catch(() => {});
                 }
 
                 const [cooldownRes] = await conn.query('SELECT last_given FROM rep_cooldown WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, interaction.user.id]);
@@ -40,18 +40,18 @@ module.exports = {
                     const diffHours = (now - lastGiven) / (1000 * 60 * 60);
                     if (diffHours < 24) {
                         const remaining = Math.ceil(24 - diffHours);
-                        return await interaction.editReply(createContainerMessage(`${EMOJIS.cross} Hata`, `Tekrar itibar puanı verebilmek için ${remaining} saat beklemelisiniz.`, '#2B2D31'));
+                        return await interaction.editReply(createContainerMessage(`${EMOJIS.cross} Hata`, `Tekrar itibar puanı verebilmek için ${remaining} saat beklemelisiniz.`, '#2B2D31')).catch(() => {});
                     }
                 }
 
                 await conn.query('INSERT INTO reputation (guild_id, user_id, given_by) VALUES (?, ?, ?)', [interaction.guild.id, targetUser.id, interaction.user.id]);
                 await conn.query('INSERT INTO rep_cooldown (guild_id, user_id, last_given) VALUES (?, ?, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE last_given = CURRENT_TIMESTAMP', [interaction.guild.id, interaction.user.id]);
 
-                await interaction.editReply(createContainerMessage(`${EMOJIS.crown} İtibar Verildi`, `<@${targetUser.id}> kullanıcısına itibar puanı verdiniz!`, '#2B2D31'));
+                await interaction.editReply(createContainerMessage(`${EMOJIS.crown} İtibar Verildi`, `<@${targetUser.id}> kullanıcısına itibar puanı verdiniz!`, '#2B2D31')).catch(() => {});
             } else if (subcommand === 'goruntule') {
                 const rows = await conn.query('SELECT COUNT(*) as repCount FROM reputation WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]);
                 const count = rows[0].repCount;
-                await interaction.editReply(createContainerMessage(`${EMOJIS.crown} İtibar Bilgisi`, `<@${targetUser.id}> kullanıcısının toplam **${count}** itibar puanı bulunuyor.`, '#2B2D31'));
+                await interaction.editReply(createContainerMessage(`${EMOJIS.crown} İtibar Bilgisi`, `<@${targetUser.id}> kullanıcısının toplam **${count}** itibar puanı bulunuyor.`, '#2B2D31')).catch(() => {});
             }
 
         } catch (error) {

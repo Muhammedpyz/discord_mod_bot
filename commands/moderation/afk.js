@@ -13,7 +13,7 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        await interaction.deferReply();
+        try { await interaction.deferReply(); } catch(e) { return; }
         let conn;
         try {
             const reason = interaction.options.getString('sebep') || 'AFK';
@@ -30,7 +30,7 @@ module.exports = {
                 `AFK moduna geçtiniz: ${reason}`,
                 '#2B2D31'
             );
-            await interaction.editReply(payload);
+            await interaction.editReply(payload).catch(() => {});
 
         } catch (error) {
             console.error('Error in afk command:', error);

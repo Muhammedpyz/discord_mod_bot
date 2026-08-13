@@ -9,7 +9,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
 
     async execute(interaction) {
-        await interaction.deferReply();
+        try { await interaction.deferReply(); } catch(e) { return; }
         let conn;
         try {
             conn = await pool.getConnection();
@@ -32,7 +32,7 @@ module.exports = {
                     'Sunucuda yasaklı kullanıcı bulunmuyor.',
                     '#2B2D31'
                 );
-                return interaction.editReply(emptyPayload);
+                return await interaction.editReply(emptyPayload).catch(() => {});
             }
 
             const maxPerPage = 10;
@@ -77,7 +77,8 @@ module.exports = {
                 currentPayload.components = [getActionRow(currentPage)];
             }
 
-            const message = await interaction.editReply(currentPayload);
+            const message = await interaction.editReply(currentPayload).catch(() => null);
+            if (!message) return;
 
             if (pages > 1) {
                 const collector = message.createMessageComponentCollector({

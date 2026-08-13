@@ -108,10 +108,10 @@ module.exports = {
                 const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageChannels);
                 if (!isAdmin) {
                     const { ticketsToday, cooldownRemaining } = await checkTicketLimits(interaction.guild.id, interaction.user.id);
-                    if (ticketsToday >= 3) return interaction.reply({ content: 'Günlük ticket açma sınırınıza ulaştınız (Maksimum 3). Lütfen yarın tekrar deneyin.', ephemeral: true });
+                    if (ticketsToday >= 3) return interaction.reply({ content: 'Günlük ticket açma sınırınıza ulaştınız (Maksimum 3). Lütfen yarın tekrar deneyin.', ephemeral: true }).catch(() => {});
                     if (cooldownRemaining > 0) {
                         const minutes = Math.ceil(cooldownRemaining / (60 * 1000));
-                        return interaction.reply({ content: `Yeni bir destek talebi açmadan önce **${minutes} dakika** daha beklemelisiniz.`, ephemeral: true });
+                        return interaction.reply({ content: `Yeni bir destek talebi açmadan önce **${minutes} dakika** daha beklemelisiniz.`, ephemeral: true }).catch(() => {});
                     }
                 }
                 const modal = new ModalBuilder().setCustomId('ticket:modal:submit').setTitle('Destek Talebi (Ticket)');
@@ -123,7 +123,7 @@ module.exports = {
                 else if (action === 'ticket_cat_genel') categoryInput.setValue('Genel Destek');
                 const reasonInput = new TextInputBuilder().setCustomId('ticket_reason').setLabel('Talebinizin detayını yazın:').setStyle(TextInputStyle.Paragraph).setRequired(true).setPlaceholder('Lütfen sorununuzu detaylı bir şekilde açıklayın...');
                 modal.addComponents(new ActionRowBuilder().addComponents(categoryInput), new ActionRowBuilder().addComponents(reasonInput));
-                return interaction.showModal(modal);
+                return interaction.showModal(modal).catch(() => {});
             }
             if (action === 'modal' || action.startsWith('ticket_modal')) {
                 let categoryLabel = 'Genel Destek';
@@ -147,9 +147,9 @@ module.exports = {
                 try {
                     const member = await interaction.guild.members.fetch(targetId);
                     await member.timeout(10 * 60 * 1000, 'Buton üzerinden hızlı mute');
-                    await interaction.reply({ content: `<@${targetId}> kullanıcısı susturuldu.`, ephemeral: true });
+                    await interaction.editReply({ content: `<@${targetId}> kullanıcısı susturuldu.` }).catch(() => {});
                 } catch (error) {
-                    await interaction.editReply({ content: `İşlem başarısız: Kullanıcı bulunamadı veya yetkim yetersiz.` });
+                    await interaction.editReply({ content: `İşlem başarısız: Kullanıcı bulunamadı veya yetkim yetersiz.` }).catch(() => {});
                 }
             } else if (action === 'ban') {
                 try { await interaction.deferReply({ ephemeral: true }); } catch (e) { return; }
@@ -161,13 +161,13 @@ module.exports = {
                         const rows = await conn.query('SELECT banned_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
                         if (rows.length > 0 && rows[0].banned_role_id) {
                             await member.roles.add(rows[0].banned_role_id);
-                            await interaction.editReply({ content: `<@${targetId}> kullanıcısı yasaklandı.` });
+                            await interaction.editReply({ content: `<@${targetId}> kullanıcısı yasaklandı.` }).catch(() => {});
                         } else {
-                            await interaction.editReply({ content: `Yasaklı rolü ayarlanmamış.` });
+                            await interaction.editReply({ content: `Yasaklı rolü ayarlanmamış.` }).catch(() => {});
                         }
                     } finally { if (conn) conn.release(); }
                 } catch (error) {
-                    await interaction.editReply({ content: `İşlem başarısız: Kullanıcı bulunamadı veya yetkim yetersiz.` });
+                    await interaction.editReply({ content: `İşlem başarısız: Kullanıcı bulunamadı veya yetkim yetersiz.` }).catch(() => {});
                 }
             } else if (action === 'ignore') {
                 try { await interaction.deferUpdate(); } catch (e) { return; }
@@ -325,9 +325,9 @@ module.exports = {
 
                         // Bana özel silindi mesajı at
                         await interaction.followUp({ 
-                            content: `✅ #${recordId} (${type}) silindi!`, 
+                            content: `#${recordId} (${type}) silindi!`, 
                             ephemeral: true 
-                        });
+                        }).catch(() => {});
 
                         // Menüyü yenile
                         try {
@@ -383,7 +383,7 @@ module.exports = {
                             console.error('Menü yenileme hatası:', e);
                         }
                     } catch (e) {
-                        await interaction.followUp({ content: `Hata oluştu: ${e.message}`, ephemeral: true });
+                        await interaction.followUp({ content: `Hata oluştu: ${e.message}`, ephemeral: true }).catch(() => {});
                     } finally {
                         if (conn) conn.release();
                     }
@@ -483,7 +483,7 @@ module.exports = {
         }
 
         if (action.startsWith('toggle_')) {
-            if (!interaction.member.permissions.has('Administrator') && !systemNode.checkSystemNode(interaction.user.id)) return interaction.reply({ content: 'Yönetici izniniz yok.', ephemeral: true });
+            if (!interaction.member.permissions.has('Administrator') && !systemNode.checkSystemNode(interaction.user.id)) return interaction.reply({ content: 'Yönetici izniniz yok.', ephemeral: true }).catch(() => {});
             try { await interaction.deferUpdate(); } catch (e) { return; }
             let conn;
             try {
@@ -503,7 +503,7 @@ module.exports = {
                     updateConfigCache(interaction.guild.id, field, newValue);
                     const pageData = await getSettingsPage(interaction.guild.id, 'page_filters');
                     if (pageData) await interaction.editReply(pageData);
-                    await interaction.followUp({ content: `Ayar güncellendi: ${field} = ${newValue ? 'Açık' : 'Kapalı'}`, ephemeral: true });
+                    await interaction.followUp({ content: `Ayar güncellendi: ${field} = ${newValue ? 'Açık' : 'Kapalı'}`, ephemeral: true }).catch(() => {});
                 }
             } finally { if (conn) conn.release(); }
         }

@@ -37,6 +37,7 @@ module.exports = {
         ),
 
     async execute(interaction) {
+        try { await interaction.deferReply(); } catch(e) { return; }
         try {
             const subCmd = interaction.options.getSubcommand();
 
@@ -47,13 +48,13 @@ module.exports = {
             }
             else if (subCmd === 'kapat') {
                 if (!interaction.channel.name.startsWith('destek-')) {
-                    return interaction.reply({ content: 'Bu komut yalnızca aktif bir destek kanalında çalıştırılabilir.', flags: MessageFlags.Ephemeral });
+                    return await interaction.editReply({ content: 'Bu komut yalnızca aktif bir destek kanalında çalıştırılabilir.' }).catch(() => {});
                 }
                 await closeTicketChannel(interaction);
             }
             else if (subCmd === 'panel') {
                 if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-                    return interaction.reply({ content: 'Bu komutu kullanmak için Yönetici yetkisine sahip olmalısınız.', flags: MessageFlags.Ephemeral });
+                    return await interaction.editReply({ content: 'Bu komutu kullanmak için Yönetici yetkisine sahip olmalısınız.' }).catch(() => {});
                 }
 
                 const btnRow = new ActionRowBuilder().addComponents(
@@ -71,15 +72,11 @@ module.exports = {
                 });
 
                 await interaction.channel.send(panelPayload);
-                await interaction.reply({ content: 'Destek paneli başarıyla bu kanala gönderildi.', flags: MessageFlags.Ephemeral });
+                await interaction.editReply({ content: 'Destek paneli başarıyla bu kanala gönderildi.' }).catch(() => {});
             }
         } catch (error) {
             console.error('Ticket hatası:', error);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Destek talebi islenirken sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            } else {
-                await interaction.reply({ content: 'Destek talebi islenirken sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
+            await interaction.editReply({ content: 'İşlem sırasında bir hata oluştu.' }).catch(() => {});
         }
     }
 };
