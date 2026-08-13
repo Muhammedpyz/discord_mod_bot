@@ -23,8 +23,10 @@ async function checkExpiredMutes(client) {
                         if (record.action_type === 'text_mute' && config.text_mute_role_id) {
                             await member.roles.remove(config.text_mute_role_id).catch(() => {});
                             await member.timeout(null).catch(() => {});
+                            await restoreRoles(member);
                         } else if (record.action_type === 'voice_mute' && config.voice_mute_role_id) {
                             await member.roles.remove(config.voice_mute_role_id).catch(() => {});
+                            await restoreRoles(member);
                         }
 
                         const payload = createV2Message({
@@ -78,14 +80,14 @@ async function checkExpiredWarnings(client) {
                     );
                     const currentActiveCount = Number(activeWarnsCountQuery[0].count);
 
-                    if (currentActiveCount < 3 && config.banned_role_id && member.roles.cache.has(config.banned_role_id)) {
+                    if (currentActiveCount < 3 && config.banned_role_id && member.roles?.cache?.has(config.banned_role_id)) {
                         await member.roles.remove(config.banned_role_id).catch(() => {});
-                        await restoreRoles(member, 'warn3_ban');
+                        await restoreRoles(member);
                     }
-                    if (currentActiveCount < 2 && config.warn2_role_id && member.roles.cache.has(config.warn2_role_id)) {
+                    if (currentActiveCount < 2 && config.warn2_role_id && member.roles?.cache?.has(config.warn2_role_id)) {
                         await member.roles.remove(config.warn2_role_id).catch(() => {});
                     }
-                    if (currentActiveCount < 1 && config.warn1_role_id && member.roles.cache.has(config.warn1_role_id)) {
+                    if (currentActiveCount < 1 && config.warn1_role_id && member.roles?.cache?.has(config.warn1_role_id)) {
                         await member.roles.remove(config.warn1_role_id).catch(() => {});
                     }
                 } catch (err) {

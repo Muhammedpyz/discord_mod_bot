@@ -7,7 +7,7 @@ const { createContainerMessage, EMOJIS } = require('../../utils/uiBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('susturma-kaldır')
+        .setName('unmute')
         .setDescription('Kullanıcının susturmasını kaldirir.')
         .addUserOption(option => 
             option.setName('kullanıcı')
@@ -44,13 +44,7 @@ module.exports = {
 
             if (rolesToRemove.length > 0) {
                 await targetMember.roles.remove(rolesToRemove);
-            }
-            
-            if (config && config.text_mute_role_id && rolesToRemove.includes(config.text_mute_role_id)) {
-                await restoreRoles(targetMember, 'mute');
-            }
-            if (config && config.voice_mute_role_id && rolesToRemove.includes(config.voice_mute_role_id)) {
-                await restoreRoles(targetMember, 'voice_mute');
+                await restoreRoles(targetMember);
             }
 
             if (targetMember.communicationDisabledUntilTimestamp) {

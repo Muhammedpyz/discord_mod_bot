@@ -32,7 +32,7 @@ module.exports = {
                 const targetUser = interaction.options.getUser('user') || interaction.user;
 
                 // Kullanıcının davet ettiği kişi sayısı
-                const [inviteCountRes] = await conn.query(
+                const inviteCountRes = await conn.query(
                     'SELECT COUNT(*) as total FROM invite_tracking WHERE guild_id = ? AND inviter_id = ?',
                     [guildId, targetUser.id]
                 );
@@ -45,13 +45,16 @@ module.exports = {
                 }
 
                 // Kullanıcıyı kim davet etmiş?
-                const [invitedByRes] = await conn.query(
+                const invitedByRows = await conn.query(
                     'SELECT inviter_id, joined_at FROM invite_tracking WHERE guild_id = ? AND user_id = ? LIMIT 1',
                     [guildId, targetUser.id]
                 );
 
                 let inviterInfo = 'Bilinmiyor veya kendi linkiyle/özel linkle gelmiş.';
-                let inviterId = invitedByRes ? (invitedByRes.inviter_id || (invitedByRes[0] ? invitedByRes[0].inviter_id : null)) : null;
+                let inviterId = null;
+                if (invitedByRows && invitedByRows.length > 0) {
+                    inviterId = invitedByRows[0].inviter_id;
+                }
 
                 if (inviterId) {
                     if (inviterId === 'BİLİNMİYOR') {
@@ -60,12 +63,45 @@ module.exports = {
                         inviterInfo = `<@${inviterId}> tarafından davet edilmiş.`;
                     }
                 }
+                
+                // Kullanıcının davet ettikleri
+                const allInvited = await conn.query(
+                    'SELECT user_id, joined_at FROM invite_tracking WHERE guild_id = ? AND inviter_id = ? ORDER BY joined_at DESC',
+                    [guildId, targetUser.id]
+                );
+                
+                let invitedUsers = Array.isArray(allInvited) ? allInvited.filter(row => row.user_id !== undefined) : [];
+                
+                let invitedText = '';
+                let files = [];
+                
+                if (invitedUsers.length > 0) {
+                    if (invitedUsers.length > 10) {
+                        const top10 = invitedUsers.slice(0, 10);
+                        invitedText = top10.map((u, i) => `${i + 1}. <@${u.user_id}>`).join('\n') + `\n\n...ve **${invitedUsers.length - 10} kişi** daha. (Tam liste ekte)`;
+                        
+                        let fullListText = `DAVET EDİLEN KİŞİLER LİSTESİ (${targetUser.tag})\n\n`;
+                        invitedUsers.forEach((u, i) => {
+                            fullListText += `${i + 1}. Kullanıcı ID: ${u.user_id} - Katılma: ${u.joined_at ? new Date(u.joined_at).toLocaleString('tr-TR') : 'Bilinmiyor'}\n`;
+                        });
+                        
+                        const { AttachmentBuilder } = require('discord.js');
+                        const attachment = new AttachmentBuilder(Buffer.from(fullListText, 'utf-8'), { name: `davet-listesi-${targetUser.username}.txt` });
+                        files.push(attachment);
+                    } else {
+                        invitedText = invitedUsers.map((u, i) => `${i + 1}. <@${u.user_id}>`).join('\n');
+                    }
+                } else {
+                    invitedText = 'Henüz kimseyi davet etmemiş.';
+                }
 
                 const payload = createV2Container({
                     title: `Davet Bilgileri`,
-                    description: `**Kullanıcı:** <@${targetUser.id}>\n\n**Davet Ettiği Kişi Sayısı:** \`${inviteCount}\` kişi.\n\n**Kim Davet Etti:**\n${inviterInfo}`,
+                    description: `**Kullanıcı:** <@${targetUser.id}>\n\n**Davet Ettiği Kişi Sayısı:** \`${inviteCount}\` kişi.\n\n**Kim Davet Etti:**\n${inviterInfo}\n\n**Son Davet Ettikleri:**\n${invitedText}`,
                     color: COLORS.INFO
                 });
+                
+                if (files.length > 0) payload.files = files;
 
                 await interaction.editReply(payload);
 

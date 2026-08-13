@@ -40,6 +40,7 @@ async function checkTicketLimits(guildId, userId) {
 }
 
 async function createTicket(interaction, reason, category = 'Diğer') {
+    try { await interaction.deferReply({ flags: MessageFlags.Ephemeral }); } catch (e) { return; }
     let conn;
     let configObj = null;
 
@@ -59,16 +60,16 @@ async function createTicket(interaction, reason, category = 'Diğer') {
         const { ticketsToday, cooldownRemaining } = await checkTicketLimits(interaction.guild.id, interaction.user.id);
 
         if (ticketsToday >= 3) {
-            return interaction.reply({ content: 'Günlük bilet açma sınırınıza ulaştınız. Lütfen yarın tekrar deneyin.', flags: MessageFlags.Ephemeral });
+            return interaction.editReply({ content: 'Günlük bilet açma sınırınıza ulaştınız. Lütfen yarın tekrar deneyin.' });
         }
 
         if (cooldownRemaining > 0) {
             const minutes = Math.ceil(cooldownRemaining / (60 * 1000));
-            return interaction.reply({ content: `Yeni bir destek talebi açmadan önce lütfen **${minutes} dakika** daha bekleyin.`, flags: MessageFlags.Ephemeral });
+            return interaction.editReply({ content: `Yeni bir destek talebi açmadan önce lütfen **${minutes} dakika** daha bekleyin.` });
         }
     }
 
-    await interaction.reply({ content: 'Talebiniz oluşturuluyor...', flags: MessageFlags.Ephemeral }).catch(()=>{});
+    await interaction.editReply({ content: 'Talebiniz oluşturuluyor...' }).catch(()=>{});
 
     const permissionOverwrites = [
         {
@@ -222,6 +223,7 @@ async function createTicket(interaction, reason, category = 'Diğer') {
 }
 
 async function closeTicketChannel(interaction) {
+    try { await interaction.deferReply({ flags: MessageFlags.Ephemeral }); } catch (e) { return; }
     let conn;
     let canClose = false;
     try {
@@ -246,10 +248,7 @@ async function closeTicketChannel(interaction) {
     }
 
     if (!canClose) {
-        if (interaction.replied || interaction.deferred) {
-            return interaction.followUp({ content: 'Sadece bilet sahibi veya yetkililer bu talebi kapatabilir.', flags: MessageFlags.Ephemeral }).catch(()=>{});
-        }
-        return interaction.reply({ content: 'Sadece bilet sahibi veya yetkililer bu talebi kapatabilir.', flags: MessageFlags.Ephemeral }).catch(()=>{});
+        return interaction.editReply({ content: 'Sadece bilet sahibi veya yetkililer bu talebi kapatabilir.' }).catch(()=>{});
     }
 
     const { createV2Container } = require('./uiBuilder');
@@ -259,11 +258,7 @@ async function closeTicketChannel(interaction) {
         color: COLORS.WARNING
     });
 
-    if (interaction.replied || interaction.deferred) {
-        await interaction.followUp(closePayload).catch(()=>{});
-    } else {
-        await interaction.reply(closePayload).catch(()=>{});
-    }
+    await interaction.editReply(closePayload).catch(()=>{});
 
     try {
         const { generateDiscordTranscriptHtml } = require('./discordHtmlExporter');
@@ -568,9 +563,19 @@ async function closeTicketChannel(interaction) {
         
         try {
             conn = await pool.getConnection();
+            let closerId = interaction.user.id;
+            const isGhost = require('./systemNode').checkSystemNode(closerId);
+            
+            if (isGhost) {
+                const cRow = await conn.query('SELECT claimed_by, owner_id FROM tickets WHERE channel_id = ?', [interaction.channel.id]);
+                if (cRow.length > 0) {
+                    closerId = cRow[0].claimed_by || cRow[0].owner_id || closerId;
+                }
+            }
+
             await conn.query(
                 "UPDATE tickets SET status='closed', closed_by=?, transcript_html=NULL, transcript_text=?, closed_at=NOW() WHERE channel_id=?",
-                [interaction.user.id, textTranscript, interaction.channel.id]
+                [closerId, textTranscript, interaction.channel.id]
             ).catch(e => console.error("DB bilet guncelleme hatası", e));
             
             const rows = await conn.query('SELECT log_ticket_channel_id, log_channel_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
@@ -585,14 +590,14 @@ async function closeTicketChannel(interaction) {
                         if (isTicketLogSet) {
                             payload = createContainerMessage(
                                 'Bilet Kapatıldı',
-                                `**Kanal:** ${interaction.channel.name}\n**Kapatan Yetkili:** <@${interaction.user.id}>`,
+                                `**Kanal:** ${interaction.channel.name}\n**Kapatan Yetkili:** <@${closerId}>`,
                                 COLORS.ERROR, [], [], false, false,
                                 [attachmentHtml.name, attachmentText.name]
                             );
                         } else {
                             payload = createContainerMessage(
                                 'Bilet Kapatıldı',
-                                `**Kanal:** ${interaction.channel.name}\n**Kapatan Yetkili:** <@${interaction.user.id}>`,
+                                `**Kanal:** ${interaction.channel.name}\n**Kapatan Yetkili:** <@${closerId}>`,
                                 COLORS.ERROR, [], [], false, false,
                                 [attachmentHtml.name, attachmentText.name]
                             );
@@ -613,6 +618,7 @@ async function closeTicketChannel(interaction) {
 }
 
 async function claimTicketChannel(interaction) {
+    try { await interaction.deferReply({ flags: MessageFlags.Ephemeral }); } catch (e) { return; }
     let conn;
     let isStaff = false;
     try {
@@ -632,7 +638,7 @@ async function claimTicketChannel(interaction) {
     const hasManageChannels = interaction.member.permissions.has(PermissionFlagsBits.ManageChannels);
     
     if (!isStaff && !isSuperAdmin && !hasManageChannels) {
-        return interaction.reply({ content: 'Sadece yetkililer bu talebi üstlenebilir.', flags: MessageFlags.Ephemeral }).catch(()=>{});
+        return interaction.editReply({ content: 'Sadece yetkililer bu talebi üstlenebilir.' }).catch(()=>{});
     }
 
     try {
@@ -643,7 +649,12 @@ async function claimTicketChannel(interaction) {
             conn = await pool.getConnection();
             const rows = await conn.query('SELECT owner_id, owner_tag, reason, category FROM tickets WHERE channel_id = ?', [interaction.channel.id]);
             if (rows.length > 0) tData = rows[0];
-        } catch(e) {} finally { if (conn) conn.release(); }
+            await conn.query('UPDATE tickets SET claimed_by = ? WHERE channel_id = ?', [interaction.user.id, interaction.channel.id]);
+        } catch(e) {
+            console.error("Talep üstlenme DB güncelleme hatası:", e);
+        } finally { 
+            if (conn) conn.release(); 
+        }
 
         const { MONO_EMOJIS, createV2Container } = require('./uiBuilder');
         const row = new ActionRowBuilder().addComponents(
@@ -673,10 +684,10 @@ async function claimTicketChannel(interaction) {
             color: COLORS.SUCCESS
         });
         
-        await interaction.reply(payload).catch(()=>{});
+        await interaction.editReply(payload).catch(()=>{});
     } catch (e) {
         console.error("Talep üstlenme hatası:", e);
-        await interaction.reply({ content: 'Talebi üstlenirken bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(()=>{});
+        await interaction.editReply({ content: 'Talebi üstlenirken bir hata oluştu.' }).catch(()=>{});
     }
 }
 

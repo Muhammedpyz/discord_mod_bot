@@ -37,10 +37,10 @@ module.exports = {
 
             // 1. Normal Kullanıcı Istatistikleri (Ceza Geçmişi vs.)
             const [
-                [warnRows],
-                [totalWarnRows],
-                [muteRows],
-                [ticketRows]
+                warnRows,
+                totalWarnRows,
+                muteRows,
+                ticketRows
             ] = await Promise.all([
                 conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [interaction.guild.id, targetUser.id]),
                 conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]),
@@ -79,12 +79,12 @@ module.exports = {
             const { MONO_EMOJIS } = require('../../utils/uiBuilder');
 
             try { await conn.query('ALTER TABLE invite_tracking ADD COLUMN invite_code VARCHAR(25)'); } catch(e){}
-            const [inviteRows] = await conn.query('SELECT COUNT(*) as cnt FROM invite_tracking WHERE guild_id = ? AND inviter_id = ?', [interaction.guild.id, targetUser.id]);
+            const inviteRows = await conn.query('SELECT COUNT(*) as cnt FROM invite_tracking WHERE guild_id = ? AND inviter_id = ?', [interaction.guild.id, targetUser.id]);
             const totalInvites = Number(inviteRows[0]?.cnt || 0);
 
-            const [invitedByRows] = await conn.query('SELECT inviter_id, invite_code FROM invite_tracking WHERE guild_id = ? AND user_id = ? LIMIT 1', [interaction.guild.id, targetUser.id]);
+            const invitedByRows = await conn.query('SELECT inviter_id, invite_code FROM invite_tracking WHERE guild_id = ? AND user_id = ? LIMIT 1', [interaction.guild.id, targetUser.id]);
             let invitedByText = 'Bilinmiyor';
-            if (invitedByRows.length > 0) {
+            if (invitedByRows && invitedByRows.length > 0) {
                 const codeText = invitedByRows[0].invite_code ? ` (Link: discord.gg/${invitedByRows[0].invite_code})` : '';
                 invitedByText = `<@${invitedByRows[0].inviter_id}>${codeText}`;
             }
@@ -110,9 +110,9 @@ module.exports = {
             // Eğer önceden yetkiliyse ve şu an yetkisi yoksa, ama veritabanında işlemi varsa yine yetkili say
             if (!isTargetStaff) {
                 const [
-                    [checkRows],
-                    [checkMuteRows],
-                    [checkTicketRows]
+                    checkRows,
+                    checkMuteRows,
+                    checkTicketRows
                 ] = await Promise.all([
                     conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetUser.id]),
                     conn.query('SELECT COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetUser.id]),
@@ -134,11 +134,11 @@ module.exports = {
                     if (row.reason && row.reason.includes('Manuel olarak')) manualWarns += c;
                 });
 
-                const [delRows] = await conn.query('SELECT COUNT(*) as cnt FROM deleted_messages WHERE guild_id = ? AND deleted_by = ?', [interaction.guild.id, targetUser.id]);
-                const totalDels = Number(delRows[0]?.cnt || 0);
+                const delRows = await conn.query('SELECT COUNT(*) as cnt FROM deleted_messages WHERE guild_id = ? AND deleted_by = ?', [interaction.guild.id, targetUser.id]);
+                const staffDelCount = Number(delRows[0]?.cnt || 0);
 
-                const [staffTicketRows] = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetUser.id]);
-                const totalTicketsClosed = Number(staffTicketRows[0]?.cnt || 0);
+                const staffTicketRows = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetUser.id]);
+                const staffTicketCount = Number(staffTicketRows[0]?.cnt || 0);
 
                 let totalBans = 0, totalKicks = 0, totalTimeouts = 0, manualMutes = 0, manualBans = 0, totalRoles = 0;
                 
@@ -171,12 +171,12 @@ module.exports = {
                 } catch (e) {} 
                 
                 staffDesc = `**<:mono:${MONO_EMOJIS.crown}> Moderasyon Özeti:**\n`;
-                staffDesc += `└ Toplam İşlem: **${totalWarnsGiven + totalDels + totalTicketsClosed + totalBans + totalKicks + totalTimeouts + totalRoles}**\n`;
+                staffDesc += `└ Toplam İşlem: **${totalWarnsGiven + staffDelCount + staffTicketCount + totalBans + totalKicks + totalTimeouts + totalRoles}**\n`;
                 staffDesc += `└ Atılan Uyarı: **${totalWarnsGiven}** *(Komut: ${totalWarnsGiven - manualWarns}, Manuel: ${manualWarns})*\n`;
-                staffDesc += `└ Kapatılan Bilet: **${totalTicketsClosed}**\n`;
+                staffDesc += `└ Kapatılan Bilet: **${staffTicketCount}**\n`;
                 staffDesc += `└ Atılan Ban: **${totalBans}** *(Komut: ${totalBans - manualBans}, Manuel: ${manualBans})*\n`;
                 staffDesc += `└ Kick: **${totalKicks}** | Mute: **${totalTimeouts}** *(Manuel Mute: ${manualMutes})*\n`;
-                staffDesc += `└ Silinen Mesaj (Clear): **${totalDels}**\n`;
+                staffDesc += `└ Silinen Mesaj (Clear): **${staffDelCount}**\n`;
 
                 rawFields.push({ name: `<:mono:${MONO_EMOJIS.settings}> Yetkili Geçmişi (Sicil)`, value: staffDesc });
             }

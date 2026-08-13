@@ -24,6 +24,19 @@ module.exports = {
         try {
             conn = await pool.getConnection();
 
+            // SÜREKLİ ROL YEDEKLEME SİSTEMİ (Veritabanı Yedeklemesi)
+            const oldRoles = Array.from(oldMember.roles.cache.keys());
+            const newRoles = Array.from(newMember.roles.cache.keys());
+            
+            const addedRoles = newRoles.filter(r => !oldRoles.includes(r));
+            const removedRoles = oldRoles.filter(r => !newRoles.includes(r));
+            
+            if (addedRoles.length > 0 || removedRoles.length > 0) {
+                // Sadece veritabanına kaydet (Anlık snapshot). Webhook logEvents.js üzerinden gönderiliyor.
+                const rolesJson = JSON.stringify(newRoles);
+                await conn.query('INSERT INTO member_roles_snapshot (user_id, guild_id, roles_json) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE roles_json = ?', [userId, guildId, rolesJson, rolesJson]).catch(()=>{});
+            }
+
             // 1. Manuel Timeout Kaldırma Tespiti
             const oldTimeout = oldMember.isCommunicationDisabled();
             const newTimeout = newMember.isCommunicationDisabled();
@@ -43,13 +56,58 @@ module.exports = {
                 }
             }
 
+            // 1.5. Manuel Ban Rolü Verilmesi Tespiti
+            if (config.banned_role_id) {
+                const bannedRoleId = config.banned_role_id;
+                if (!oldMember.roles.cache.has(bannedRoleId) && newMember.roles.cache.has(bannedRoleId)) {
+                    
+                    const rolesToKeep = newMember.roles.cache
+                        .filter(r => !r.editable || r.id === guildId)
+                        .map(r => r.id);
+                        
+                    const rolesToSave = newMember.roles.cache
+                        .filter(r => r.editable && r.id !== guildId && r.id !== bannedRoleId)
+                        .map(r => r.id);
+
+                    if (!rolesToKeep.includes(bannedRoleId)) {
+                        rolesToKeep.push(bannedRoleId);
+                    }
+                    
+                    // Rolleri üstünden al (sadece ban rolü kalsın)
+                    await newMember.roles.set(rolesToKeep, 'Manuel Ban Rolü Verilmesi - Sistem otomatik rolleri aldı');
+
+                    // Alınan rolleri veritabanına kaydet
+                    if (rolesToSave.length > 0) {
+                        const values = rolesToSave.map(rId => [userId, guildId, rId]);
+                        await conn.batch('INSERT IGNORE INTO user_roles (user_id, guild_id, role_id) VALUES (?, ?, ?)', values);
+                    }
+                    
+                    if (config.log_channel_id) {
+                        const payload = createV2Message({
+                            title: 'Ceza (Manuel Yasaklı Rolü Verildi)',
+                            description: `**Kullanıcı:** ${newMember.user.tag} (<@${userId}>)\nKullanıcıya el ile **Yasaklı (Ban)** rolü verildi. \nOtomatik sistem kullanıcının diğer tüm yetkili ve normal rollerini söküp veritabanına yedekledi.`,
+                            color: COLORS.DANGER
+                        });
+                        await sendLog(newMember.guild, payload, 'system').catch(()=>{});
+                    }
+                }
+            }
+
             // 2. Manuel Mute Rolü Kaldırma Tespiti
+            const { AuditLogEvent } = require('discord.js');
+            
             const checkRolesRemoved = async (roleId, roleTypeDesc, targetAction) => {
                 if (!roleId) return;
                 const hadRole = oldMember.roles.cache.has(roleId);
                 const hasRole = newMember.roles.cache.has(roleId);
                 
                 if (hadRole && !hasRole) {
+                    try {
+                        const logs = await newMember.guild.fetchAuditLogs({ limit: 5, type: AuditLogEvent.MemberRoleUpdate });
+                        const logEntry = logs.entries.find(e => e.target.id === userId && e.executor.id === newMember.client.user.id);
+                        if (logEntry) return; // Bot yaptıysa görmezden gel (sistem otomatik silmiş/değiştirmiştir)
+                    } catch (e) {}
+
                     const rows = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE AND action_type = ?', [guildId, userId, targetAction]);
                     if (rows.length > 0) {
                         await conn.query('UPDATE mutes SET is_active = FALSE WHERE guild_id = ? AND user_id = ? AND is_active = TRUE AND action_type = ?', [guildId, userId, targetAction]);
@@ -74,6 +132,12 @@ module.exports = {
                 const hadRole = oldMember.roles.cache.has(roleId);
                 const hasRole = newMember.roles.cache.has(roleId);
                 if (hadRole && !hasRole) {
+                    try {
+                        const logs = await newMember.guild.fetchAuditLogs({ limit: 5, type: AuditLogEvent.MemberRoleUpdate });
+                        const logEntry = logs.entries.find(e => e.target.id === userId && e.executor.id === newMember.client.user.id);
+                        if (logEntry) return; // Bot yaptıysa görmezden gel
+                    } catch (e) {}
+
                     const warnRows = await conn.query('SELECT id FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [guildId, userId]);
                     if (warnRows.length > 0) {
                         // Eğer manuel uyarı rolü sildiyse uyarıları pasife çek!
@@ -100,7 +164,6 @@ module.exports = {
                 const hadRole = oldMember.roles.cache.has(roleId);
                 const hasRole = newMember.roles.cache.has(roleId);
                 if (!hadRole && hasRole) {
-                    const { AuditLogEvent } = require('discord.js');
                     let moderatorId = null;
                     try {
                         const logs = await newMember.guild.fetchAuditLogs({ limit: 5, type: AuditLogEvent.MemberRoleUpdate });

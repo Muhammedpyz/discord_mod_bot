@@ -31,8 +31,24 @@ async function generateWelcomeImage(member) {
         const welcomeText = "SUNUCUYA HOS GELDIN";
         const username = member.user.tag.toUpperCase();
 
-        image.print(fontTitle, 230, 90, welcomeText);
-        image.print(fontSubtitle, 230, 160, username);
+        image.print(
+            fontTitle, 
+            230, 90, 
+            {
+                text: welcomeText,
+                alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
+            }, 
+            550
+        );
+        image.print(
+            fontSubtitle, 
+            230, 160, 
+            {
+                text: username,
+                alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
+            }, 
+            550
+        );
 
         // Return the buffer
         return await image.getBufferAsync(Jimp.MIME_PNG);

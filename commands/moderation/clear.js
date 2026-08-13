@@ -4,7 +4,7 @@ const { sendLog } = require('../../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('temizle')
+        .setName('clear')
         .setDescription('Kanalda belirtilen miktarda mesaji siler.')
         .addIntegerOption(option => 
             option.setName('miktar')

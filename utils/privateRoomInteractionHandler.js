@@ -28,7 +28,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
 
         if (interaction.isButton() && interaction.customId.startsWith('setup_room_type_')) {
             const setupType = interaction.customId.replace('setup_room_type_', '');
-            await interaction.deferUpdate();
+            try { await interaction.deferUpdate(); } catch(e) { return; }
             
             let conn;
             try {
@@ -170,7 +170,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
         if (interaction.isModalSubmit() && interaction.customId === 'create_room_modal') {
             const rawName = interaction.fields.getTextInputValue('room_name_input');
             const roomName = (rawName && rawName.trim()) ? rawName.trim() : `${interaction.user.username} Odasi`;
-            await interaction.deferReply({ ephemeral: true });
+            try { await interaction.deferReply({ ephemeral: true }); } catch(e) { return; }
 
             let conn;
             try {
@@ -274,7 +274,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
         // Panel Butonları
         const panelActions = ['room_lock', 'room_unlock', 'room_hide', 'room_show', 'room_delete', 'room_stream_enable', 'room_stream_disable'];
         if (interaction.isButton() && panelActions.includes(interaction.customId)) {
-            await interaction.deferReply({ ephemeral: true });
+            try { await interaction.deferReply({ ephemeral: true }); } catch(e) { return; }
             let conn;
             try {
                 conn = await pool.getConnection();
@@ -346,7 +346,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
         }
         // Buton: Üye Yönetim Menüsünü Aç
         if (interaction.isButton() && interaction.customId === 'room_manage_users_btn') {
-            await interaction.deferReply({ ephemeral: true });
+            try { await interaction.deferReply({ ephemeral: true }); } catch(e) { return; }
             let conn;
             try {
                 conn = await pool.getConnection();
@@ -385,7 +385,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
 
         // String Select Menu: Üye Seçildiğinde
         if (interaction.isStringSelectMenu() && interaction.customId === 'room_user_manage_select') {
-            await interaction.deferReply({ ephemeral: true });
+            try { await interaction.deferReply({ ephemeral: true }); } catch(e) { return; }
             let conn;
             try {
                 conn = await pool.getConnection();
@@ -418,7 +418,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
 
         // İzin Toggle Butonları
         if (interaction.isButton() && interaction.customId.startsWith('room_perm_')) {
-            await interaction.deferReply({ ephemeral: true });
+            try { await interaction.deferReply({ ephemeral: true }); } catch(e) { return; }
             let conn;
             try {
                 conn = await pool.getConnection();
@@ -478,7 +478,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
 
         // Odayı Devral Butonu
         if (interaction.isButton() && interaction.customId === 'room_claim_ownership') {
-            await interaction.deferReply();
+            try { await interaction.deferReply(); } catch(e) { return; }
             let conn;
             try {
                 conn = await pool.getConnection();
@@ -522,7 +522,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
 
         // Beyaz Liste Butonu
         if (interaction.isButton() && interaction.customId === 'room_whitelist_btn') {
-            await interaction.deferReply({ ephemeral: true });
+            try { await interaction.deferReply({ ephemeral: true }); } catch(e) { return; }
             let conn;
             try {
                 conn = await pool.getConnection();
@@ -560,7 +560,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
 
         // Beyaz Liste Seçimi
         if (interaction.isStringSelectMenu() && interaction.customId === 'room_whitelist_select') {
-            await interaction.deferReply({ ephemeral: true });
+            try { await interaction.deferReply({ ephemeral: true }); } catch(e) { return; }
             let conn;
             try {
                 conn = await pool.getConnection();
@@ -619,7 +619,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
         // Oda Adını Değiştir Modal Gönderimi
         if (interaction.isModalSubmit() && interaction.customId === 'room_rename_modal') {
             const newName = interaction.fields.getTextInputValue('room_new_name_input');
-            await interaction.deferReply({ ephemeral: true });
+            try { await interaction.deferReply({ ephemeral: true }); } catch(e) { return; }
             
             let conn;
             try {
@@ -674,7 +674,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
             if (isNaN(limitVal) || limitVal < 0 || limitVal > 99) {
                 return interaction.reply({ content: 'Lütfen 0 ile 99 arasında geçerli bir sayı girin.', ephemeral: true });
             }
-            await interaction.deferReply({ ephemeral: true });
+            try { await interaction.deferReply({ ephemeral: true }); } catch(e) { return; }
             
             let conn;
             try {

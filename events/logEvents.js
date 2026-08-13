@@ -181,15 +181,41 @@ module.exports = [
                 }
             } catch (e) {}
 
+            const oldName = oldMember.nickname || oldMember.user.username;
+            const newName = newMember.nickname || newMember.user.username;
+
             const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const fields = [
                 { name: 'Üye', value: `<@${newMember.id}> (\`${escapeMarkdown(newMember.user.tag)}\`)` },
-                { name: 'Eski İsim', value: `\`${escapeMarkdown(oldMember.nickname || oldMember.user.username)}\`` },
-                { name: 'Yeni İsim', value: `\`${escapeMarkdown(newMember.nickname || newMember.user.username)}\`` },
+                { name: 'Eski İsim', value: `\`${escapeMarkdown(oldName)}\`` },
+                { name: 'Yeni İsim', value: `\`${escapeMarkdown(newName)}\`` },
                 { name: 'Değiştiren', value: executorId },
                 { name: 'Zaman', value: now }
             ];
             logSystemEvent(newMember.guild, 'İsim (Nickname) Değiştirildi', fields, '#2B2D31');
+            
+            // DB kayıt
+            const { pool } = require('../../db');
+            pool.query('INSERT INTO user_history (user_id, guild_id, change_type, old_value, new_value) VALUES (?, ?, ?, ?, ?)', [newMember.id, newMember.guild.id, 'nickname', oldName, newName]).catch(()=>{});
+        }
+        
+        // Sunucu Profili (Avatar) değişimi
+        if (oldMember.avatar !== newMember.avatar) {
+            const oldAvatar = oldMember.avatarURL({ extension: 'png', size: 1024 }) || oldMember.user.displayAvatarURL({ extension: 'png', size: 1024 });
+            const newAvatar = newMember.avatarURL({ extension: 'png', size: 1024 }) || newMember.user.displayAvatarURL({ extension: 'png', size: 1024 });
+            
+            const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const fields = [
+                { name: 'Üye', value: `<@${newMember.id}> (\`${escapeMarkdown(newMember.user.tag)}\`)` },
+                { name: 'Değişiklik', value: 'Sunucu Profil Fotoğrafı (Server Avatar)' },
+                { name: 'Eski Fotoğraf', value: `[Tıkla ve Gör](${oldAvatar})` },
+                { name: 'Yeni Fotoğraf', value: `[Tıkla ve Gör](${newAvatar})` },
+                { name: 'Zaman', value: now }
+            ];
+            logSystemEvent(newMember.guild, 'Sunucu Profili Güncellendi', fields, '#2B2D31');
+            
+            const { pool } = require('../../db');
+            pool.query('INSERT INTO user_history (user_id, guild_id, change_type, old_value, new_value) VALUES (?, ?, ?, ?, ?)', [newMember.id, newMember.guild.id, 'server_avatar', oldAvatar, newAvatar]).catch(()=>{});
         }
 
         if (oldMember.roles.cache.size !== newMember.roles.cache.size) {
@@ -743,4 +769,59 @@ module.exports = [
             { name: 'Zaman', value: now }
         ], '#2B2D31');
     }
-}];
+},
+{
+    name: Events.UserUpdate,
+    async execute(oldUser, newUser, client) {
+        if (oldUser.bot) return;
+
+        // Global Avatar değişimi
+        if (oldUser.avatar !== newUser.avatar) {
+            const oldAvatar = oldUser.displayAvatarURL({ extension: 'png', size: 1024 });
+            const newAvatar = newUser.displayAvatarURL({ extension: 'png', size: 1024 });
+
+            const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const fields = [
+                { name: 'Kullanıcı', value: `<@${newUser.id}> (\`${newUser.tag}\`)` },
+                { name: 'Değişiklik', value: 'Global Profil Fotoğrafı (Avatar)' },
+                { name: 'Eski Fotoğraf', value: `[Tıkla ve Gör](${oldAvatar})` },
+                { name: 'Yeni Fotoğraf', value: `[Tıkla ve Gör](${newAvatar})` },
+                { name: 'Zaman', value: now }
+            ];
+
+            const { pool } = require('../../db');
+            pool.query('INSERT INTO user_history (user_id, guild_id, change_type, old_value, new_value) VALUES (?, ?, ?, ?, ?)', [newUser.id, null, 'global_avatar', oldAvatar, newAvatar]).catch(()=>{});
+
+            // Log to all mutual guilds
+            for (const guild of client.guilds.cache.values()) {
+                if (guild.members.cache.has(newUser.id)) {
+                    logSystemEvent(guild, 'Kullanıcı Profili Güncellendi', fields, '#2B2D31');
+                }
+            }
+        }
+
+        // Global Username (Kullanıcı Adı) değişimi
+        if (oldUser.username !== newUser.username || oldUser.discriminator !== newUser.discriminator) {
+            const oldName = oldUser.tag;
+            const newName = newUser.tag;
+
+            const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const fields = [
+                { name: 'Kullanıcı', value: `<@${newUser.id}>` },
+                { name: 'Eski Kullanıcı Adı', value: `\`${oldName}\`` },
+                { name: 'Yeni Kullanıcı Adı', value: `\`${newName}\`` },
+                { name: 'Zaman', value: now }
+            ];
+
+            const { pool } = require('../../db');
+            pool.query('INSERT INTO user_history (user_id, guild_id, change_type, old_value, new_value) VALUES (?, ?, ?, ?, ?)', [newUser.id, null, 'username', oldName, newName]).catch(()=>{});
+
+            for (const guild of client.guilds.cache.values()) {
+                if (guild.members.cache.has(newUser.id)) {
+                    logSystemEvent(guild, 'Kullanıcı Adı (Global) Değiştirildi', fields, '#2B2D31');
+                }
+            }
+        }
+    }
+}
+];

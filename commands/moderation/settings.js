@@ -297,7 +297,7 @@ async function getSettingsPage(guildId, pageName) {
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('ayarlar')
+        .setName('settings')
         .setDescription('Sunucu koruma ayarlarını açıp kapatın.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
         

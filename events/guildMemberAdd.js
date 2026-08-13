@@ -145,11 +145,12 @@ module.exports = {
 
             if (inviter) {
                 try { await conn2.query('ALTER TABLE invite_tracking ADD COLUMN invite_code VARCHAR(25)'); } catch(e){}
+                try { await conn2.query('ALTER TABLE invite_tracking ADD COLUMN is_fake BOOLEAN DEFAULT FALSE'); } catch(e){}
                 await conn2.query(`
-                    INSERT INTO invite_tracking (guild_id, user_id, inviter_id, invite_code, joined_at)
-                    VALUES (?, ?, ?, ?, NOW())
-                    ON DUPLICATE KEY UPDATE inviter_id = ?, invite_code = ?, joined_at = NOW()
-                `, [member.guild.id, member.id, inviter, inviteCode, inviter, inviteCode]);
+                    INSERT INTO invite_tracking (guild_id, user_id, inviter_id, invite_code, is_fake, joined_at)
+                    VALUES (?, ?, ?, ?, ?, NOW())
+                    ON DUPLICATE KEY UPDATE inviter_id = ?, invite_code = ?, is_fake = ?, joined_at = NOW()
+                `, [member.guild.id, member.id, inviter, inviteCode, isSuspicious, inviter, inviteCode, isSuspicious]);
             }
         } catch (err) {
             console.error("Member DB check/insert error:", err);
@@ -266,19 +267,7 @@ module.exports = {
                     color: COLORS.SUCCESS
                 });
 
-                const { generateWelcomeImage } = require('../utils/imageGenerator');
-                const imageBuffer = await generateWelcomeImage(member);
-                if (imageBuffer) {
-                    const { AttachmentBuilder } = require('discord.js');
-                    const attachment = new AttachmentBuilder(imageBuffer, { name: 'welcome.png' });
-                    
-                    // Convert to V2 block logic with image
-                    const containerPayload = createContainerMessage(null, payload.content || payload.embeds[0].description, null, [], [], false, false, ['welcome.png']);
-                    containerPayload.files = [attachment];
-                    await channel.send(containerPayload).catch(e => console.error("Welcome mesaj hatası", e));
-                } else {
-                    await channel.send(payload).catch(e => console.error("Welcome mesaj hatası", e));
-                }
+                await channel.send(payload).catch(e => console.error("Welcome mesaj hatası", e));
             }
         }
     }

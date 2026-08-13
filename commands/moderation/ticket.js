@@ -4,7 +4,7 @@ const { createV2Message, COLORS } = require('../../utils/uiBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('destek')
+        .setName('ticket')
         .setDescription('Sistem üzerinden destek talebi oluşturma ve yönetme işlevleri sağlar.')
         .addSubcommand(subcommand =>
             subcommand

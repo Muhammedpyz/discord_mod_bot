@@ -19,8 +19,8 @@ function parseDuration(str) {
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('ses-sustur')
-        .setDescription('Kullanıcıyı ses kanallarinda susturur (Örn: 10m, 1h, 1d)')
+        .setName('vmute')
+        .setDescription('Bir kullanıcıyı ses kanallarında susturur.')
         .addUserOption(option => 
             option.setName('kullanıcı')
                 .setDescription('Susturulacak kullanıcı')
@@ -36,29 +36,30 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
     async execute(interaction) {
+        await interaction.deferReply();
         try {
             const targetUser = interaction.options.getUser('kullanıcı');
             const durationStr = interaction.options.getString('süre');
             const reason = interaction.options.getString('sebep') || 'Belirtilmedi';
 
             if (!targetUser) {
-                return interaction.reply({ content: 'Lütfen geçerli bir kullanıcı belirtiniz.', flags: MessageFlags.Ephemeral });
+                return interaction.editReply({ content: 'Lütfen geçerli bir kullanıcı belirtiniz.', flags: MessageFlags.Ephemeral });
             }
 
             const durationMinutes = parseDuration(durationStr);
             if (!durationMinutes) {
-                return interaction.reply({ content: 'Gecersiz sure formati. Ornek kullanim: 10m, 1h, 1d.', flags: MessageFlags.Ephemeral });
+                return interaction.editReply({ content: 'Gecersiz sure formati. Ornek kullanim: 10m, 1h, 1d.', flags: MessageFlags.Ephemeral });
             }
             
             const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
 
             const check = validateModTarget(interaction, targetUser, targetMember);
             if (!check.valid) {
-                return interaction.reply({ content: check.reason, flags: MessageFlags.Ephemeral });
+                return interaction.editReply({ content: check.reason, flags: MessageFlags.Ephemeral });
             }
 
             if (!targetMember.moderatable && targetUser.id !== interaction.client.user.id) {
-                return interaction.reply({ content: 'Bu kullanıcıyı susturma yetkim bulunmuyor. Rol hiyerarşisini kontrol ediniz.', flags: MessageFlags.Ephemeral });
+                return interaction.editReply({ content: 'Bu kullanıcıyı susturma yetkim bulunmuyor. Rol hiyerarşisini kontrol ediniz.', flags: MessageFlags.Ephemeral });
             }
 
             const durationMs = durationMinutes * 60 * 1000;
@@ -76,8 +77,8 @@ module.exports = {
                     }
                 }
 
-                const [configRows] = await conn.query('SELECT voice_mute_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
-                if (configRows.length > 0 && configRows[0].voice_mute_role_id) {
+                const configRows = await conn.query('SELECT voice_mute_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
+                if (configRows && configRows.length > 0 && configRows[0].voice_mute_role_id) {
                     await saveRolesAndApplyMute(targetMember, 'voice_mute');
                     
                     const muteRoleId = configRows[0].voice_mute_role_id;
@@ -118,7 +119,7 @@ module.exports = {
                     '#2B2D31'
                 );
                 
-                await interaction.reply(payload);
+                await interaction.editReply(payload);
 
                 const logPayload = createContainerMessage(
                     'Kullanıcı Susturuldu (Voice)',
@@ -143,7 +144,7 @@ module.exports = {
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp({ content: 'Sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             } else {
-                await interaction.reply({ content: 'Sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.editReply({ content: 'Sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         }
     }

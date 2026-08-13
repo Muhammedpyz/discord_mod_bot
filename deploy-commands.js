@@ -25,18 +25,24 @@ const rest = new REST().setToken(process.env.DISCORD_TOKEN);
 
 (async () => {
     try {
-        console.log(`Global komutlari silme islemi atlandi.`);
+        console.log(`\n=============================================================`);
+        console.log(`🌟 DİKKAT: Komutlar GLOBAL ağa yükleniyor!`);
+        console.log(`Bu işlem, botun profiline 'Komutları Destekler' rozeti ekler.`);
+        console.log(`(Global komutların tüm Discord'a yayılması 1 saati bulabilir)`);
+        console.log(`=============================================================\n`);
 
-        const guilds = ['1062369725067304990', '1441769969133293621'];
-        for (const guildId of guilds) {
-            console.log(`Sunucuya (${guildId}) ${commands.length} komut yükleniyor...`);
-            const data = await rest.put(
-                Routes.applicationGuildCommands(process.env.CLIENT_ID, guildId),
-                { body: commands },
-            );
-            console.log(`${data.length} komut başarıyla sunucuya (${guildId}) yüklendi.`);
-        }
+        console.log(`Global ağa ${commands.length} komut yükleniyor...`);
+        
+        const data = await rest.put(
+            Routes.applicationCommands(process.env.CLIENT_ID),
+            { body: commands },
+        );
+        
+        console.log(`${data.length} komut başarıyla GLOBAL ağa yüklendi!`);
+        console.log(`Rozetin gelmesi için Discord'u (CTRL+R) ile yenileyin.\n`);
+        process.exit(0);
     } catch (error) {
-        console.error(error);
+        console.error('Komutlar yüklenirken hata oluştu:', error);
+        process.exit(1);
     }
 })();

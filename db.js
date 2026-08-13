@@ -6,8 +6,15 @@ const pool = mariadb.createPool({
     user: process.env.DB_USER || 'root', 
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'discord_mod',
-    connectionLimit: 20,
-    idleTimeout: 30000
+    connectionLimit: 75,
+    idleTimeout: 30000,
+    acquireTimeout: 10000,
+    connectTimeout: 10000,
+    minDelayValidation: 5000
+});
+
+pool.on('error', err => {
+    console.error('[DB Pool Error]:', err ? (err.message || err) : 'Bilinmeyen DB havuz hatası');
 });
 
 async function initDB() {
@@ -51,10 +58,33 @@ async function initDB() {
             try { await conn.query('ALTER TABLE guild_config MODIFY COLUMN ticket_role_id VARCHAR(255)'); } catch(e2) {}
         }
         try { await conn.query('ALTER TABLE guild_config ADD COLUMN ticket_category_id VARCHAR(25)'); } catch (e) {}
+
+        // user_roles (Banlananların rollerini yedeklemek için)
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS user_roles (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(25),
+                guild_id VARCHAR(25),
+                role_id VARCHAR(25),
+                UNIQUE KEY unique_user_role (user_id, guild_id, role_id)
+            )
+        `);
         try { await conn.query('ALTER TABLE guild_config ADD COLUMN log_channel_id VARCHAR(25)'); } catch (e) {}
         try { await conn.query('ALTER TABLE guild_config ADD COLUMN log_voice_channel_id VARCHAR(25)'); } catch (e) {}
         try { await conn.query('ALTER TABLE guild_config ADD COLUMN log_ticket_channel_id VARCHAR(25)'); } catch (e) {}
         try { await conn.query('ALTER TABLE guild_config ADD COLUMN log_system_channel_id VARCHAR(25)'); } catch (e) {}
+        try { await conn.query('ALTER TABLE guild_config ADD COLUMN role_backup_webhook VARCHAR(255)'); } catch (e) {}
+
+        // Sürekli Rol Yedekleme (Tüm Kullanıcılar)
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS member_roles_snapshot (
+                user_id VARCHAR(25),
+                guild_id VARCHAR(25),
+                roles_json LONGTEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, guild_id)
+            )
+        `);
 
         // Ticket limit takibi için log tablosu
         await conn.query(`
@@ -84,10 +114,15 @@ async function initDB() {
                 guild_id VARCHAR(25),
                 user_id VARCHAR(25),
                 inviter_id VARCHAR(25),
+                invite_code VARCHAR(25),
+                is_fake BOOLEAN DEFAULT FALSE,
+                has_left BOOLEAN DEFAULT FALSE,
                 joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE KEY unique_user_guild (user_id, guild_id)
             )
         `);
+        try { await conn.query('ALTER TABLE invite_tracking ADD COLUMN is_fake BOOLEAN DEFAULT FALSE'); } catch(e){}
+        try { await conn.query('ALTER TABLE invite_tracking ADD COLUMN has_left BOOLEAN DEFAULT FALSE'); } catch(e){}
 
         // 2. Filtered Words
         await conn.query(`
@@ -206,6 +241,7 @@ async function initDB() {
                 category VARCHAR(50),
                 reason TEXT,
                 status ENUM('open', 'closed') DEFAULT 'open',
+                claimed_by VARCHAR(25) DEFAULT NULL,
                 closed_by VARCHAR(25),
                 transcript_html LONGTEXT,
                 transcript_text LONGTEXT,

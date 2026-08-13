@@ -4,7 +4,7 @@ const { sendLog } = require('../../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('yavaş-mod')
+        .setName('slowmode')
         .setDescription('Kanalin yavaş modunu (slowmode) ayarlar.')
         .addIntegerOption(option => 
             option.setName('saniye')

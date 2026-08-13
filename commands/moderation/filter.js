@@ -4,7 +4,7 @@ const { createContainerMessage } = require('../../utils/uiBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('kara-liste')
+        .setName('blacklist')
         .setDescription('Sunucudaki yasaklı kelime filtresini yonetir.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommand(subcommand =>

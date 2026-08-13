@@ -42,12 +42,15 @@ async function sendErrorDM(err, type) {
 }
 
 process.on('uncaughtException', (err) => {
+    console.error('[Uncaught Exception Yakalandı (Çökme engellendi)]:', err);
     sendErrorDM(err, 'Uncaught Exception');
 });
 
 process.on('unhandledRejection', (reason, promise) => {
+    console.error('[Unhandled Rejection Yakalandı (Çökme engellendi)]:', reason);
     sendErrorDM(reason instanceof Error ? reason : new Error(String(reason)), 'Unhandled Rejection');
 });
+
 client.on('error', (err) => console.error('[Client Error]:', err));
 
 client.commands = new Collection();
@@ -117,10 +120,12 @@ client.once(Events.ClientReady, async c => {
     console.log(`[Bot] Moderasyon sistemleri aktif.`);
 
     const statuses = [
-        { name: 'turklion.net', type: 3 },
-        { name: 'Sunucu Güvenliğini', type: 3 },
-        { name: 'Turklion | /yardım', type: 0 },
-        { name: 'Turklion | /ayarlar', type: 0 }
+        { name: 'turklion.net', type: 3 }, // İzliyor
+        { name: 'Muhammedpyz', type: 0 }, // Oynuyor
+        { name: 'Turklion | /yardım', type: 0 }, // Oynuyor
+        { name: 'Turklion Topluluğunu', type: 3 }, // İzliyor
+        { name: '7/24 Aktif Hizmet', type: 0 }, // Oynuyor
+        { name: 'Turklion | /sorgu', type: 2 } // Dinliyor
     ];
     
     client.invites = new Map();

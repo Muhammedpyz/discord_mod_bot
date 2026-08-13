@@ -6,7 +6,7 @@ const { pool } = require('../../db');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('at')
+        .setName('kick')
         .setDescription('Kullanıcıyı sunucudan atar.')
         .addUserOption(option => 
             option.setName('kullanıcı')
@@ -19,6 +19,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
 
     async execute(interaction) {
+        try { await interaction.deferReply({ flags: MessageFlags.Ephemeral }); } catch (e) { return; }
         try {
             const targetUser = interaction.options.getUser('kullanıcı');
             const reason = interaction.options.getString('sebep') || 'Belirtilmedi';
@@ -27,11 +28,11 @@ module.exports = {
 
             const check = validateModTarget(interaction, targetUser, targetMember);
             if (!check.valid) {
-                return interaction.reply({ content: check.reason, flags: MessageFlags.Ephemeral });
+                return interaction.editReply({ content: check.reason });
             }
 
             if (!targetMember.kickable) {
-                return interaction.reply({ content: 'Bu kullanıcıyı sunucudan atma yetkim bulunmuyor. Rol hiyerarşisini kontrol ediniz.', flags: MessageFlags.Ephemeral });
+                return interaction.editReply({ content: 'Bu kullanıcıyı sunucudan atma yetkim bulunmuyor. Rol hiyerarşisini kontrol ediniz.' });
             }
 
             try {
@@ -57,7 +58,7 @@ module.exports = {
             }
 
             const payload = createContainerMessage(`${EMOJIS.kick} Kullanıcı Sunucudan Atildi`, `<@${targetUser.id}> sunucudan atildi.\n**Sebep:** ${reason}`, '#2B2D31');
-            await interaction.reply(payload);
+            await interaction.editReply(payload);
 
             const logPayload = createContainerMessage(
                 `${EMOJIS.cross} Kullanıcı Atildi`,

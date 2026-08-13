@@ -70,8 +70,17 @@ function resolveColor(color) {
     return COLORS.PRIMARY;
 }
 
-function buildModAPanel({ title, description, bannerUrl = DEFAULT_BANNER_URL, actionRows = [], navRow = null, showSocials = true }) {
+function buildModAPanel({ title, description, bannerUrl = DEFAULT_BANNER_URL, actionRows = [], navRow = null, showSocials = true, images = [] }) {
     const container = new ContainerBuilder();
+
+    if (images && images.length > 0) {
+        const { MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
+        const mediaGallery = new MediaGalleryBuilder();
+        for (const imgUrl of images) {
+            mediaGallery.addItems(new MediaGalleryItemBuilder({ media: { url: imgUrl } }));
+        }
+        container.addMediaGalleryComponents(mediaGallery);
+    }
 
     if (title) {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${title.toUpperCase()}`));
@@ -122,9 +131,26 @@ function buildModAPanel({ title, description, bannerUrl = DEFAULT_BANNER_URL, ac
 }
 
 // YENİ STRICT KURAL: MOD B (İşlevsel/Operasyonel - Sadece Metin + Butonlar)
-function buildModBResponse({ title, textLines = [], fields = [], actionRows = [], files = [] }) {
-    const { FileBuilder } = require('discord.js');
+function buildModBResponse({ title, textLines = [], fields = [], actionRows = [], files = [], images = [] }) {
+    const { FileBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
     const container = new ContainerBuilder();
+
+    let mediaGallery = null;
+
+    if ((files && files.length > 0) || (images && images.length > 0)) {
+        mediaGallery = new MediaGalleryBuilder();
+        if (files) {
+            for (const file of files) {
+                mediaGallery.addItems(new MediaGalleryItemBuilder({ media: { url: `attachment://${file}` } }));
+            }
+        }
+        if (images) {
+            for (const imgUrl of images) {
+                mediaGallery.addItems(new MediaGalleryItemBuilder({ media: { url: imgUrl } }));
+            }
+        }
+        container.addMediaGalleryComponents(mediaGallery);
+    }
 
     if (title) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${title}`));
 
@@ -148,12 +174,6 @@ function buildModBResponse({ title, textLines = [], fields = [], actionRows = []
     if (actionRows && actionRows.length > 0) {
         for (const row of actionRows) {
             container.addActionRowComponents(row);
-        }
-    }
-
-    if (files && files.length > 0) {
-        for (const file of files) {
-            container.addFileComponents(new FileBuilder().setURL(`attachment://${file}`));
         }
     }
 

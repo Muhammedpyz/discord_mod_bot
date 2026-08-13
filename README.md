@@ -1,37 +1,101 @@
-# Turklion Moderasyon Botu
+# TurkLion Discord Moderation Bot
 
-Bu depo (repository), Discord sunuculari icin gelistirilmis kapsamli, hizli ve profesyonel bir moderasyon botunu icerir.
+Gelişmiş bir Discord Moderasyon Botu. Tüm işlemler veritabanı (MariaDB) tabanlı çalışır ve ceza takip (mute, ban, uyarı) sistemleri otomatik olarak yönetilir. Kapsamlı loglama, rol hafızası (role memory) ve UI Components V2 özellikleri içerir.
 
-## Ozellikler
+## 🚀 Gereksinimler
 
-- Gelismis Otomatik Moderasyon (Kufur, Reklam/Link, Etiket, Buyuk Harf filtreleri)
-- Dinamik Uyari Sistemi (Uyari sayisina gore otomatik islem: Timeout, Kick, Ban)
-- V2 Kullanici Arayuzu Destekli Denetim Kayitlari (Log sistemi)
-- Optimize Edilmis Toplu Loglama (Spam onleyici grup loglama yapisi)
-- Ticket (Destek) Sistemi
-- Tamamen MariaDB/MySQL tabanli veritabani yonetimi
+Botu kendi sunucunuzda (VDS/VPS) çalıştırmak için aşağıdaki yazılımların kurulu olması gereklidir:
 
-## Kurulum
+- **Node.js** (v18.0.0 veya üzeri)
+- **MariaDB** (veya MySQL)
+- **Redis** (Anti-spam sistemleri ve cache için)
 
-1. Depoyu klonlayin.
-2. Gerekli bagimliliklari yukleyin:
-   `npm install`
-3. Klasor icerisinde `.env` adinda bir dosya olusturun ve asagidaki bilgileri doldurun:
-   ```
-   DISCORD_TOKEN=sizin_bot_tokeniniz
-   CLIENT_ID=bot_id_numarasi
-   DB_HOST=127.0.0.1
-   DB_USER=root
-   DB_PASSWORD=veritabani_sifresi
-   DB_NAME=discord_mod_bot
-   ALLOWED_GUILDS=sunucu_id_1,sunucu_id_2
-   ```
-4. Veritabaninizi baslatin (MariaDB kullanmaniz tavsiye edilir).
-5. Botun slash komutlarini Discord'a yuklemek icin calistirin:
-   `node deploy-commands.js`
-6. Botu baslatin:
-   `node index.js`
+## ⚙️ Kurulum Adımları
 
-## Mimari ve Guvenlik
+### 1. Dosyaları İndirin ve Bağımlılıkları Yükleyin
 
-Sistem, yorulmayan bir MariaDB havuzu uzerine (Connection Pool) insa edilmistir. Botun islem performansini dusurmemek adina sorgular optimize edilmis olup, veritabani darbozgazlarini onleyecek mimari kullanilmaktadir. Guvenlik acisindan, hardcoded id gibi hassas bilgiler sifrelenmis yontemler arkasinda calistirilmaktadir.
+Proje dizinine gidin ve gerekli Node modüllerini kurun:
+
+```bash
+npm install
+```
+
+### 2. Veritabanı ve Redis Yapılandırması
+
+Sisteminizde MariaDB ve Redis servislerinin çalıştığından emin olun:
+
+```bash
+# Servisleri başlatma (Linux/Ubuntu için)
+sudo systemctl start mariadb
+sudo systemctl enable mariadb
+sudo systemctl start redis-server
+sudo systemctl enable redis-server
+```
+
+MariaDB üzerinde bot için bir veritabanı oluşturun:
+```sql
+CREATE DATABASE discord_mod_bot;
+```
+
+### 3. Ortam Değişkenleri (.env)
+
+Projenin ana dizininde bir `.env` dosyası oluşturun ve içerisine token ve veritabanı bilgilerinizi girin:
+
+```env
+DISCORD_TOKEN=BOTUNUZUN_TOKEN_BURAYA
+CLIENT_ID=BOTUNUZUN_CLIENT_ID_BURAYA
+
+DB_HOST=localhost
+DB_USER=root
+DB_PASS=Sifreniz
+DB_NAME=discord_mod_bot
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+```
+
+### 4. Ayar Dosyası (config.json)
+
+`config.json` içerisine sadece botun çalışmasına izin verdiğiniz sunucu ID'lerini ve yetkili (Kurucu/Sahip) hesabınızın ID'sini ekleyin:
+
+```json
+{
+  "ALLOWED_GUILDS": ["SADECE_IZIN_VERILEN_SUNUCU_ID"],
+  "SUPER_ADMIN_ID": "KENDI_DISCORD_ID_NIZ"
+}
+```
+
+### 5. Slash Komutlarını Yükleme (Deploy)
+
+Discord API'sine botun slash (/) komutlarını global olarak kaydetmek için aşağıdaki komutu çalıştırın. **(Bot sunucuya eklendiğinde komutların görünmesi için bu işlemi bir kez yapmanız şarttır!)**
+
+```bash
+node deploy-commands.js
+```
+
+## 🛠️ Botu Başlatma
+
+Botu normal şekilde başlatmak için, tüm veritabanı tablolarını (`guild_config`, `warnings`, `mutes`, `role_memory`, vs.) otomatik kuran ana dosyayı çalıştırın:
+
+```bash
+node starter.js
+```
+
+Eğer botu arkaplanda, terminal kapansa bile çalışacak şekilde başlatmak istiyorsanız (PM2 önerilir):
+
+```bash
+# PM2 kurma (Eğer yoksa)
+npm install -g pm2
+
+# Botu PM2 ile arkaplanda başlatma
+pm2 start starter.js --name "ModBot"
+
+# Botun başlangıçta otomatik çalışmasını sağlama
+pm2 save
+pm2 startup
+```
+
+## 📋 Önemli Modüllerin İşleyişi
+- **Rol Hafızası (`utils/roleMemory.js`):** Üyelere mute veya ban atıldığında orijinal rollerini (VIP vb.) yedeğe alır ve süre bittiğinde otomatik geri verir. Üst üste cezalarda (ghost role sorunu) rolleri birbirine karıştırmadan akıllıca birleştirir.
+- **Süre Denetleyici (`utils/muteChecker.js` & `utils/warningManager.js`):** Saniye saniye ceza sürelerini (Mute, Uyarı vs) kontrol eder, süresi dolanları kaldırır ve rolleri günceller.
+- **Güvenlik (`utils/permissions.js`):** Mod veya Adminlerin kendilerinden üst yetkideki kişilere ceza vermesini engeller. Sadece `config.json`'da belirlenen `SUPER_ADMIN_ID` tüm hiyerarşiyi aşabilir.

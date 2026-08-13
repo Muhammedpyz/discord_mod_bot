@@ -19,8 +19,8 @@ function parseDuration(str) {
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('sustur')
-        .setDescription('Kullanıcıyı metin kanallarinda susturur (Örn: 10m, 1h, 1d)')
+        .setName('mute')
+        .setDescription('Bir kullanıcıyı metin kanallarında susturur.')
         .addUserOption(option => 
             option.setName('kullanıcı')
                 .setDescription('Susturulacak kullanıcı')
@@ -36,32 +36,33 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
     async execute(interaction) {
+        await interaction.deferReply();
         try {
             const targetUser = interaction.options.getUser('kullanıcı');
             const durationStr = interaction.options.getString('süre');
             const reason = interaction.options.getString('sebep') || 'Belirtilmedi';
 
             if (!targetUser) {
-                return interaction.reply({ content: 'Geçerli bir kullanıcı belirtilmedi.', flags: MessageFlags.Ephemeral });
+                return interaction.editReply({ content: 'Geçerli bir kullanıcı belirtilmedi.', flags: MessageFlags.Ephemeral });
             }
 
             const durationMinutes = parseDuration(durationStr);
             if (!durationMinutes) {
-                return interaction.reply({ content: 'Gecersiz sure formati. Ornek kullanim: 10m, 1h, 1d.', flags: MessageFlags.Ephemeral });
+                return interaction.editReply({ content: 'Gecersiz sure formati. Ornek kullanim: 10m, 1h, 1d.', flags: MessageFlags.Ephemeral });
             }
             if (durationMinutes > 40320) { // 28 days
-                return interaction.reply({ content: 'Susturma suresi en fazla 28 gün olabilir.', flags: MessageFlags.Ephemeral });
+                return interaction.editReply({ content: 'Susturma suresi en fazla 28 gün olabilir.', flags: MessageFlags.Ephemeral });
             }
 
             const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
 
             const check = validateModTarget(interaction, targetUser, targetMember);
             if (!check.valid) {
-                return interaction.reply({ content: check.reason, flags: MessageFlags.Ephemeral });
+                return interaction.editReply({ content: check.reason, flags: MessageFlags.Ephemeral });
             }
 
             if (!targetMember.moderatable && targetUser.id !== interaction.client.user.id) {
-                return interaction.reply({ content: 'Bu kullanıcıyı susturma yetkim bulunmuyor. Rol hiyerarşisini kontrol ediniz.', flags: MessageFlags.Ephemeral });
+                return interaction.editReply({ content: 'Bu kullanıcıyı susturma yetkim bulunmuyor. Rol hiyerarşisini kontrol ediniz.', flags: MessageFlags.Ephemeral });
             }
 
             const durationMs = durationMinutes * 60 * 1000;
@@ -73,11 +74,11 @@ module.exports = {
                 try {
                     await targetMember.timeout(durationMs, `Moderator: ${interaction.user.tag} | Sebep: ${reason}`);
                 } catch (e) {
-                    return interaction.reply({ content: `Zaman aşımı işlemi uygulanamadı. Hata: ${e.message}`, flags: MessageFlags.Ephemeral });
+                    return interaction.editReply({ content: `Zaman aşımı işlemi uygulanamadı. Hata: ${e.message}`, flags: MessageFlags.Ephemeral });
                 }
 
-                const [configRows] = await conn.query('SELECT text_mute_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
-                if (configRows.length > 0 && configRows[0].text_mute_role_id) {
+                const configRows = await conn.query('SELECT text_mute_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
+                if (configRows && configRows.length > 0 && configRows[0].text_mute_role_id) {
                     await saveRolesAndApplyMute(targetMember, 'mute');
                     
                     const muteRoleId = configRows[0].text_mute_role_id;
@@ -118,7 +119,7 @@ module.exports = {
                     '#2B2D31'
                 );
                 
-                await interaction.reply(payload);
+                await interaction.editReply(payload);
 
                 const logPayload = createContainerMessage(
                     `${EMOJIS.warning} Kullanıcı Susturuldu`,
@@ -143,7 +144,7 @@ module.exports = {
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp({ content: 'Sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             } else {
-                await interaction.reply({ content: 'Sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.editReply({ content: 'Sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         }
     }

@@ -19,6 +19,8 @@ const { pool } = require('../db');
 function createSorguMenu(targetId, current = 'sorgu_overview', isStaff = false) {
     const options = [
         { label: 'Genel Bilgi & Ozeti', value: 'sorgu_overview', default: current === 'sorgu_overview' },
+        { label: 'Sunucu Profil Geçmişi', value: 'sorgu_profile_server', default: current === 'sorgu_profile_server' },
+        { label: 'Global Profil Geçmişi', value: 'sorgu_profile_global', default: current === 'sorgu_profile_global' },
         { label: 'Uyarı Geçmişi', value: 'sorgu_warns', default: current === 'sorgu_warns' },
         { label: 'Susturma Geçmişi', value: 'sorgu_mutes', default: current === 'sorgu_mutes' },
         { label: 'Ceza Geçmişi', value: 'sorgu_penalties', default: current === 'sorgu_penalties' },
@@ -65,12 +67,86 @@ async function handleSorguSelect(interaction, value, targetId) {
         }
 
         if (!isStaff) {
-            const [checkRows] = await conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetId]);
-            const [checkMuteRows] = await conn.query('SELECT COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetId]);
-            const [checkTicketRows] = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetId]);
+            const checkRows = await conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetId]);
+            const checkMuteRows = await conn.query('SELECT COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetId]);
+            const checkTicketRows = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetId]);
             if (Number(checkRows[0]?.cnt) > 0 || Number(checkMuteRows[0]?.cnt) > 0 || Number(checkTicketRows[0]?.cnt) > 0) {
                 isStaff = true;
             }
+        }
+
+        if (value === 'sorgu_profile_server') {
+            const rows = await conn.query('SELECT * FROM user_history WHERE user_id = ? AND guild_id = ? AND change_type IN ("nickname", "server_avatar") ORDER BY changed_at DESC', [targetId, interaction.guild.id]);
+            const historyRows = Array.isArray(rows) ? (rows.length > 0 && Array.isArray(rows[0]) && !rows[0].id ? rows[0] : rows) : [];
+            const images = [];
+            const fields = historyRows.slice(0, 10).map((m, i) => {
+                let changeLabel = '';
+                let oldV = m.old_value || 'Yok';
+                let newV = m.new_value || 'Yok';
+
+                if (m.change_type === 'nickname') {
+                    changeLabel = 'Sunucu İçi İsim (Nickname)';
+                    oldV = `\`${oldV}\``;
+                    newV = `\`${newV}\``;
+                } else if (m.change_type === 'server_avatar') {
+                    changeLabel = 'Sunucu Profil Fotoğrafı (Server Avatar)';
+                    if (m.old_value && m.old_value !== 'Yok' && m.old_value.startsWith('http')) images.push(m.old_value);
+                    if (m.new_value && m.new_value !== 'Yok' && m.new_value.startsWith('http')) images.push(m.new_value);
+                    oldV = `*Galeriye Eklendi*`;
+                    newV = `*Galeriye Eklendi*`;
+                }
+
+                return {
+                    name: `İşlem #${i + 1} - ${changeLabel}`,
+                    value: `**Eski:** ${oldV}\n**Yeni:** ${newV}\n**Tarih:** <t:${Math.floor(new Date(m.changed_at).getTime() / 1000)}:f>`
+                };
+            });
+
+            if (fields.length === 0) fields.push({ name: 'Kayıt Yok', value: 'Kullanıcıya ait herhangi bir sunucu içi profil veya isim değişikliği kaydı bulunamadı.' });
+            
+            const payload = buildSorguPanel({
+                title: `Sunucu İçi Profil & İsim Geçmişi - ${userName}`,
+                description: `Sistemde kayıtlı toplam **${historyRows.length}** değişiklik bulundu (Son 10 gösteriliyor).`,
+                fields, navRow: createSorguMenu(targetId, 'sorgu_profile_server', isStaff), images
+            });
+            return interaction.editReply(payload);
+        }
+
+        if (value === 'sorgu_profile_global') {
+            const rows = await conn.query('SELECT * FROM user_history WHERE user_id = ? AND change_type IN ("username", "global_avatar") ORDER BY changed_at DESC', [targetId]);
+            const historyRows = Array.isArray(rows) ? (rows.length > 0 && Array.isArray(rows[0]) && !rows[0].id ? rows[0] : rows) : [];
+            const images = [];
+            const fields = historyRows.slice(0, 10).map((m, i) => {
+                let changeLabel = '';
+                let oldV = m.old_value || 'Yok';
+                let newV = m.new_value || 'Yok';
+
+                if (m.change_type === 'username') {
+                    changeLabel = 'Global Kullanıcı Adı (Username)';
+                    oldV = `\`${oldV}\``;
+                    newV = `\`${newV}\``;
+                } else if (m.change_type === 'global_avatar') {
+                    changeLabel = 'Global Profil Fotoğrafı (Avatar)';
+                    if (m.old_value && m.old_value !== 'Yok' && m.old_value.startsWith('http')) images.push(m.old_value);
+                    if (m.new_value && m.new_value !== 'Yok' && m.new_value.startsWith('http')) images.push(m.new_value);
+                    oldV = `*Galeriye Eklendi*`;
+                    newV = `*Galeriye Eklendi*`;
+                }
+
+                return {
+                    name: `İşlem #${i + 1} - ${changeLabel}`,
+                    value: `**Eski:** ${oldV}\n**Yeni:** ${newV}\n**Tarih:** <t:${Math.floor(new Date(m.changed_at).getTime() / 1000)}:f>`
+                };
+            });
+
+            if (fields.length === 0) fields.push({ name: 'Kayıt Yok', value: 'Kullanıcıya ait herhangi bir global profil değişikliği kaydı bulunamadı.' });
+            
+            const payload = buildSorguPanel({
+                title: `Global Profil & İsim Geçmişi - ${userName}`,
+                description: `Sistemde kayıtlı toplam **${historyRows.length}** değişiklik bulundu (Son 10 gösteriliyor).`,
+                fields, navRow: createSorguMenu(targetId, 'sorgu_profile_global', isStaff), images
+            });
+            return interaction.editReply(payload);
         }
 
         if (value === 'sorgu_staff' && isStaff) {
@@ -248,11 +324,42 @@ async function handleSorguSelect(interaction, value, targetId) {
         }
 
         if (value === 'sorgu_overview') {
-            const [warnRows] = await conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [interaction.guild.id, targetId]);
-            const [totalWarnRows] = await conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetId]);
-            const [muteRows] = await conn.query('SELECT COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetId]);
-            const [ticketRows] = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND owner_id = ?', [interaction.guild.id, targetId]);
-            const [deletedRows] = await conn.query('SELECT COUNT(*) as cnt FROM deleted_messages WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetId]);
+            const [
+                warnRows,
+                totalWarnRows,
+                muteRows,
+                ticketRows,
+                deletedRows,
+                inviteStats,
+                invitedByRows
+            ] = await Promise.all([
+                conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [interaction.guild.id, targetId]),
+                conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetId]),
+                conn.query('SELECT COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetId]),
+                conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND owner_id = ?', [interaction.guild.id, targetId]),
+                conn.query('SELECT COUNT(*) as cnt FROM deleted_messages WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetId]),
+                conn.query(`
+                    SELECT 
+                        COUNT(*) as total,
+                        SUM(CASE WHEN it.is_fake = TRUE THEN 1 ELSE 0 END) as fake_cnt,
+                        SUM(CASE WHEN m.is_in_guild = FALSE THEN 1 ELSE 0 END) as leave_cnt,
+                        SUM(CASE WHEN (it.is_fake = FALSE OR it.is_fake IS NULL) AND (m.is_in_guild = TRUE OR m.is_in_guild IS NULL) THEN 1 ELSE 0 END) as real_cnt
+                    FROM invite_tracking it
+                    LEFT JOIN members m ON it.user_id = m.user_id
+                    WHERE it.guild_id = ? AND it.inviter_id = ?
+                `, [interaction.guild.id, targetId]),
+                conn.query('SELECT inviter_id, invite_code FROM invite_tracking WHERE guild_id = ? AND user_id = ? LIMIT 1', [interaction.guild.id, targetId])
+            ]);
+
+            const realInvites = Number(inviteStats[0]?.real_cnt || 0);
+            const fakeInvites = Number(inviteStats[0]?.fake_cnt || 0);
+            const leaveInvites = Number(inviteStats[0]?.leave_cnt || 0);
+
+            let invitedByText = 'Bilinmiyor';
+            if (invitedByRows && invitedByRows.length > 0) {
+                const codeText = invitedByRows[0].invite_code ? ` (Link: discord.gg/${invitedByRows[0].invite_code})` : '';
+                invitedByText = `<@${invitedByRows[0].inviter_id}>${codeText}`;
+            }
 
             const roles = targetMember ? targetMember.roles.cache.filter(r => r.id !== interaction.guild.id).sort((a, b) => b.position - a.position).map(r => `<@&${r.id}>`).join(', ') || 'Rol yok' : 'Sunucuda değil';
             const joinDate = targetMember?.joinedTimestamp ? `<t:${Math.floor(targetMember.joinedTimestamp / 1000)}:F>` : 'Bilinmiyor';
@@ -269,10 +376,10 @@ async function handleSorguSelect(interaction, value, targetId) {
                     if (row.reason && row.reason.includes('Manuel olarak')) manualWarns += c;
                 });
 
-                const [delRows] = await conn.query('SELECT COUNT(*) as cnt FROM deleted_messages WHERE guild_id = ? AND deleted_by = ?', [interaction.guild.id, targetId]);
+                const delRows = await conn.query('SELECT COUNT(*) as cnt FROM deleted_messages WHERE guild_id = ? AND deleted_by = ?', [interaction.guild.id, targetId]);
                 const totalDels = Number(delRows[0]?.cnt || 0);
 
-                const [staffTicketRows] = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetId]);
+                const staffTicketRows = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetId]);
                 const totalTicketsClosed = Number(staffTicketRows[0]?.cnt || 0);
 
                 let totalBans = 0, totalKicks = 0, totalTimeouts = 0, manualMutes = 0, manualBans = 0, totalRoles = 0;
@@ -318,6 +425,7 @@ async function handleSorguSelect(interaction, value, targetId) {
 
             const fieldsArr = [
                 { name: `<:mono:${MONO_EMOJIS.shield}> Roller`, value: (roles.length > 200 ? roles.substring(0, 200) + '...' : roles) },
+                { name: `<:mono:${MONO_EMOJIS.invite}> Davet İstatistikleri (Korumalı)`, value: `**Davet Eden:** ${invitedByText}\n**Gerçek:** **${realInvites}** | **Sahte:** **${fakeInvites}** | **Ayrılan:** **${leaveInvites}** | **Net:** **${realInvites}**` },
                 { name: `<:mono:${MONO_EMOJIS.warning}> Ceza Istatistikleri`, value: `Aktif Uyarı: **${Number(warnRows[0]?.cnt || 0)}** | Toplam Uyarı: **${Number(totalWarnRows[0]?.cnt || 0)}**\nToplam Susturma: **${Number(muteRows[0]?.cnt || 0)}** | Toplam Ticket: **${Number(ticketRows[0]?.cnt || 0)}**` }
             ];
 

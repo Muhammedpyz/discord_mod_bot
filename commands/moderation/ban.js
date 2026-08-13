@@ -7,8 +7,8 @@ const { sendLog } = require('../../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('yasakla')
-        .setDescription('Kullanıcıyı sunucudan yasaklar.')
+        .setName('ban')
+        .setDescription('Bir kullanıcıyı sunucudan uzaklaştırır.')
         .addUserOption(option => 
             option.setName('kullanıcı')
                 .setDescription('Yasaklanacak kullanıcı')
@@ -20,6 +20,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
 
     async execute(interaction) {
+        await interaction.deferReply();
         try {
             const targetUser = interaction.options.getUser('kullanıcı');
             const reason = interaction.options.getString('sebep') || 'Belirtilmedi';
@@ -29,7 +30,7 @@ module.exports = {
             
             const check = validateModTarget(interaction, targetUser, targetMember);
             if (!check.valid) {
-                return interaction.reply({ content: check.reason, flags: MessageFlags.Ephemeral });
+                return interaction.editReply({ content: check.reason, flags: MessageFlags.Ephemeral });
             }
 
             try {
@@ -55,16 +56,16 @@ module.exports = {
             let conn;
             try {
                 conn = await pool.getConnection();
-                const [configRows] = await conn.query('SELECT banned_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
+                const configRows = await conn.query('SELECT banned_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
                 
                 if (configRows.length === 0 || !configRows[0].banned_role_id) {
-                    return interaction.reply({ content: 'Sunucu için "Banlisin" rolü ayarlanmamis. Lütfen ayarları kontrol edin.', flags: MessageFlags.Ephemeral });
+                    return interaction.editReply({ content: 'Sunucu için "Banlisin" rolü ayarlanmamis. Lütfen ayarları kontrol edin.', flags: MessageFlags.Ephemeral });
                 }
 
                 const bannedRoleId = configRows[0].banned_role_id;
                 
                 if (!targetMember) {
-                    return interaction.reply({ content: 'Kullanıcı sunucuda bulunamadı. Rol bani atılabilmesi için kullanıcının sunucuda olması gerekir.', flags: MessageFlags.Ephemeral });
+                    return interaction.editReply({ content: 'Kullanıcı sunucuda bulunamadı. Rol bani atılabilmesi için kullanıcının sunucuda olması gerekir.', flags: MessageFlags.Ephemeral });
                 }
 
                 const rolesToKeep = targetMember.roles.cache
@@ -83,7 +84,7 @@ module.exports = {
 
                 if (rolesToSave.length > 0) {
                     const values = rolesToSave.map(rId => [targetUser.id, interaction.guild.id, rId]);
-                    await conn.query('INSERT IGNORE INTO user_roles (user_id, guild_id, role_id) VALUES ?', [values]);
+                    await conn.batch('INSERT IGNORE INTO user_roles (user_id, guild_id, role_id) VALUES (?, ?, ?)', values);
                 }
 
                 await conn.query(
@@ -97,7 +98,7 @@ module.exports = {
                     '#2B2D31'
                 );
                 
-                await interaction.reply(payload);
+                await interaction.editReply(payload);
 
                 const logPayload = createContainerMessage(
                     'Kullanıcı Yasaklandı',
@@ -120,7 +121,7 @@ module.exports = {
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp({ content: 'İşlem sırasında bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             } else {
-                await interaction.reply({ content: 'İşlem sırasında bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                await interaction.editReply({ content: 'İşlem sırasında bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
             }
         }
     }

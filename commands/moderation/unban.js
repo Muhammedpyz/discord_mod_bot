@@ -7,7 +7,7 @@ const { createContainerMessage, EMOJIS } = require('../../utils/uiBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('yasak-kaldır')
+        .setName('unban')
         .setDescription('Kullanıcının sunucu yasağını kaldirir.')
         .addUserOption(option => 
             option.setName('kullanıcı')
@@ -45,7 +45,7 @@ module.exports = {
             }
 
             await targetMember.roles.remove(bannedRoleId);
-            await restoreRoles(targetMember, 'warn3_ban');
+            await restoreRoles(targetMember);
 
             const logPayload = createContainerMessage(
                 `${EMOJIS.unlock} Sunucu Yasağı Kaldırıldı`,

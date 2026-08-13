@@ -8,10 +8,11 @@ function createHelpComponents(selected = 'home') {
             .setPlaceholder('Menüden Seçim Yapın')
             .addOptions([
                 { label: 'Ana Sayfa', value: 'help_home', default: selected === 'home' },
-                { label: 'Moderasyon', value: 'help_moderation', default: selected === 'moderation' },
-                { label: 'Yönetim', value: 'help_system', default: selected === 'system' },
-                { label: 'Güvenlik', value: 'help_security', default: selected === 'security' },
-                { label: 'Özel Odalar', value: 'help_rooms', default: selected === 'rooms' }
+                { label: 'Ceza İşlemleri', value: 'help_punish', default: selected === 'punish' },
+                { label: 'Kullanıcı & Sicil', value: 'help_stats', default: selected === 'stats' },
+                { label: 'Kanal Yönetimi', value: 'help_channel', default: selected === 'channel' },
+                { label: 'Sistem Yönetimi', value: 'help_system', default: selected === 'system' },
+                { label: 'Güvenlik', value: 'help_security', default: selected === 'security' }
             ])
     );
 }
