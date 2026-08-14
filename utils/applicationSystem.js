@@ -76,7 +76,7 @@ async function renderDashboard(guildId) {
     const description = `## ${eReg} **Yetkili Başvuru Yönetimi**
 Başvuru kanallarını, soruları, inceleme yetkisini ve onay rolünü tek panelden yönet.
 
-▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
+***
 
 ${eChan} **Yayın kanalı:** ${txtPub}
 ${eShield} **İnceleme kanalı:** ${txtRev}
@@ -396,12 +396,13 @@ async function handleApplicationInteraction(interaction, action) {
             .setTitle('Yetkili Başvuru Formu');
             
         const truncate = (str) => str.length > 45 ? str.substring(0, 42) + '...' : str;
+        const placeHolder = (str) => str.length > 100 ? str.substring(0, 97) + '...' : str;
 
-        if (config.q1) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q1').setLabel(truncate(config.q1)).setStyle(TextInputStyle.Short).setRequired(true)));
-        if (config.q2) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q2').setLabel(truncate(config.q2)).setStyle(TextInputStyle.Paragraph).setRequired(true)));
-        if (config.q3) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q3').setLabel(truncate(config.q3)).setStyle(TextInputStyle.Paragraph).setRequired(true)));
-        if (config.q4) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q4').setLabel(truncate(config.q4)).setStyle(TextInputStyle.Paragraph).setRequired(true)));
-        if (config.q5) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q5').setLabel(truncate(config.q5)).setStyle(TextInputStyle.Paragraph).setRequired(true)));
+        if (config.q1) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q1').setLabel(truncate(config.q1)).setPlaceholder(placeHolder(config.q1)).setStyle(TextInputStyle.Short).setRequired(true)));
+        if (config.q2) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q2').setLabel(truncate(config.q2)).setPlaceholder(placeHolder(config.q2)).setStyle(TextInputStyle.Paragraph).setRequired(true)));
+        if (config.q3) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q3').setLabel(truncate(config.q3)).setPlaceholder(placeHolder(config.q3)).setStyle(TextInputStyle.Paragraph).setRequired(true)));
+        if (config.q4) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q4').setLabel(truncate(config.q4)).setPlaceholder(placeHolder(config.q4)).setStyle(TextInputStyle.Paragraph).setRequired(true)));
+        if (config.q5) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q5').setLabel(truncate(config.q5)).setPlaceholder(placeHolder(config.q5)).setStyle(TextInputStyle.Paragraph).setRequired(true)));
 
         await interaction.showModal(modal).catch(err => {
             console.error('showModal error:', err);
