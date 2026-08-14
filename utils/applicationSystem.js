@@ -68,13 +68,15 @@ async function renderDashboard(guildId) {
 
     let warningText = '';
     if (warnings.length > 0) {
-        warningText = `\n---\n\n**Eksik Kurulum Bilgileri:**\n${warnings.join('\n')}`;
+        warningText = `\n\n**Eksik Kurulum Bilgileri:**\n${warnings.join('\n')}`;
     } else {
-        warningText = `\n---\n\nSistem yayına hazır. Yayınla butonu ile aktif edebilirsiniz.`;
+        warningText = `\n\nSistem yayına hazır. Yayınla butonu ile aktif edebilirsiniz.`;
     }
 
     const description = `## ${eReg} **Yetkili Başvuru Yönetimi**
 Başvuru kanallarını, soruları, inceleme yetkisini ve onay rolünü tek panelden yönet.
+
+───────────────
 
 ${eChan} **Yayın kanalı:** ${txtPub}
 ${eShield} **İnceleme kanalı:** ${txtRev}

@@ -172,6 +172,8 @@ function buildModBResponse({ title, textLines = [], fields = [], actionRows = []
     }
 
     if (actionRows && actionRows.length > 0) {
+        const { SeparatorBuilder } = require('discord.js');
+        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
         for (const row of actionRows) {
             container.addActionRowComponents(row);
         }
