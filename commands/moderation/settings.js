@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, RoleSelectMenuBuilder, ChannelSelectMenuBuilder, ChannelType } = require('discord.js');
 const { pool } = require('../../db');
+const { MONO_EMOJIS } = require('../../utils/uiBuilder');
 
 async function getSettingsPage(guildId, pageName) {
     let conn;
@@ -69,11 +70,11 @@ async function getSettingsPage(guildId, pageName) {
             ];
 
             const buttonRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('toggle_anti_spam').setLabel('Anti-Spam').setStyle(config.anti_spam_enabled ? ButtonStyle.Success : ButtonStyle.Danger),
-                new ButtonBuilder().setCustomId('toggle_anti_link').setLabel('Anti-Link').setStyle(config.anti_link_enabled ? ButtonStyle.Success : ButtonStyle.Danger),
-                new ButtonBuilder().setCustomId('toggle_anti_swear').setLabel('Anti-Küfür').setStyle(config.anti_swear_enabled ? ButtonStyle.Success : ButtonStyle.Danger),
-                new ButtonBuilder().setCustomId('toggle_caps').setLabel('Caps Engel').setStyle(config.caps_filter_enabled ? ButtonStyle.Success : ButtonStyle.Danger),
-                new ButtonBuilder().setCustomId('toggle_anti_raid').setLabel('Anti-Raid').setStyle(config.anti_raid_enabled ? ButtonStyle.Success : ButtonStyle.Danger)
+                new ButtonBuilder().setCustomId('toggle_anti_spam').setLabel('Anti-Spam').setEmoji(MONO_EMOJIS.shield).setStyle(config.anti_spam_enabled ? ButtonStyle.Success : ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId('toggle_anti_link').setLabel('Anti-Link').setEmoji(MONO_EMOJIS.link).setStyle(config.anti_link_enabled ? ButtonStyle.Success : ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId('toggle_anti_swear').setLabel('Anti-Küfür').setEmoji(MONO_EMOJIS.message_circle_off).setStyle(config.anti_swear_enabled ? ButtonStyle.Success : ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId('toggle_caps').setLabel('Caps Engel').setEmoji(MONO_EMOJIS.type).setStyle(config.caps_filter_enabled ? ButtonStyle.Success : ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId('toggle_anti_raid').setLabel('Anti-Raid').setEmoji(MONO_EMOJIS.swords).setStyle(config.anti_raid_enabled ? ButtonStyle.Success : ButtonStyle.Danger)
             );
             components.push(buttonRow);
         } 
@@ -152,7 +153,7 @@ async function getSettingsPage(guildId, pageName) {
             ));
 
             components.push(new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('settings:auto_setup_ticket').setLabel('Sıfırdan Ticket Sistemi Kur').setStyle(ButtonStyle.Success)
+                new ButtonBuilder().setCustomId('settings:auto_setup_ticket').setLabel('Sıfırdan Ticket Sistemi Kur').setEmoji(MONO_EMOJIS.wrench).setStyle(ButtonStyle.Success)
             ));
             
             components.push(new ActionRowBuilder().addComponents(
@@ -271,7 +272,7 @@ async function getSettingsPage(guildId, pageName) {
             ));
 
             components.push(new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('setup_private_rooms').setLabel('Sistemi Otomatik Kur (Sıfırdan)').setStyle(ButtonStyle.Success)
+                new ButtonBuilder().setCustomId('setup_private_rooms').setLabel('Sistemi Otomatik Kur (Sıfırdan)').setEmoji(MONO_EMOJIS.wrench).setStyle(ButtonStyle.Success)
             ));
         }
 
@@ -404,7 +405,7 @@ module.exports = {
                         if (ticketChannel) {
                             const { buildModBResponse } = require('../../utils/uiBuilder');
                             const btnRow = new ActionRowBuilder().addComponents(
-                                new ButtonBuilder().setCustomId('ticket:create:1').setLabel('Bilet Oluştur').setStyle(ButtonStyle.Primary)
+                                new ButtonBuilder().setCustomId('ticket:create:1').setLabel('Bilet Oluştur').setEmoji(MONO_EMOJIS.ticket).setStyle(ButtonStyle.Primary)
                             );
                             const uiPayload = buildModBResponse({
                                 title: 'Destek Talebi Sistemi',
@@ -460,7 +461,7 @@ module.exports = {
                                 fields: [],
                                 actionRows: [
                                     new ActionRowBuilder().addComponents(
-                                        new ButtonBuilder().setCustomId('ticket:create:1').setLabel('Bilet Oluştur').setStyle(ButtonStyle.Primary)
+                                        new ButtonBuilder().setCustomId('ticket:create:1').setLabel('Bilet Oluştur').setEmoji(MONO_EMOJIS.ticket).setStyle(ButtonStyle.Primary)
                                     )
                                 ]
                             });

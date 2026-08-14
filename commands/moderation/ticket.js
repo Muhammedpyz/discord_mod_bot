@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { createTicket, closeTicketChannel } = require('../../utils/ticketManager');
-const { createV2Message, COLORS } = require('../../utils/uiBuilder');
+const { createV2Message, COLORS, MONO_EMOJIS } = require('../../utils/uiBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -58,10 +58,10 @@ module.exports = {
                 }
 
                 const btnRow = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('ticket_cat_hesap').setLabel('Hesap İşlemleri').setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder().setCustomId('ticket_cat_ceza').setLabel('Ceza İtiraz').setStyle(ButtonStyle.Danger),
-                    new ButtonBuilder().setCustomId('ticket_cat_sunucu').setLabel('Sunucu Sorunları').setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder().setCustomId('ticket_cat_genel').setLabel('Genel Destek').setStyle(ButtonStyle.Success)
+                    new ButtonBuilder().setCustomId('ticket_cat_hesap').setLabel('Hesap İşlemleri').setEmoji(MONO_EMOJIS.user_cog).setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder().setCustomId('ticket_cat_ceza').setLabel('Ceza İtiraz').setEmoji(MONO_EMOJIS.hammer).setStyle(ButtonStyle.Danger),
+                    new ButtonBuilder().setCustomId('ticket_cat_sunucu').setLabel('Sunucu Sorunları').setEmoji(MONO_EMOJIS.server).setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId('ticket_cat_genel').setLabel('Genel Destek').setEmoji(MONO_EMOJIS.ticket).setStyle(ButtonStyle.Success)
                 );
 
                 const panelPayload = createV2Message({

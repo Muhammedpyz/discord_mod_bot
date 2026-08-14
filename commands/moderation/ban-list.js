@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
-const { createContainerMessage, EMOJIS } = require('../../utils/uiBuilder');
+const { createContainerMessage, MONO_EMOJIS, EMOJIS } = require('../../utils/uiBuilder');
 const { pool } = require('../../db');
 
 module.exports = {
@@ -60,12 +60,14 @@ module.exports = {
                 row.addComponents(
                     new ButtonBuilder()
                         .setCustomId('prev_page')
-                        .setEmoji(EMOJIS.arrow_left)
+                        .setLabel('Önceki')
+                        .setEmoji(MONO_EMOJIS.chevron_left)
                         .setStyle(ButtonStyle.Primary)
                         .setDisabled(page === 0),
                     new ButtonBuilder()
                         .setCustomId('next_page')
-                        .setEmoji(EMOJIS.arrow_right)
+                        .setLabel('Sonraki')
+                        .setEmoji(MONO_EMOJIS.chevron_right)
                         .setStyle(ButtonStyle.Primary)
                         .setDisabled(page === pages - 1)
                 );

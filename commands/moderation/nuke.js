@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ButtonBuilder, ButtonStyle, ActionRowBuilder, ComponentType } = require('discord.js');
-const { createContainerMessage, EMOJIS } = require('../../utils/uiBuilder');
+const { createContainerMessage, MONO_EMOJIS } = require('../../utils/uiBuilder');
 const { sendLog } = require('../../utils/logger');
 
 module.exports = {
@@ -17,13 +17,13 @@ module.exports = {
                 .setCustomId('nuke_yes')
                 .setLabel('Evet')
                 .setStyle(ButtonStyle.Danger)
-                .setEmoji(EMOJIS.check);
+                .setEmoji(MONO_EMOJIS.flame);
 
             const btnNo = new ButtonBuilder()
                 .setCustomId('nuke_no')
                 .setLabel('Hayır')
                 .setStyle(ButtonStyle.Secondary)
-                .setEmoji(EMOJIS.cross);
+                .setEmoji(MONO_EMOJIS.cross);
 
             const actionRow = new ActionRowBuilder().addComponents(btnYes, btnNo);
 
