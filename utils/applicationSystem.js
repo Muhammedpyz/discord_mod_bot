@@ -576,7 +576,7 @@ ${answersText}`;
             if (oldText) {
                 oldText = oldText.replace(
                     `<:mono:${MONO_EMOJIS.info}> **Durum:** İnceleniyor`, 
-                    `<:mono:${MONO_EMOJIS.check}> **Durum:** ✅ ONAYLANDI\n<:mono:${MONO_EMOJIS.user}> **İnceleyen:** <@${interaction.user.id}>`
+                    `<:mono:${MONO_EMOJIS.check}> **Durum:** ONAYLANDI\n<:mono:${MONO_EMOJIS.user}> **İnceleyen:** <@${interaction.user.id}>`
                 );
                 const newPayload = buildModBResponse({ textLines: [oldText], actionRows: [] });
                 await interaction.editReply(newPayload).catch((err)=>{ console.error('app accept err:', err); });
@@ -600,7 +600,7 @@ ${answersText}`;
             if (oldText) {
                 oldText = oldText.replace(
                     `<:mono:${MONO_EMOJIS.info}> **Durum:** İnceleniyor`, 
-                    `<:mono:${MONO_EMOJIS.cross}> **Durum:** ❌ REDDEDİLDİ\n<:mono:${MONO_EMOJIS.user}> **İnceleyen:** <@${interaction.user.id}>\n<:mono:${MONO_EMOJIS.message_circle}> **Sebep:** ${reason}`
+                    `<:mono:${MONO_EMOJIS.cross}> **Durum:** REDDEDİLDİ\n<:mono:${MONO_EMOJIS.user}> **İnceleyen:** <@${interaction.user.id}>\n<:mono:${MONO_EMOJIS.message_circle}> **Sebep:** ${reason}`
                 );
                 const newPayload = buildModBResponse({ textLines: [oldText], actionRows: [] });
                 await interaction.editReply(newPayload).catch((err)=>{ console.error('app reject err:', err); });
