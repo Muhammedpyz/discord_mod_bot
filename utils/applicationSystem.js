@@ -63,13 +63,20 @@ async function renderDashboard(guildId) {
     const description = `## ${eReg} **Yetkili Başvuru Yönetimi**
 Başvuru kanallarını, soruları, inceleme yetkisini ve onay rolünü tek panelden yönet.
 
+───────────────
+
 ${eChan} **Yayın kanalı:** ${txtPub}
 ${eShield} **İnceleme kanalı:** ${txtRev}
 ${eRole} **İnceleyici roller:** ${txtRevRoles}
 ${eRole} **Onay rolü:** ${txtAppr}
 ${eMsg} **Başvuru soruları:** ${qCount} soru
 
--# Önce Kurulum'u tamamla, ardından Yayınla ile kalıcı aday panelini gönder.`;
+───────────────
+
+-# ⚠️ **Önemli Bilgiler & Uyarılar**
+-# • **İnceleme Kanalı:** Sadece yetkililerin görebileceği **gizli (kilitli)** bir kanal olmalıdır. Aksi halde tüm başvurular herkes tarafından okunabilir.
+-# • **Yayın Kanalı:** Üyelerin başvuracağı kanaldır. Sadece okumaya açık, mesaj göndermeye kapalı olmalıdır.
+-# • Önce **Kurulum** ile tüm ayarları tamamlayıp, ardından **Yayınla** butonuna basmalısınız.`;
 
     const isReady = row.publish_channel_id && row.review_channel_id && row.reviewer_roles && row.approve_role_id;
 
@@ -82,7 +89,7 @@ ${eMsg} **Başvuru soruları:** ${qCount} soru
     const row2 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('app_publish').setLabel('Yayınla').setStyle(ButtonStyle.Success).setDisabled(!isReady),
         new ButtonBuilder().setCustomId('app_close').setLabel('Kapat').setStyle(ButtonStyle.Danger).setDisabled(!isReady || !row.is_active),
-        new ButtonBuilder().setCustomId('app_refresh').setLabel('Yenile').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('app_refresh').setLabel('Yenile (Sıfırla)').setStyle(ButtonStyle.Secondary)
     );
 
     return buildModBResponse({ textLines: [description], actionRows: [row1, row2] });
@@ -377,8 +384,8 @@ async function handleApplicationInteraction(interaction, action) {
         if (config.q1) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q1').setLabel(config.q1).setStyle(TextInputStyle.Short).setRequired(true)));
         if (config.q2) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q2').setLabel(config.q2).setStyle(TextInputStyle.Paragraph).setRequired(true)));
         if (config.q3) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q3').setLabel(config.q3).setStyle(TextInputStyle.Paragraph).setRequired(true)));
-        if (config.q4) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q4').setLabel(config.q4).setStyle(TextInputStyle.Paragraph).setRequired(false)));
-        if (config.q5) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q5').setLabel(config.q5).setStyle(TextInputStyle.Paragraph).setRequired(false)));
+        if (config.q4) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q4').setLabel(config.q4).setStyle(TextInputStyle.Paragraph).setRequired(true)));
+        if (config.q5) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q5').setLabel(config.q5).setStyle(TextInputStyle.Paragraph).setRequired(true)));
 
         await interaction.showModal(modal).catch(()=>{});
         return;
