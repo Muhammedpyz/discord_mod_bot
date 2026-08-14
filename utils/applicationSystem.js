@@ -305,11 +305,11 @@ async function handleApplicationInteraction(interaction, action) {
         let qCount = 0;
         for (let i = 1; i <= 5; i++) if (config[`q${i}`]) qCount++;
 
-        const finalPanelText = `## <:register:1535662521766383687> ${titleLine}
+        const finalPanelText = `## <:mono:${MONO_EMOJIS.clipboard}> ${titleLine}
 ${restLines}
 
-<:message:1535662170577182791> **Form ${qCount} sorudan oluşur.**
-<:shield:1535662335320920134> Cevapların yalnızca başvuruları inceleyen yetkililere gösterilir.
+<:mono:${MONO_EMOJIS.message_circle}> **Form ${qCount} sorudan oluşur.**
+<:mono:${MONO_EMOJIS.shield}> Cevapların yalnızca başvuruları inceleyen yetkililere gösterilir.
 -# Tek seferde yalnızca bir bekleyen başvurun olabilir.`;
         
         const row = new ActionRowBuilder().addComponents(
@@ -456,13 +456,13 @@ ${restLines}
             }
         }
 
-        const appBody = `## <:register:1535662521766383687> Yeni Yetkili Başvurusu
-### <:user:1535662025232097504> Aday
+        const appBody = `## <:mono:${MONO_EMOJIS.clipboard}> Yeni Yetkili Başvurusu
+### <:mono:${MONO_EMOJIS.user}> Aday
 > **Etiket:** <@${interaction.user.id}>
 > **Kullanıcı adı:** [${interaction.user.username}](https://discord.com/users/${interaction.user.id})
 > **ID:** \`${interaction.user.id}\`
-<:calendar:1535662194992353342> **Gönderilme:** <t:${now}:f> (<t:${now}:R>)
-<:info:1535661522431250517> **Durum:** İnceleniyor
+<:mono:${MONO_EMOJIS.calendar}> **Gönderilme:** <t:${now}:f> (<t:${now}:R>)
+<:mono:${MONO_EMOJIS.info}> **Durum:** İnceleniyor
 
 ${answersText}`;
 
@@ -519,7 +519,7 @@ ${answersText}`;
             }
             
             if (oldText) {
-                oldText = oldText.replace('<:info:1535661522431250517> **Durum:** İnceleniyor', '<:check:1535661522431250517> **Durum:** ✅ ONAYLANDI');
+                oldText = oldText.replace(`<:mono:${MONO_EMOJIS.info}> **Durum:** İnceleniyor`, `<:mono:${MONO_EMOJIS.check}> **Durum:** ✅ ONAYLANDI`);
                 const newPayload = buildModBResponse({ textLines: [oldText], actionRows: [] });
                 await interaction.editReply(newPayload).catch((err)=>{ console.error('app accept err:', err); });
             } else {
@@ -539,7 +539,7 @@ ${answersText}`;
             }
             
             if (oldText) {
-                oldText = oldText.replace('<:info:1535661522431250517> **Durum:** İnceleniyor', '<:status:1535661522431250517> **Durum:** ❌ REDDEDİLDİ');
+                oldText = oldText.replace(`<:mono:${MONO_EMOJIS.info}> **Durum:** İnceleniyor`, `<:mono:${MONO_EMOJIS.status}> **Durum:** ❌ REDDEDİLDİ`);
                 const newPayload = buildModBResponse({ textLines: [oldText], actionRows: [] });
                 await interaction.editReply(newPayload).catch((err)=>{ console.error('app reject err:', err); });
             } else {
