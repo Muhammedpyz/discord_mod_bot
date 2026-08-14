@@ -194,6 +194,12 @@ module.exports = {
             }
         }
 
+        // YETKİLİ BAŞVURU (APP SYSTEM)
+        if (action.startsWith('app_') || action === 'staff_apply_btn' || action === 'staff_apply_submit') {
+            const { handleApplicationInteraction } = require('../utils/applicationSystem');
+            return handleApplicationInteraction(interaction, action);
+        }
+
         // SORGU NAMESPACE
         if (namespace === 'sorgu') {
             if (action === 'select') {
