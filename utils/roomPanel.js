@@ -25,22 +25,22 @@ function createRoomPanel(owner, channelId) {
         new ButtonBuilder()
             .setCustomId(isLocked ? 'room_unlock' : 'room_lock')
             .setLabel(isLocked ? 'Kilidi Aç' : 'Kilitle')
-            .setEmoji(isLocked ? MONO_EMOJIS.unlock : MONO_EMOJIS.lock)
+            .setEmoji(isLocked ? MONO_EMOJIS.unlock_keyhole : MONO_EMOJIS.lock_keyhole)
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId(isHidden ? 'room_show' : 'room_hide')
             .setLabel(isHidden ? 'Göster' : 'Gizle')
-            .setEmoji(isHidden ? MONO_EMOJIS.check : MONO_EMOJIS.cross)
+            .setEmoji(isHidden ? MONO_EMOJIS.eye : MONO_EMOJIS.eye_off)
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId('room_rename_btn')
             .setLabel('Ad')
-            .setEmoji(MONO_EMOJIS.settings)
+            .setEmoji(MONO_EMOJIS.edit_2)
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId('room_limit_btn')
             .setLabel('Limit')
-            .setEmoji(MONO_EMOJIS.add)
+            .setEmoji(MONO_EMOJIS.users)
             .setStyle(ButtonStyle.Secondary)
     );
 
@@ -49,17 +49,17 @@ function createRoomPanel(owner, channelId) {
         new ButtonBuilder()
             .setCustomId('room_manage_users_btn')
             .setLabel('Üyeler')
-            .setEmoji(MONO_EMOJIS.invite)
+            .setEmoji(MONO_EMOJIS.user_round_plus)
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
             .setCustomId('room_whitelist_btn')
             .setLabel('B. Liste')
-            .setEmoji(MONO_EMOJIS.shield)
+            .setEmoji(MONO_EMOJIS.shield_check)
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
             .setCustomId(isStreamAllowed ? 'room_stream_disable' : 'room_stream_enable')
             .setLabel('Yayın')
-            .setEmoji(MONO_EMOJIS.twitch)
+            .setEmoji(MONO_EMOJIS.video)
             .setStyle(isStreamAllowed ? ButtonStyle.Success : ButtonStyle.Danger),
         new ButtonBuilder()
             .setCustomId('room_delete')

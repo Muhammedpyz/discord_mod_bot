@@ -129,12 +129,12 @@ async function sendVoiceLog(client, guildId, actionName, description, executor, 
 
         const { createV2Container, COLORS, MONO_EMOJIS } = require('./uiBuilder');
         
-        let emojiId = MONO_EMOJIS.settings;
-        if (actionName.toLowerCase().includes('katil') || actionName.toLowerCase().includes('girdi')) emojiId = MONO_EMOJIS.arrow_right;
-        if (actionName.toLowerCase().includes('ayril') || actionName.toLowerCase().includes('cikti')) emojiId = MONO_EMOJIS.arrow_left;
-        if (actionName.toLowerCase().includes('kurdu')) emojiId = MONO_EMOJIS.add;
+        let emojiId = MONO_EMOJIS.sliders;
+        if (actionName.toLowerCase().includes('katil') || actionName.toLowerCase().includes('girdi')) emojiId = MONO_EMOJIS.log_in;
+        if (actionName.toLowerCase().includes('ayril') || actionName.toLowerCase().includes('cikti')) emojiId = MONO_EMOJIS.log_out;
+        if (actionName.toLowerCase().includes('kurdu')) emojiId = MONO_EMOJIS.plus;
         if (actionName.toLowerCase().includes('sildi')) emojiId = MONO_EMOJIS.delete;
-        if (actionName.toLowerCase().includes('kilit')) emojiId = MONO_EMOJIS.lock;
+        if (actionName.toLowerCase().includes('kilit')) emojiId = MONO_EMOJIS.lock_keyhole;
 
         const payload = createV2Container({
             title: 'Ses Hareketi & Özel Oda Log',

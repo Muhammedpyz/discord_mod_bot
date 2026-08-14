@@ -147,8 +147,8 @@ async function createTicket(interaction, reason, category = 'Diğer') {
 
         const { MONO_EMOJIS } = require('./uiBuilder');
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`ticket:close:${ticketChannel.id}`).setLabel('Talebi Kapat').setStyle(ButtonStyle.Danger).setEmoji(MONO_EMOJIS.lock),
-            new ButtonBuilder().setCustomId(`ticket:claim:${ticketChannel.id}`).setLabel('Talebi Üstlen').setStyle(ButtonStyle.Success).setEmoji(MONO_EMOJIS.shield)
+            new ButtonBuilder().setCustomId(`ticket:close:${ticketChannel.id}`).setLabel('Talebi Kapat').setStyle(ButtonStyle.Danger).setEmoji(MONO_EMOJIS.lock_keyhole),
+            new ButtonBuilder().setCustomId(`ticket:claim:${ticketChannel.id}`).setLabel('Talebi Üstlen').setStyle(ButtonStyle.Success).setEmoji(MONO_EMOJIS.user_check)
         );
 
         const payload = createV2Container({
@@ -658,8 +658,8 @@ async function claimTicketChannel(interaction) {
 
         const { MONO_EMOJIS, createV2Container } = require('./uiBuilder');
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`ticket:close:${interaction.channel.id}`).setLabel('Talebi Kapat').setStyle(ButtonStyle.Danger).setEmoji(MONO_EMOJIS.lock),
-            new ButtonBuilder().setCustomId(`ticket:claim_disabled`).setLabel(`Üstlenen: ${interaction.user.username}`).setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.check).setDisabled(true)
+            new ButtonBuilder().setCustomId(`ticket:close:${interaction.channel.id}`).setLabel('Talebi Kapat').setStyle(ButtonStyle.Danger).setEmoji(MONO_EMOJIS.lock_keyhole),
+            new ButtonBuilder().setCustomId(`ticket:claim_disabled`).setLabel(`Üstlenen: ${interaction.user.username}`).setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.user_check).setDisabled(true)
         );
         
         if (tData) {

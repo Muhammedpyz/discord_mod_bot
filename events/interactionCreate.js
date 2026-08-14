@@ -429,7 +429,7 @@ module.exports = {
             const getHelpPayload = (title, lines, fields, selected) => {
                 const desc = lines.join('\n\n');
                 const formattedFields = fields.map(f => ({
-                    name: `<:mono:${MONO_EMOJIS.pin}> ${f.name}`,
+                    name: `<:mono:${MONO_EMOJIS.chevron_right}> ${f.name}`,
                     value: f.value,
                     inline: false
                 }));
@@ -441,7 +441,7 @@ module.exports = {
             if (val === 'help_punish') {
                 return interaction.editReply(getHelpPayload(
                     'Ceza İşlemleri', 
-                    [`<:mono:${MONO_EMOJIS.shield}> Kuralları ihlal eden kullanıcılara uygulanacak doğrudan ceza komutları:`], 
+                    [`<:mono:${MONO_EMOJIS.hammer}> Kuralları ihlal eden kullanıcılara uygulanacak doğrudan ceza komutları:`], 
                     [
                         { name: 'Sunucudan Yasaklama', value: `\`\`\`/yasakla [kullanıcı] [sebep]\`\`\`Kullanıcıyı sunucudan tamamen yasaklar. İsteğe bağlı sebep belirtilebilir.\n\`\`\`/unban [kullanıcı]\`\`\`Yasaklı kullanıcının cezasını kaldırır.` },
                         { name: 'Sunucudan Atma', value: `\`\`\`/at [kullanıcı] [sebep]\`\`\`Kullanıcıyı sunucudan uzaklaştırır, ancak tekrar katılabilir.` },
@@ -455,7 +455,7 @@ module.exports = {
             if (val === 'help_stats') {
                 return interaction.editReply(getHelpPayload(
                     'Kullanıcı & Sicil Yönetimi', 
-                    [`<:mono:${MONO_EMOJIS.ticket}> Kullanıcıların istatistik, uyarı ve geçmiş sicil durumlarını yöneten sistemler:`], 
+                    [`<:mono:${MONO_EMOJIS.clipboard_list}> Kullanıcıların istatistik, uyarı ve geçmiş sicil durumlarını yöneten sistemler:`], 
                     [
                         { name: 'Kapsamlı Sorgu', value: `\`\`\`/sorgu [kullanıcı]\`\`\`Kullanıcının hesap yaşı, davetleri, uyarıları ve mod notlarını tek panelde listeler.` },
                         { name: 'Uyarı Sistemi', value: `\`\`\`/uyar [kullanıcı] [sebep]\`\`\`Kullanıcıya resmi uyarı verir (3 uyarıda otomatik işlem yapılabilir).\n\`\`\`/uyarılar [kullanıcı]\`\`\`Aktif ve geçmiş uyarıları listeler.\n\`\`\`/uyarı-temizle [kullanıcı]\`\`\`Tüm uyarılarını sıfırlar.` },
@@ -468,7 +468,7 @@ module.exports = {
             if (val === 'help_channel') {
                 return interaction.editReply(getHelpPayload(
                     'Kanal Yönetimi', 
-                    [`<:mono:${MONO_EMOJIS.crown}> Odalar üzerinde toplu işlem, temizlik ve güvenlik sağlayan sistemler:`], 
+                    [`<:mono:${MONO_EMOJIS.layout_grid}> Odalar üzerinde toplu işlem, temizlik ve güvenlik sağlayan sistemler:`], 
                     [
                         { name: 'Mesaj Temizliği', value: `\`\`\`/temizle [sayı(1-100)]\`\`\`Kanaldaki son mesajları toplu şekilde siler.` },
                         { name: 'Kanal Kilidi', value: `\`\`\`/kilit [durum: Aç / Kapat]\`\`\`Bulunulan kanalı üyelerin mesaj yazmasına kapatır veya açar.` },
@@ -482,7 +482,7 @@ module.exports = {
             if (val === 'help_system') {
                 return interaction.editReply(getHelpPayload(
                     'Sistem Yapılandırma', 
-                    [`<:mono:${MONO_EMOJIS.settings}> Sunucunun kalbini (ayarları) yönettiğiniz ana modüller:`], 
+                    [`<:mono:${MONO_EMOJIS.sliders}> Sunucunun kalbini (ayarları) yönettiğiniz ana modüller:`], 
                     [
                         { name: 'Gelişmiş Kontrol Paneli', value: `\`\`\`/ayarlar\`\`\`Sunucu log kanalları, ticket kurulumu ve sistemlerin aktif/pasif durumlarını yönetebileceğiniz görsel arayüz.` },
                         { name: 'Filtre Yönetimi', value: `\`\`\`/kara-liste\`\`\`Otomatik kelime engelleyiciye yasaklı kelime ekler/çıkarır.` },
@@ -495,7 +495,7 @@ module.exports = {
             if (val === 'help_security') {
                 return interaction.editReply(getHelpPayload(
                     'Otomatik Korumalar (7/24 Aktif)', 
-                    [`<:mono:${MONO_EMOJIS.lock}> Komut gerektirmeyen, arka planda çalışan ve sizi koruyan sistemler (Tümü /ayarlar içinden açılıp kapatılabilir):`], 
+                    [`<:mono:${MONO_EMOJIS.shield_check}> Komut gerektirmeyen, arka planda çalışan ve sizi koruyan sistemler (Tümü /ayarlar içinden açılıp kapatılabilir):`], 
                     [
                         { name: 'Anti-Spam & Mass Mention', value: `Kullanıcı saniyede birden fazla mesaj atarsa veya tek mesajda 5'ten fazla kişiyi etiketlerse, otomatik uyarılıp 5 dakika susturulur.` },
                         { name: 'Anti-Link & Reklam (Gelişmiş)', value: `Sunucu içi veya özel DM reklamlarını, Discord davet linklerini ve zararlı siteleri anında tespit edip siler.` },

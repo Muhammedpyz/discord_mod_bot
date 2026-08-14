@@ -414,7 +414,7 @@ async function handleSorguSelect(interaction, value, targetId) {
 
                 const finalWarns = totalWarnsGiven;
 
-                staffDesc = `**<:mono:${MONO_EMOJIS.crown}> Moderasyon Özeti:**\n`;
+                staffDesc = `**<:mono:${MONO_EMOJIS.user_cog}> Moderasyon Özeti:**\n`;
                 staffDesc += `└ Toplam İşlem: **${finalWarns + totalDels + totalTicketsClosed + totalBans + totalKicks + totalTimeouts + totalRoles}**\n`;
                 staffDesc += `└ Atılan Uyarı: **${finalWarns}** *(Komut: ${finalWarns - manualWarns}, Manuel: ${manualWarns})*\n`;
                 staffDesc += `└ Kapatılan Bilet: **${totalTicketsClosed}**\n`;
@@ -424,13 +424,13 @@ async function handleSorguSelect(interaction, value, targetId) {
             }
 
             const fieldsArr = [
-                { name: `<:mono:${MONO_EMOJIS.shield}> Roller`, value: (roles.length > 200 ? roles.substring(0, 200) + '...' : roles) },
-                { name: `<:mono:${MONO_EMOJIS.invite}> Davet İstatistikleri (Korumalı)`, value: `**Davet Eden:** ${invitedByText}\n**Gerçek:** **${realInvites}** | **Sahte:** **${fakeInvites}** | **Ayrılan:** **${leaveInvites}** | **Net:** **${realInvites}**` },
-                { name: `<:mono:${MONO_EMOJIS.warning}> Ceza Istatistikleri`, value: `Aktif Uyarı: **${Number(warnRows[0]?.cnt || 0)}** | Toplam Uyarı: **${Number(totalWarnRows[0]?.cnt || 0)}**\nToplam Susturma: **${Number(muteRows[0]?.cnt || 0)}** | Toplam Ticket: **${Number(ticketRows[0]?.cnt || 0)}**` }
+                { name: `<:mono:${MONO_EMOJIS.tags}> Roller`, value: (roles.length > 200 ? roles.substring(0, 200) + '...' : roles) },
+                { name: `<:mono:${MONO_EMOJIS.users}> Davet İstatistikleri (Korumalı)`, value: `**Davet Eden:** ${invitedByText}\n**Gerçek:** **${realInvites}** | **Sahte:** **${fakeInvites}** | **Ayrılan:** **${leaveInvites}** | **Net:** **${realInvites}**` },
+                { name: `<:mono:${MONO_EMOJIS.alert_octagon}> Ceza Istatistikleri`, value: `Aktif Uyarı: **${Number(warnRows[0]?.cnt || 0)}** | Toplam Uyarı: **${Number(totalWarnRows[0]?.cnt || 0)}**\nToplam Susturma: **${Number(muteRows[0]?.cnt || 0)}** | Toplam Ticket: **${Number(ticketRows[0]?.cnt || 0)}**` }
             ];
 
             if (isStaff && staffDesc) {
-                fieldsArr.push({ name: `<:mono:${MONO_EMOJIS.settings}> Yetkili Geçmişi (Sicil)`, value: staffDesc });
+                fieldsArr.push({ name: `<:mono:${MONO_EMOJIS.history}> Yetkili Geçmişi (Sicil)`, value: staffDesc });
             }
 
             const payload = createContainerMessage(
