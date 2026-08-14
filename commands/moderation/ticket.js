@@ -1,5 +1,5 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const { renderTicketDashboard } = require('../../utils/ticketSystem');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { renderTicketAdminMenu } = require('../../utils/ticketSystem');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -8,9 +8,9 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
-        await interaction.deferReply();
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         try {
-            const dashboard = await renderTicketDashboard(interaction.guild.id);
+            const dashboard = await renderTicketAdminMenu(interaction.guild.id);
             if (!dashboard) {
                 await interaction.editReply({ content: 'Sistem başlatılırken bir hata oluştu.' });
                 return;
