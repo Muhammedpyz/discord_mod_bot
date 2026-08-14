@@ -174,6 +174,25 @@ module.exports = {
                 await interaction.message.delete().catch(() => {});
             }
         }
+        
+        // ISTATISTIK REFRESH
+        if (action === 'istatistik_refresh') {
+            try { await interaction.deferUpdate(); } catch (e) { return; }
+            const { generateStatsText } = require('../commands/moderation/istatistik');
+            const { buildModBResponse, MONO_EMOJIS } = require('../utils/uiBuilder');
+            try {
+                const text = await generateStatsText(interaction.client, interaction);
+                const refreshBtn = new ButtonBuilder()
+                    .setCustomId('istatistik_refresh')
+                    .setLabel('Sayfayı Yenile')
+                    .setEmoji(MONO_EMOJIS.status)
+                    .setStyle(ButtonStyle.Secondary);
+                const row = new ActionRowBuilder().addComponents(refreshBtn);
+                await interaction.editReply(buildModBResponse({ textLines: [text], actionRows: [row] })).catch(() => {});
+            } catch (err) {
+                console.error(err);
+            }
+        }
 
         // SORGU NAMESPACE
         if (namespace === 'sorgu') {
