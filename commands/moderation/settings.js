@@ -71,7 +71,7 @@ async function getSettingsPage(guildId, pageName) {
 
             const buttonRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('toggle_anti_spam').setLabel('Anti-Spam').setEmoji(MONO_EMOJIS.shield).setStyle(config.anti_spam_enabled ? ButtonStyle.Success : ButtonStyle.Danger),
-                new ButtonBuilder().setCustomId('toggle_anti_link').setLabel('Anti-Link').setEmoji(MONO_EMOJIS.link).setStyle(config.anti_link_enabled ? ButtonStyle.Success : ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId('toggle_anti_link').setLabel('Anti-Link').setEmoji(MONO_EMOJIS.link_2).setStyle(config.anti_link_enabled ? ButtonStyle.Success : ButtonStyle.Danger),
                 new ButtonBuilder().setCustomId('toggle_anti_swear').setLabel('Anti-Küfür').setEmoji(MONO_EMOJIS.message_circle_off).setStyle(config.anti_swear_enabled ? ButtonStyle.Success : ButtonStyle.Danger),
                 new ButtonBuilder().setCustomId('toggle_caps').setLabel('Caps Engel').setEmoji(MONO_EMOJIS.type).setStyle(config.caps_filter_enabled ? ButtonStyle.Success : ButtonStyle.Danger),
                 new ButtonBuilder().setCustomId('toggle_anti_raid').setLabel('Anti-Raid').setEmoji(MONO_EMOJIS.swords).setStyle(config.anti_raid_enabled ? ButtonStyle.Success : ButtonStyle.Danger)

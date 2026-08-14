@@ -22,14 +22,14 @@ async function getStatsPage(interaction, pageName, conn) {
     const client = interaction.client;
 
     const eArr = `<:mono:${MONO_EMOJIS.chevron_right}>`;
-    const eStat = `<:mono:${MONO_EMOJIS.gauge_circle}>`;
+    const eStat = `<:mono:${MONO_EMOJIS.cpu}>`;
     const eCrown = `<:mono:${MONO_EMOJIS.award}>`;
-    const eSet = `<:mono:${MONO_EMOJIS.sliders}>`;
+    const eSet = `<:mono:${MONO_EMOJIS.code}>`;
     const eShield = `<:mono:${MONO_EMOJIS.shield_check}>`;
-    const eTicket = `<:mono:${MONO_EMOJIS.receipt}>`;
+    const eTicket = `<:mono:${MONO_EMOJIS.terminal}>`;
     const eInvite = `<:mono:${MONO_EMOJIS.users}>`;
-    const eDb = `<:mono:${MONO_EMOJIS.database}>`;
-    const ePin = `<:mono:${MONO_EMOJIS.map_pin}>`;
+    const eDb = `<:mono:${MONO_EMOJIS.hard_drive}>`;
+    const ePin = `<:mono:${MONO_EMOJIS.server}>`;
     const eAnnounce = `<:mono:${MONO_EMOJIS.bell_ring}>`;
 
     const menuRow = new ActionRowBuilder().addComponents(
