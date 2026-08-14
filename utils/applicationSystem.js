@@ -466,7 +466,9 @@ ${restLines}
                 try {
                     const ans = interaction.fields.getTextInputValue(`q${i}`);
                     if (ans) {
-                        const formattedAns = ans.split('\n').map(line => `> ${line}`).join('\n');
+                        let formattedAns = ans;
+                        if (formattedAns.length > 800) formattedAns = formattedAns.substring(0, 797) + '...';
+                        formattedAns = formattedAns.split('\n').map(line => `> ${line}`).join('\n');
                         answersText += `### ${i}. ${config[`q${i}`]}\n${formattedAns}\n\n`;
                     }
                 } catch(e) {}
@@ -483,8 +485,11 @@ ${restLines}
 
 ${answersText}`;
 
+        let finalLines = [pingRolesText + appBody];
+        if (finalLines[0].length > 4000) finalLines[0] = finalLines[0].substring(0, 3997) + '...';
+
         const payload = buildModBResponse({
-            textLines: [pingRolesText + appBody],
+            textLines: finalLines,
             actionRows: [
                 new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId(`app_accept_${interaction.user.id}`).setLabel('Kabul Et').setStyle(ButtonStyle.Success),
@@ -493,7 +498,15 @@ ${answersText}`;
             ]
         });
         
-        await revChan.send(payload).catch((err)=>{ console.error('app submit send err:', err); });
+        let sentMsg = null;
+        try {
+            sentMsg = await revChan.send(payload);
+        } catch (err) {
+            console.error('app submit send err:', err);
+            await interaction.followUp({ content: `Sistem hatası: Başvuru inceleme kanalına gönderilemedi!\nSebep: \`${err.message || err}\`\nLütfen yetkililere bildirin (kanal yetkileri eksik olabilir).`, ephemeral: true }).catch(()=>{});
+            return;
+        }
+        
         await interaction.editReply({ content: 'Başvurunuz başarıyla yetkililere iletildi. Sonuçlandığında size bilgi verilecektir.' }).catch(()=>{});
         return;
     }
