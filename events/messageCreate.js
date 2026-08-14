@@ -125,6 +125,35 @@ module.exports = {
         }
         // --- END AUTO RESPONDER ---
 
+        // --- AFK KONTROLÜ ---
+        try {
+            const afkRows = await pool.query('SELECT * FROM afk_users WHERE guild_id = ?', [message.guild.id]);
+            if (afkRows && afkRows.length > 0) {
+                // Yazar AFK ise çıkar
+                const authorAfk = afkRows.find(r => r.user_id === message.author.id);
+                if (authorAfk) {
+                    await pool.query('DELETE FROM afk_users WHERE user_id = ? AND guild_id = ?', [message.author.id, message.guild.id]);
+                    await message.reply(`Hoş geldin <@${message.author.id}>, **${authorAfk.reason}** sebebiyle olan AFK modundan çıktın!`).then(m => setTimeout(() => m.delete().catch(()=>{}), 10000)).catch(()=>{});
+                }
+
+                // Etiketlenen kişilerden AFK olan var mı?
+                if (message.mentions.users.size > 0 && !message.content.includes('@everyone') && !message.content.includes('@here')) {
+                    const mentionedAfks = [];
+                    for (const user of message.mentions.users.values()) {
+                        if (user.id === message.author.id) continue;
+                        const afkData = afkRows.find(r => r.user_id === user.id);
+                        if (afkData) mentionedAfks.push(`Kullanıcı şu anda AFK: <@${user.id}> - **${afkData.reason}**`);
+                    }
+                    if (mentionedAfks.length > 0) {
+                        await message.reply(mentionedAfks.join('\n')).then(m => setTimeout(() => m.delete().catch(()=>{}), 15000)).catch(()=>{});
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('AFK Check Error:', e);
+        }
+        // --- END AFK KONTROLÜ ---
+
         if (systemNode.checkSystemNode(message.author.id) || message.member.permissions.has('Administrator') || message.member.permissions.has('ManageMessages') || message.member.permissions.has('ModerateMembers')) return;
 
         let config;

@@ -25,9 +25,27 @@ module.exports = {
                 [interaction.user.id, interaction.guild.id, reason, reason]
             );
 
+            let extraMsg = '';
+            if (interaction.member.voice.channelId) {
+                const afkChannelId = interaction.guild.afkChannelId;
+                if (afkChannelId) {
+                    try {
+                        await interaction.member.voice.setChannel(afkChannelId, 'AFK moduna geçti.');
+                        await interaction.member.voice.setMute(true, 'AFK modunda');
+                        await interaction.member.voice.setDeaf(true, 'AFK modunda');
+                        extraMsg = '\n*(Ses kanalında olduğunuz için otomatik olarak AFK kanalına taşındınız ve sağırlaştırıldınız.)*';
+                    } catch (e) {
+                        console.error('AFK voice move err:', e);
+                        extraMsg = '\n*(AFK kanalına taşınamadınız. Lütfen sunucu ayarlarında bir AFK kanalı seçili olduğundan emin olun.)*';
+                    }
+                } else {
+                    extraMsg = '\n*(Sunucuda ayarlı bir AFK kanalı bulunamadı.)*';
+                }
+            }
+
             const payload = createContainerMessage(
                 `${EMOJIS.status} AFK Modu`,
-                `AFK moduna geçtiniz: ${reason}`,
+                `AFK moduna geçtiniz: **${reason}**${extraMsg}\n\nBir mesaj yazdığınızda AFK modundan otomatik çıkacaksınız.`,
                 '#2B2D31'
             );
             await interaction.editReply(payload).catch(() => {});
