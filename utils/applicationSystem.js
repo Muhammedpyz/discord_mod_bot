@@ -297,7 +297,20 @@ async function handleApplicationInteraction(interaction, action) {
             return;
         }
 
-        const panelText = config.panel_text || 'Sunucumuzda yetkili olmak istiyorsanız aşağıdaki butona tıklayarak başvuru yapabilirsiniz.';
+        const panelText = config.panel_text || 'Yetkili Başvurusu\nSunucumuzda yetkili olmak istiyorsanız aşağıdaki butona tıklayarak başvuru yapabilirsiniz.';
+        const lines = panelText.split('\n');
+        const titleLine = lines[0];
+        const restLines = lines.slice(1).join('\n');
+
+        let qCount = 0;
+        for (let i = 1; i <= 5; i++) if (config[`q${i}`]) qCount++;
+
+        const finalPanelText = `## <:register:1535662521766383687> ${titleLine}
+${restLines}
+
+<:message:1535662170577182791> **Form ${qCount} sorudan oluşur.**
+<:shield:1535662335320920134> Cevapların yalnızca başvuruları inceleyen yetkililere gösterilir.
+-# Tek seferde yalnızca bir bekleyen başvurun olabilir.`;
         
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -308,7 +321,7 @@ async function handleApplicationInteraction(interaction, action) {
         );
 
         const pubPayload = buildModBResponse({
-            textLines: [panelText],
+            textLines: [finalPanelText],
             actionRows: [row]
         });
 
@@ -420,16 +433,6 @@ async function handleApplicationInteraction(interaction, action) {
         const revChan = await interaction.guild.channels.fetch(config.review_channel_id).catch(()=>null);
         if (!revChan) return interaction.editReply({ content: 'Sistem hatası: İnceleme kanalı geçersiz.' }).catch(()=>{});
 
-        let answers = [];
-        for (let i = 1; i <= 5; i++) {
-            if (config[`q${i}`]) {
-                try {
-                    const ans = interaction.fields.getTextInputValue(`q${i}`);
-                    if (ans) answers.push({ name: `${i}. ${config[`q${i}`]}`, value: ans });
-                } catch(e) {}
-            }
-        }
-
         let pingRolesText = '';
         if (config.reviewer_roles) {
             try {
@@ -438,20 +441,40 @@ async function handleApplicationInteraction(interaction, action) {
             } catch(e) {}
         }
 
-        const eTicket = `<:mono:${MONO_EMOJIS.ticket}>`;
-        const payload = createContainerMessage(
-            `${eTicket} Yeni Yetkili Başvurusu`,
-            `${pingRolesText}<@${interaction.user.id}> adlı kullanıcı başvuru formunu doldurdu. Lütfen aşağıdaki bilgileri inceleyin.`,
-            '#2B2D31',
-            [
+        const now = Math.floor(Date.now() / 1000);
+        
+        let answersText = '';
+        for (let i = 1; i <= 5; i++) {
+            if (config[`q${i}`]) {
+                try {
+                    const ans = interaction.fields.getTextInputValue(`q${i}`);
+                    if (ans) {
+                        const formattedAns = ans.split('\n').map(line => `> ${line}`).join('\n');
+                        answersText += `### ${i}. ${config[`q${i}`]}\n${formattedAns}\n\n`;
+                    }
+                } catch(e) {}
+            }
+        }
+
+        const appBody = `## <:register:1535662521766383687> Yeni Yetkili Başvurusu
+### <:user:1535662025232097504> Aday
+> **Etiket:** <@${interaction.user.id}>
+> **Kullanıcı adı:** [${interaction.user.username}](https://discord.com/users/${interaction.user.id})
+> **ID:** \`${interaction.user.id}\`
+<:calendar:1535662194992353342> **Gönderilme:** <t:${now}:f> (<t:${now}:R>)
+<:info:1535661522431250517> **Durum:** İnceleniyor
+
+${answersText}`;
+
+        const payload = buildModBResponse({
+            textLines: [pingRolesText + appBody],
+            actionRows: [
                 new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId(`app_accept_${interaction.user.id}`).setLabel('Kabul Et').setStyle(ButtonStyle.Success),
                     new ButtonBuilder().setCustomId(`app_reject_${interaction.user.id}`).setLabel('Reddet').setStyle(ButtonStyle.Danger)
                 )
-            ],
-            answers,
-            false
-        );
+            ]
+        });
         
         await revChan.send(payload).catch((err)=>{ console.error('app submit send err:', err); });
         await interaction.editReply({ content: 'Başvurunuz başarıyla yetkililere iletildi. Sonuçlandığında size bilgi verilecektir.' }).catch(()=>{});
@@ -486,24 +509,42 @@ async function handleApplicationInteraction(interaction, action) {
             }
             if (member) member.send('Tebrikler! Sunucumuzdaki yetkili başvurunuz **onaylandı** ve yetkiniz verildi.').catch(()=>{});
             
-            const eCheck = `<:mono:${MONO_EMOJIS.check}>`;
-            const payload = createContainerMessage(
-                `${eCheck} Başvuru Onaylandı`,
-                `<@${targetId}> adlı kullanıcının başvurusu <@${interaction.user.id}> tarafından **onaylandı**.\nKullanıcıya gerekli rol verildi.`,
-                '#55FF55'
-            );
-            await interaction.editReply(payload).catch((err)=>{ console.error('app accept err:', err); });
+            const msg = interaction.message;
+            let oldText = '';
+            if (msg && msg.components && msg.components[0] && msg.components[0].components) {
+                const textComp = msg.components[0].components.find(c => c.type === 10);
+                if (textComp && textComp.content) oldText = textComp.content;
+            } else if (msg && msg.content) {
+                oldText = msg.content;
+            }
+            
+            if (oldText) {
+                oldText = oldText.replace('<:info:1535661522431250517> **Durum:** İnceleniyor', '<:check:1535661522431250517> **Durum:** ✅ ONAYLANDI');
+                const newPayload = buildModBResponse({ textLines: [oldText], actionRows: [] });
+                await interaction.editReply(newPayload).catch((err)=>{ console.error('app accept err:', err); });
+            } else {
+                await interaction.editReply({ content: 'Başvuru onaylandı.', components: [] }).catch(()=>{});
+            }
         } else {
             const member = await interaction.guild.members.fetch(targetId).catch(()=>null);
             if (member) member.send('Maalesef sunucumuzdaki yetkili başvurunuz **reddedildi**.').catch(()=>{});
             
-            const eErr = `<:mono:${MONO_EMOJIS.status}>`;
-            const payload = createContainerMessage(
-                `${eErr} Başvuru Reddedildi`,
-                `<@${targetId}> adlı kullanıcının başvurusu <@${interaction.user.id}> tarafından **reddedildi**.`,
-                '#FF5555'
-            );
-            await interaction.editReply(payload).catch((err)=>{ console.error('app reject err:', err); });
+            const msg = interaction.message;
+            let oldText = '';
+            if (msg && msg.components && msg.components[0] && msg.components[0].components) {
+                const textComp = msg.components[0].components.find(c => c.type === 10);
+                if (textComp && textComp.content) oldText = textComp.content;
+            } else if (msg && msg.content) {
+                oldText = msg.content;
+            }
+            
+            if (oldText) {
+                oldText = oldText.replace('<:info:1535661522431250517> **Durum:** İnceleniyor', '<:status:1535661522431250517> **Durum:** ❌ REDDEDİLDİ');
+                const newPayload = buildModBResponse({ textLines: [oldText], actionRows: [] });
+                await interaction.editReply(newPayload).catch((err)=>{ console.error('app reject err:', err); });
+            } else {
+                await interaction.editReply({ content: 'Başvuru reddedildi.', components: [] }).catch(()=>{});
+            }
         }
         return;
     }
