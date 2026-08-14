@@ -76,7 +76,7 @@ async function renderDashboard(guildId) {
     const description = `## ${eReg} **Yetkili Başvuru Yönetimi**
 Başvuru kanallarını, soruları, inceleme yetkisini ve onay rolünü tek panelden yönet.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---SEPARATOR---
 
 ${eChan} **Yayın kanalı:** ${txtPub}
 ${eShield} **İnceleme kanalı:** ${txtRev}
@@ -308,7 +308,7 @@ async function handleApplicationInteraction(interaction, action) {
         const finalPanelText = `## <:mono:${MONO_EMOJIS.clipboard}> ${titleLine}
 ${restLines}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---SEPARATOR---
 
 <:mono:${MONO_EMOJIS.message_circle}> **Form ${qCount} sorudan oluşur.**
 <:mono:${MONO_EMOJIS.shield}> Cevapların yalnızca başvuruları inceleyen yetkililere gösterilir.

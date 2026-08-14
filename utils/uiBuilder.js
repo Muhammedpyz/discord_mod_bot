@@ -557,8 +557,15 @@ function buildModBResponse({ title, textLines = [], fields = [], actionRows = []
 
     if (textLines && textLines.length > 0) {
         const fullText = textLines.join('\n');
-        if (fullText.trim()) {
-            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(fullText.trim()));
+        const sections = fullText.split('---SEPARATOR---');
+        const { SeparatorBuilder } = require('discord.js');
+        for (let i = 0; i < sections.length; i++) {
+            if (sections[i].trim()) {
+                container.addTextDisplayComponents(new TextDisplayBuilder().setContent(sections[i].trim()));
+            }
+            if (i < sections.length - 1) {
+                container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+            }
         }
     }
 
