@@ -512,9 +512,15 @@ ${answersText}`;
     }
 
     // BAŞVURU KABUL/RED (YETKİLİ)
-    if (action.startsWith('app_accept_') || action.startsWith('app_reject_')) {
-        const targetId = action.split('_')[2];
+    if (action.startsWith('app_accept_') || action.startsWith('app_reject_') || action.startsWith('app_rej_sub_')) {
+        let targetId = '';
+        if (action.startsWith('app_accept_')) targetId = action.split('_')[2];
+        else if (action.startsWith('app_reject_')) targetId = action.split('_')[2];
+        else if (action.startsWith('app_rej_sub_')) targetId = action.split('_')[3];
+
         const isAccept = action.startsWith('app_accept_');
+        const isRejectBtn = action.startsWith('app_reject_');
+        const isRejectSubmit = action.startsWith('app_rej_sub_');
         
         const config = await getAppConfig(guildId);
         if (!config) return interaction.reply({ content: 'Ayar bulunamadı.', ephemeral: true }).catch(()=>{});
@@ -530,7 +536,26 @@ ${answersText}`;
         
         if (!hasPerm) return interaction.reply({ content: 'Bu başvuruyu inceleme yetkiniz yok.', ephemeral: true }).catch(()=>{});
         
-        try { await interaction.deferUpdate(); } catch(e){ return; }
+        if (isRejectBtn) {
+            const modal = new ModalBuilder()
+                .setCustomId(`app_rej_sub_${targetId}`)
+                .setTitle('Başvuruyu Reddet');
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId('reason')
+                        .setLabel('Reddetme Sebebi (Kullanıcıya iletilecek)')
+                        .setStyle(TextInputStyle.Paragraph)
+                        .setRequired(true)
+                        .setMaxLength(1000)
+                )
+            );
+            return interaction.showModal(modal).catch(()=>{});
+        }
+
+        try { 
+            if (!interaction.deferred && !interaction.replied) await interaction.deferUpdate(); 
+        } catch(e){ return; }
 
         if (isAccept) {
             const member = await interaction.guild.members.fetch(targetId).catch(()=>null);
@@ -549,15 +574,19 @@ ${answersText}`;
             }
             
             if (oldText) {
-                oldText = oldText.replace(`<:mono:${MONO_EMOJIS.info}> **Durum:** İnceleniyor`, `<:mono:${MONO_EMOJIS.check}> **Durum:** ✅ ONAYLANDI`);
+                oldText = oldText.replace(
+                    `<:mono:${MONO_EMOJIS.info}> **Durum:** İnceleniyor`, 
+                    `<:mono:${MONO_EMOJIS.check}> **Durum:** ✅ ONAYLANDI\n<:mono:${MONO_EMOJIS.user}> **İnceleyen:** <@${interaction.user.id}>`
+                );
                 const newPayload = buildModBResponse({ textLines: [oldText], actionRows: [] });
                 await interaction.editReply(newPayload).catch((err)=>{ console.error('app accept err:', err); });
             } else {
                 await interaction.editReply({ content: 'Başvuru onaylandı.', components: [] }).catch(()=>{});
             }
-        } else {
+        } else if (isRejectSubmit) {
+            const reason = interaction.fields.getTextInputValue('reason');
             const member = await interaction.guild.members.fetch(targetId).catch(()=>null);
-            if (member) member.send('Maalesef sunucumuzdaki yetkili başvurunuz **reddedildi**.').catch(()=>{});
+            if (member) member.send(`Maalesef sunucumuzdaki yetkili başvurunuz **reddedildi**.\n**Sebep:** ${reason}`).catch(()=>{});
             
             const msg = interaction.message;
             let oldText = '';
@@ -569,7 +598,10 @@ ${answersText}`;
             }
             
             if (oldText) {
-                oldText = oldText.replace(`<:mono:${MONO_EMOJIS.info}> **Durum:** İnceleniyor`, `<:mono:${MONO_EMOJIS.status}> **Durum:** ❌ REDDEDİLDİ`);
+                oldText = oldText.replace(
+                    `<:mono:${MONO_EMOJIS.info}> **Durum:** İnceleniyor`, 
+                    `<:mono:${MONO_EMOJIS.cross}> **Durum:** ❌ REDDEDİLDİ\n<:mono:${MONO_EMOJIS.user}> **İnceleyen:** <@${interaction.user.id}>\n<:mono:${MONO_EMOJIS.message_circle}> **Sebep:** ${reason}`
+                );
                 const newPayload = buildModBResponse({ textLines: [oldText], actionRows: [] });
                 await interaction.editReply(newPayload).catch((err)=>{ console.error('app reject err:', err); });
             } else {
