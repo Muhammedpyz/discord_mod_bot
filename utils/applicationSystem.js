@@ -430,10 +430,18 @@ async function handleApplicationInteraction(interaction, action) {
             }
         }
 
+        let pingRolesText = '';
+        if (config.reviewer_roles) {
+            try {
+                const arr = JSON.parse(config.reviewer_roles);
+                if (arr.length > 0) pingRolesText = arr.map(id => `<@&${id}>`).join(' ') + '\n';
+            } catch(e) {}
+        }
+
         const eTicket = `<:mono:${MONO_EMOJIS.ticket}>`;
         const payload = createContainerMessage(
             `${eTicket} Yeni Yetkili Başvurusu`,
-            `<@${interaction.user.id}> adlı kullanıcı başvuru formunu doldurdu. Lütfen aşağıdaki bilgileri inceleyin.`,
+            `${pingRolesText}<@${interaction.user.id}> adlı kullanıcı başvuru formunu doldurdu. Lütfen aşağıdaki bilgileri inceleyin.`,
             '#2B2D31',
             [
                 new ActionRowBuilder().addComponents(
@@ -444,16 +452,8 @@ async function handleApplicationInteraction(interaction, action) {
             answers,
             false
         );
-
-        let pingRolesText = '';
-        if (config.reviewer_roles) {
-            try {
-                const arr = JSON.parse(config.reviewer_roles);
-                if (arr.length > 0) pingRolesText = arr.map(id => `<@&${id}>`).join(' ');
-            } catch(e) {}
-        }
         
-        await revChan.send({ content: pingRolesText, ...payload }).catch(()=>{});
+        await revChan.send(payload).catch((err)=>{ console.error('app submit send err:', err); });
         await interaction.editReply({ content: 'Başvurunuz başarıyla yetkililere iletildi. Sonuçlandığında size bilgi verilecektir.' }).catch(()=>{});
         return;
     }
@@ -492,7 +492,7 @@ async function handleApplicationInteraction(interaction, action) {
                 `<@${targetId}> adlı kullanıcının başvurusu <@${interaction.user.id}> tarafından **onaylandı**.\nKullanıcıya gerekli rol verildi.`,
                 '#55FF55'
             );
-            await interaction.editReply({ content: null, ...payload }).catch(()=>{});
+            await interaction.editReply(payload).catch((err)=>{ console.error('app accept err:', err); });
         } else {
             const member = await interaction.guild.members.fetch(targetId).catch(()=>null);
             if (member) member.send('Maalesef sunucumuzdaki yetkili başvurunuz **reddedildi**.').catch(()=>{});
@@ -503,7 +503,7 @@ async function handleApplicationInteraction(interaction, action) {
                 `<@${targetId}> adlı kullanıcının başvurusu <@${interaction.user.id}> tarafından **reddedildi**.`,
                 '#FF5555'
             );
-            await interaction.editReply({ content: null, ...payload }).catch(()=>{});
+            await interaction.editReply(payload).catch((err)=>{ console.error('app reject err:', err); });
         }
         return;
     }
