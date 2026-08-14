@@ -308,6 +308,8 @@ async function handleApplicationInteraction(interaction, action) {
         const finalPanelText = `## <:mono:${MONO_EMOJIS.clipboard}> ${titleLine}
 ${restLines}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 <:mono:${MONO_EMOJIS.message_circle}> **Form ${qCount} sorudan oluşur.**
 <:mono:${MONO_EMOJIS.shield}> Cevapların yalnızca başvuruları inceleyen yetkililere gösterilir.
 -# Tek seferde yalnızca bir bekleyen başvurun olabilir.`;
@@ -408,14 +410,29 @@ ${restLines}
             .setCustomId('staff_apply_submit')
             .setTitle('Yetkili Başvuru Formu');
             
-        const truncate = (str) => str.length > 45 ? str.substring(0, 42) + '...' : str;
-        const placeHolder = (str) => str.length > 100 ? str.substring(0, 97) + '...' : str;
+        let hasQuestions = false;
+        const truncate = (str) => {
+            if (!str) return 'Soru';
+            str = str.trim();
+            if (!str) return 'Soru';
+            return str.length > 45 ? str.substring(0, 42) + '...' : str;
+        };
+        const placeHolder = (str) => {
+            if (!str) return 'Lütfen buraya yazın...';
+            str = str.trim();
+            if (!str) return 'Lütfen buraya yazın...';
+            return str.length > 100 ? str.substring(0, 97) + '...' : str;
+        };
 
-        if (config.q1) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q1').setLabel(truncate(config.q1)).setPlaceholder(placeHolder(config.q1)).setStyle(TextInputStyle.Short).setRequired(true)));
-        if (config.q2) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q2').setLabel(truncate(config.q2)).setPlaceholder(placeHolder(config.q2)).setStyle(TextInputStyle.Paragraph).setRequired(true)));
-        if (config.q3) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q3').setLabel(truncate(config.q3)).setPlaceholder(placeHolder(config.q3)).setStyle(TextInputStyle.Paragraph).setRequired(true)));
-        if (config.q4) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q4').setLabel(truncate(config.q4)).setPlaceholder(placeHolder(config.q4)).setStyle(TextInputStyle.Paragraph).setRequired(true)));
-        if (config.q5) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q5').setLabel(truncate(config.q5)).setPlaceholder(placeHolder(config.q5)).setStyle(TextInputStyle.Paragraph).setRequired(true)));
+        if (config.q1 && config.q1.trim()) { modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q1').setLabel(truncate(config.q1)).setPlaceholder(placeHolder(config.q1)).setStyle(TextInputStyle.Short).setRequired(true))); hasQuestions = true; }
+        if (config.q2 && config.q2.trim()) { modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q2').setLabel(truncate(config.q2)).setPlaceholder(placeHolder(config.q2)).setStyle(TextInputStyle.Paragraph).setRequired(true))); hasQuestions = true; }
+        if (config.q3 && config.q3.trim()) { modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q3').setLabel(truncate(config.q3)).setPlaceholder(placeHolder(config.q3)).setStyle(TextInputStyle.Paragraph).setRequired(true))); hasQuestions = true; }
+        if (config.q4 && config.q4.trim()) { modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q4').setLabel(truncate(config.q4)).setPlaceholder(placeHolder(config.q4)).setStyle(TextInputStyle.Paragraph).setRequired(true))); hasQuestions = true; }
+        if (config.q5 && config.q5.trim()) { modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q5').setLabel(truncate(config.q5)).setPlaceholder(placeHolder(config.q5)).setStyle(TextInputStyle.Paragraph).setRequired(true))); hasQuestions = true; }
+
+        if (!hasQuestions) {
+            return interaction.reply({ content: 'Sistem hatası: Başvuru formu için henüz hiçbir soru ayarlanmamış. Lütfen `/ayarlar` > Yetkili Başvuru panelinden soruları belirleyin.', ephemeral: true }).catch(()=>{});
+        }
 
         await interaction.showModal(modal).catch(err => {
             console.error('showModal error:', err);
