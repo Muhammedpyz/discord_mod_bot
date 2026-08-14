@@ -300,6 +300,22 @@ async function initDB() {
             )
         `);
 
+        // 7.5. Tickets Setup
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS tickets_setup (
+                guild_id VARCHAR(25) PRIMARY KEY,
+                room_type ENUM('channel', 'thread') DEFAULT 'channel',
+                category_id VARCHAR(25),
+                support_roles JSON,
+                log_channel_id VARCHAR(25),
+                ticket_types JSON,
+                published_panel_id VARCHAR(25),
+                panel_channel_id VARCHAR(25),
+                panel_sections JSON,
+                close_behavior ENUM('archive', 'delete') DEFAULT 'delete'
+            )
+        `);
+
         // 8. Özel Oda (Private Rooms) Sistemi
         await conn.query(`
             CREATE TABLE IF NOT EXISTS active_rooms (
