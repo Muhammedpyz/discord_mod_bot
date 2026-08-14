@@ -60,23 +60,29 @@ async function renderDashboard(guildId) {
 
     const txtAppr = row.approve_role_id ? `<@&${row.approve_role_id}>` : 'Ayarlanmamış';
 
+    let warnings = [];
+    if (!row.publish_channel_id) warnings.push('-# Yayın kanalı ayarlanmamış.');
+    if (!row.review_channel_id) warnings.push('-# İnceleme kanalı ayarlanmamış.');
+    if (!row.reviewer_roles) warnings.push('-# İnceleyici roller ayarlanmamış.');
+    if (!row.approve_role_id) warnings.push('-# Onay rolü ayarlanmamış.');
+
+    let warningText = '';
+    if (warnings.length > 0) {
+        warningText = `\n---\n\n-# Eksik Kurulum Bilgileri:\n${warnings.join('\n')}`;
+    } else {
+        warningText = `\n---\n\n-# Sistem yayına hazır. Yayınla butonu ile aktif edebilirsiniz.`;
+    }
+
     const description = `## ${eReg} **Yetkili Başvuru Yönetimi**
 Başvuru kanallarını, soruları, inceleme yetkisini ve onay rolünü tek panelden yönet.
 
-───────────────
+---
 
 ${eChan} **Yayın kanalı:** ${txtPub}
 ${eShield} **İnceleme kanalı:** ${txtRev}
 ${eRole} **İnceleyici roller:** ${txtRevRoles}
 ${eRole} **Onay rolü:** ${txtAppr}
-${eMsg} **Başvuru soruları:** ${qCount} soru
-
-───────────────
-
--# ⚠️ **Önemli Bilgiler & Uyarılar**
--# • **İnceleme Kanalı:** Sadece yetkililerin görebileceği **gizli (kilitli)** bir kanal olmalıdır. Aksi halde tüm başvurular herkes tarafından okunabilir.
--# • **Yayın Kanalı:** Üyelerin başvuracağı kanaldır. Sadece okumaya açık, mesaj göndermeye kapalı olmalıdır.
--# • Önce **Kurulum** ile tüm ayarları tamamlayıp, ardından **Yayınla** butonuna basmalısınız.`;
+${eMsg} **Başvuru soruları:** ${qCount} soru${warningText}`;
 
     const isReady = row.publish_channel_id && row.review_channel_id && row.reviewer_roles && row.approve_role_id;
 
