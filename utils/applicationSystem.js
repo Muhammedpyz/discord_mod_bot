@@ -116,41 +116,40 @@ async function handleApplicationInteraction(interaction, action) {
 
     // KURULUM (SETUP)
     if (action === 'app_setup') {
-        try { await interaction.deferReply({ ephemeral: true }); } catch(e){ return; }
+        try { await interaction.deferUpdate(); } catch(e){ return; }
         
         const row1 = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('app_sel_pub')
-                .setPlaceholder('Yayın Kanalını Seçin (Başvuru yapılacak kanal)')
+                .setPlaceholder('1) Yayın Kanalı Seç (Panelin gönderileceği kanal)')
                 .setChannelTypes([ChannelType.GuildText])
         );
         const row2 = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('app_sel_rev')
-                .setPlaceholder('İnceleme Kanalını Seçin (Log kanalı)')
+                .setPlaceholder('2) İnceleme Kanalı Seç (Başvuruların düşeceği kanal)')
                 .setChannelTypes([ChannelType.GuildText])
         );
         const row3 = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder()
                 .setCustomId('app_sel_revroles')
-                .setPlaceholder('İnceleyici Rolleri Seçin (Max 5)')
+                .setPlaceholder('3) İnceleyici Rolleri Seç (Başvuruyu değerlendirecekler)')
                 .setMinValues(1)
                 .setMaxValues(5)
         );
         const row4 = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder()
                 .setCustomId('app_sel_appr')
-                .setPlaceholder('Onay Rolünü Seçin (Kabul edilince verilecek)')
+                .setPlaceholder('4) Onay Rolü Seç (Kabul edildiğinde verilecek rol)')
         );
         const row5 = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('app_setup_done')
-                .setLabel('Seçimleri Kaydet ve Menüyü Kapat')
+                .setLabel('Geri Dön / Kaydet')
                 .setStyle(ButtonStyle.Success)
         );
 
         await interaction.editReply({
-            content: 'Lütfen aşağıdaki menülerden ayarları tamamlayın, bittiğinde alttaki butona basın. (Seçimler anında veritabanına kaydedilir)',
             components: [row1, row2, row3, row4, row5]
         }).catch(()=>{});
         return;
@@ -182,7 +181,8 @@ async function handleApplicationInteraction(interaction, action) {
     // SETUP DONE
     if (action === 'app_setup_done') {
         try { await interaction.deferUpdate(); } catch(e){ return; }
-        await interaction.deleteReply().catch(()=>{});
+        const payload = await renderDashboard(guildId);
+        await interaction.editReply(payload).catch(()=>{});
         return;
     }
 
