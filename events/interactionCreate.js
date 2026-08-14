@@ -185,7 +185,7 @@ module.exports = {
                 const refreshBtn = new ButtonBuilder()
                     .setCustomId('istatistik_refresh')
                     .setLabel('Sayfayı Yenile')
-                    .setEmoji(MONO_EMOJIS.status)
+                    .setEmoji(MONO_EMOJIS.refresh_cw)
                     .setStyle(ButtonStyle.Secondary);
                 const row = new ActionRowBuilder().addComponents(refreshBtn);
                 await interaction.editReply(buildModBResponse({ textLines: [text], actionRows: [row] })).catch(() => {});
@@ -335,7 +335,7 @@ module.exports = {
                         const { createContainerMessage, MONO_EMOJIS } = require('../utils/uiBuilder');
                         
                         const logPayload = createContainerMessage(
-                            `<:mono:${MONO_EMOJIS.shield}> Ceza Pasife Alındı (Silindi)`,
+                            `<:mono:${MONO_EMOJIS.shield_check}> Ceza Pasife Alındı (Silindi)`,
                             'Bir yetkili, veritabanındaki aktif bir ceza kaydını pasif duruma getirdi.',
                             '#FF5555',
                             [],

@@ -64,9 +64,9 @@ module.exports = {
             let rank = 1;
             for (const [userId, data] of sortedMods) {
                 let badge = `**[${rank}]**`;
-                if (rank === 1) badge = `<:mono:${MONO_EMOJIS.crown}>`;
-                if (rank === 2) badge = `<:mono:${MONO_EMOJIS.shield}>`;
-                if (rank === 3) badge = `<:mono:${MONO_EMOJIS.check}>`;
+                if (rank === 1) badge = `<:mono:${MONO_EMOJIS.trophy}>`;
+                if (rank === 2) badge = `<:mono:${MONO_EMOJIS.medal}>`;
+                if (rank === 3) badge = `<:mono:${MONO_EMOJIS.award}>`;
 
                 description += `${badge} <@${userId}> - Toplam İşlem: **${data.total}**\n`;
                 description += `└ *Uyarı: ${data.warns} | Susturma: ${data.mutes} | Ban: ${data.bans} | Bilet: ${data.tickets}*\n\n`;

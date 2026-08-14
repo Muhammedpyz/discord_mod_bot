@@ -90,10 +90,10 @@ module.exports = {
             }
 
             const rawFields = [
-                { name: `<:mono:${MONO_EMOJIS.shield}> Roller`, value: roles.length > 200 ? roles.substring(0, 200) + '...' : roles },
-                { name: `<:mono:${MONO_EMOJIS.invite}> Davet Bilgileri`, value: `**Davet Eden:** ${invitedByText}\n**Yaptığı Davet:** **${totalInvites}** kişi` },
-                { name: `<:mono:${MONO_EMOJIS.warning}> Ceza Istatistikleri`, value: `Aktif Uyarı: **${activeWarns}** | Toplam Uyarı: **${totalWarns}**\nToplam Susturulma: **${totalMutes}** | Toplam Ticket: **${totalTickets}**` },
-                { name: `<:mono:${MONO_EMOJIS.pin}> Moderatör Notları: ${totalNotes} adet`, value: lastNotesText }
+                { name: `<:mono:${MONO_EMOJIS.tags}> Roller`, value: roles.length > 200 ? roles.substring(0, 200) + '...' : roles },
+                { name: `<:mono:${MONO_EMOJIS.users}> Davet Bilgileri`, value: `**Davet Eden:** ${invitedByText}\n**Yaptığı Davet:** **${totalInvites}** kişi` },
+                { name: `<:mono:${MONO_EMOJIS.alert_octagon}> Ceza Istatistikleri`, value: `Aktif Uyarı: **${activeWarns}** | Toplam Uyarı: **${totalWarns}**\nToplam Susturulma: **${totalMutes}** | Toplam Ticket: **${totalTickets}**` },
+                { name: `<:mono:${MONO_EMOJIS.clipboard_list}> Moderatör Notları: ${totalNotes} adet`, value: lastNotesText }
             ];
 
             // 2. Eğer hedef kullanıcı YETKİLİ ise, yetkili işlem gecmisini de getir!
@@ -170,7 +170,7 @@ module.exports = {
                     });
                 } catch (e) {} 
                 
-                staffDesc = `**<:mono:${MONO_EMOJIS.crown}> Moderasyon Özeti:**\n`;
+                staffDesc = `**<:mono:${MONO_EMOJIS.user_cog}> Moderasyon Özeti:**\n`;
                 staffDesc += `└ Toplam İşlem: **${totalWarnsGiven + staffDelCount + staffTicketCount + totalBans + totalKicks + totalTimeouts + totalRoles}**\n`;
                 staffDesc += `└ Atılan Uyarı: **${totalWarnsGiven}** *(Komut: ${totalWarnsGiven - manualWarns}, Manuel: ${manualWarns})*\n`;
                 staffDesc += `└ Kapatılan Bilet: **${staffTicketCount}**\n`;
@@ -178,7 +178,7 @@ module.exports = {
                 staffDesc += `└ Kick: **${totalKicks}** | Mute: **${totalTimeouts}** *(Manuel Mute: ${manualMutes})*\n`;
                 staffDesc += `└ Silinen Mesaj (Clear): **${staffDelCount}**\n`;
 
-                rawFields.push({ name: `<:mono:${MONO_EMOJIS.settings}> Yetkili Geçmişi (Sicil)`, value: staffDesc });
+                rawFields.push({ name: `<:mono:${MONO_EMOJIS.history}> Yetkili Geçmişi (Sicil)`, value: staffDesc });
             }
 
             const payload = createContainerMessage(

@@ -513,7 +513,7 @@ function buildModAPanel({ title, description, bannerUrl = DEFAULT_BANNER_URL, ac
         container.addSectionComponents(
             new SectionBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent("-# **Web sitemiz & sunucu bilgisi**"))
-                .setButtonAccessory(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("turklion.net").setEmoji(MONO_EMOJIS.web).setURL(BRAND_URL)),
+                .setButtonAccessory(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("turklion.net").setEmoji(MONO_EMOJIS.website).setURL(BRAND_URL)),
             
             new SectionBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent("-# **Etkinlikler & özel cekilisler**"))

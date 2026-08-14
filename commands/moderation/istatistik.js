@@ -21,16 +21,16 @@ async function getStatsPage(interaction, pageName, conn) {
     const guild = interaction.guild;
     const client = interaction.client;
 
-    const eArr = `<:mono:${MONO_EMOJIS.arrow_right}>`;
-    const eStat = `<:mono:${MONO_EMOJIS.status}>`;
-    const eCrown = `<:mono:${MONO_EMOJIS.crown}>`;
-    const eSet = `<:mono:${MONO_EMOJIS.settings}>`;
-    const eShield = `<:mono:${MONO_EMOJIS.shield}>`;
-    const eTicket = `<:mono:${MONO_EMOJIS.ticket}>`;
-    const eInvite = `<:mono:${MONO_EMOJIS.invite}>`;
-    const eDb = `<:mono:${MONO_EMOJIS.check}>`;
-    const ePin = `<:mono:${MONO_EMOJIS.pin}>`;
-    const eAnnounce = `<:mono:${MONO_EMOJIS.announcement}>`;
+    const eArr = `<:mono:${MONO_EMOJIS.chevron_right}>`;
+    const eStat = `<:mono:${MONO_EMOJIS.gauge_circle}>`;
+    const eCrown = `<:mono:${MONO_EMOJIS.award}>`;
+    const eSet = `<:mono:${MONO_EMOJIS.sliders}>`;
+    const eShield = `<:mono:${MONO_EMOJIS.shield_check}>`;
+    const eTicket = `<:mono:${MONO_EMOJIS.receipt}>`;
+    const eInvite = `<:mono:${MONO_EMOJIS.users}>`;
+    const eDb = `<:mono:${MONO_EMOJIS.database}>`;
+    const ePin = `<:mono:${MONO_EMOJIS.map_pin}>`;
+    const eAnnounce = `<:mono:${MONO_EMOJIS.bell_ring}>`;
 
     const menuRow = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
@@ -49,7 +49,7 @@ async function getStatsPage(interaction, pageName, conn) {
         new ButtonBuilder()
             .setCustomId('stats_refresh')
             .setLabel('Sayfayı Yenile')
-            .setEmoji(MONO_EMOJIS.status)
+            .setEmoji(MONO_EMOJIS.refresh_cw)
             .setStyle(ButtonStyle.Secondary)
     );
 
