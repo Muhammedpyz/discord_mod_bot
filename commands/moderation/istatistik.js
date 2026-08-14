@@ -82,8 +82,7 @@ async function getStatsPage(interaction, pageName, conn) {
         const latency = Date.now() - interaction.createdTimestamp;
         const nowStamp = Math.floor(Date.now() / 1000);
 
-        description = `-# Uygulama Dizini: https://discord.com/application-directory/${client.user.id}
-## ${eSet} **${client.user.username}**
+        description = `## ${eSet} **${client.user.username}**
 > Sunucunu yöneten, topluluğunu canlandıran hepsi bir arada Discord deneyimi.
 ${eStat} **${totalGuilds} sunucuda ${totalUsers} kullanıcıya hizmet veriyor.**
 
@@ -100,12 +99,12 @@ ${eTicket} **RAM Kullanımı:** **%${ramPercent}**
 ${eSet} **Bellek Dağılımı:** **${ramMB} MB / ${totalMemGB} GB**
 
 ### ${ePin} **Proje Bilgileri**
-${eCrown} **Bot Sahibi:** [**Oxy**](https://discord.com/users/980449798207438908)
+${eCrown} **Bot Sahibi:** <@651790387198820425>
 ${eSet} **Geliştirildiği Altyapı:** [**discord.js v14.27.0**](https://discord.js.org/) \`Özel Fork\` · [**Node.js ${process.version}**](https://nodejs.org/)
 ${eTicket} **Komutlar:** **${cmdsCount} toplam slash**
 ${eSet} **Altyapı:** **V2 Container (Stateless)**
 
--# Sorgulayan: <@${interaction.user.id}> (${latency}ms) · Son Güncelleme: <t:${nowStamp}:f>`;
+-# Sorgu: <@${interaction.user.id}> · Yükleme: ${latency}ms · Son Güncelleme: <t:${nowStamp}:R>`;
     }
 
     if (pageName === 'page_uye') {
