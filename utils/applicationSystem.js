@@ -76,7 +76,7 @@ async function renderDashboard(guildId) {
     const description = `## ${eReg} **Yetkili Başvuru Yönetimi**
 Başvuru kanallarını, soruları, inceleme yetkisini ve onay rolünü tek panelden yönet.
 
-***
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ${eChan} **Yayın kanalı:** ${txtPub}
 ${eShield} **İnceleme kanalı:** ${txtRev}

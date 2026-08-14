@@ -525,5 +525,12 @@ module.exports = {
                 return handleSettingsSelect(interaction);
             }
         }
+        
+        // Catch-all: Eğer hiçbir handler cevap vermediyse, timeout yememesi için cevapla
+        if (!interaction.replied && !interaction.deferred && !interaction.isModalSubmit()) {
+            if (interaction.isRepliable()) {
+                interaction.reply({ content: 'Bu buton / menü artık geçerli değil veya işlevsiz.', ephemeral: true }).catch(()=>{});
+            }
+        }
     }
 };
