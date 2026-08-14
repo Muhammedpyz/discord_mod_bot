@@ -61,22 +61,20 @@ async function renderDashboard(guildId) {
     const txtAppr = row.approve_role_id ? `<@&${row.approve_role_id}>` : 'Ayarlanmamış';
 
     let warnings = [];
-    if (!row.publish_channel_id) warnings.push('-# Yayın kanalı ayarlanmamış.');
-    if (!row.review_channel_id) warnings.push('-# İnceleme kanalı ayarlanmamış.');
-    if (!row.reviewer_roles) warnings.push('-# İnceleyici roller ayarlanmamış.');
-    if (!row.approve_role_id) warnings.push('-# Onay rolü ayarlanmamış.');
+    if (!row.publish_channel_id) warnings.push('Yayın kanalı ayarlanmamış.');
+    if (!row.review_channel_id) warnings.push('İnceleme kanalı ayarlanmamış.');
+    if (!row.reviewer_roles) warnings.push('İnceleyici roller ayarlanmamış.');
+    if (!row.approve_role_id) warnings.push('Onay rolü ayarlanmamış.');
 
     let warningText = '';
     if (warnings.length > 0) {
-        warningText = `\n---\n\n-# Eksik Kurulum Bilgileri:\n${warnings.join('\n')}`;
+        warningText = `\n---\n\n**Eksik Kurulum Bilgileri:**\n${warnings.join('\n')}`;
     } else {
-        warningText = `\n---\n\n-# Sistem yayına hazır. Yayınla butonu ile aktif edebilirsiniz.`;
+        warningText = `\n---\n\nSistem yayına hazır. Yayınla butonu ile aktif edebilirsiniz.`;
     }
 
     const description = `## ${eReg} **Yetkili Başvuru Yönetimi**
 Başvuru kanallarını, soruları, inceleme yetkisini ve onay rolünü tek panelden yönet.
-
----
 
 ${eChan} **Yayın kanalı:** ${txtPub}
 ${eShield} **İnceleme kanalı:** ${txtRev}
