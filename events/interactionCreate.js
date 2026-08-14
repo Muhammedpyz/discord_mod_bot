@@ -103,41 +103,48 @@ module.exports = {
 
         // TICKET NAMESPACE
         if (namespace === 'ticket' || action.startsWith('ticket_')) {
-            
-            if (action === 'create' || action === 'ticket_create_btn' || action.startsWith('ticket_cat_')) {
-                const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageChannels);
-                if (!isAdmin) {
-                    const { ticketsToday, cooldownRemaining } = await checkTicketLimits(interaction.guild.id, interaction.user.id);
-                    if (ticketsToday >= 3) return interaction.reply({ content: 'Günlük ticket açma sınırınıza ulaştınız (Maksimum 3). Lütfen yarın tekrar deneyin.', ephemeral: true }).catch(e => console.error('Silent catch:', e.message));
-                    if (cooldownRemaining > 0) {
-                        const minutes = Math.ceil(cooldownRemaining / (60 * 1000));
-                        return interaction.reply({ content: `Yeni bir destek talebi açmadan önce **${minutes} dakika** daha beklemelisiniz.`, ephemeral: true }).catch(e => console.error('Silent catch:', e.message));
+            try {
+                if (action === 'create' || action === 'ticket_create_btn' || action.startsWith('ticket_cat_')) {
+                    const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.ManageChannels);
+                    if (!isAdmin) {
+                        const { ticketsToday, cooldownRemaining } = await checkTicketLimits(interaction.guild.id, interaction.user.id);
+                        if (ticketsToday >= 3) return interaction.reply({ content: 'Günlük ticket açma sınırınıza ulaştınız (Maksimum 3). Lütfen yarın tekrar deneyin.', ephemeral: true }).catch(e => console.error('Silent catch:', e.message));
+                        if (cooldownRemaining > 0) {
+                            const minutes = Math.ceil(cooldownRemaining / (60 * 1000));
+                            return interaction.reply({ content: `Yeni bir destek talebi açmadan önce **${minutes} dakika** daha beklemelisiniz.`, ephemeral: true }).catch(e => console.error('Silent catch:', e.message));
+                        }
                     }
+                    const modal = new ModalBuilder().setCustomId('ticket:modal:submit').setTitle('Destek Talebi (Ticket)');
+                    const categoryInput = new TextInputBuilder().setCustomId('ticket_category_text').setLabel('Kategori (Örn: Hesap, Ceza, Sunucu)').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Hesabım / Ceza / Sunucu Şikayeti vb.');
+                    
+                    if (action === 'ticket_cat_hesap') categoryInput.setValue('Hesap İşlemleri');
+                    else if (action === 'ticket_cat_ceza') categoryInput.setValue('Ceza İtiraz');
+                    else if (action === 'ticket_cat_sunucu') categoryInput.setValue('Sunucu Sorunları');
+                    else if (action === 'ticket_cat_genel') categoryInput.setValue('Genel Destek');
+                    const reasonInput = new TextInputBuilder().setCustomId('ticket_reason').setLabel('Talebinizin detayını yazın:').setStyle(TextInputStyle.Paragraph).setRequired(true).setPlaceholder('Lütfen sorununuzu detaylı bir şekilde açıklayın...');
+                    modal.addComponents(new ActionRowBuilder().addComponents(categoryInput), new ActionRowBuilder().addComponents(reasonInput));
+                    return await interaction.showModal(modal).catch(e => console.error('Silent catch:', e.message));
                 }
-                const modal = new ModalBuilder().setCustomId('ticket:modal:submit').setTitle('Destek Talebi (Ticket)');
-                const categoryInput = new TextInputBuilder().setCustomId('ticket_category_text').setLabel('Kategori (Örn: Hesap, Ceza, Sunucu)').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Hesabım / Ceza / Sunucu Şikayeti vb.');
-                
-                if (action === 'ticket_cat_hesap') categoryInput.setValue('Hesap İşlemleri');
-                else if (action === 'ticket_cat_ceza') categoryInput.setValue('Ceza İtiraz');
-                else if (action === 'ticket_cat_sunucu') categoryInput.setValue('Sunucu Sorunları');
-                else if (action === 'ticket_cat_genel') categoryInput.setValue('Genel Destek');
-                const reasonInput = new TextInputBuilder().setCustomId('ticket_reason').setLabel('Talebinizin detayını yazın:').setStyle(TextInputStyle.Paragraph).setRequired(true).setPlaceholder('Lütfen sorununuzu detaylı bir şekilde açıklayın...');
-                modal.addComponents(new ActionRowBuilder().addComponents(categoryInput), new ActionRowBuilder().addComponents(reasonInput));
-                return interaction.showModal(modal).catch(e => console.error('Silent catch:', e.message));
+                if (action === 'modal' || action.startsWith('ticket_modal')) {
+                    let categoryLabel = 'Genel Destek';
+                    try { categoryLabel = interaction.fields.getTextInputValue('ticket_category_text'); } catch(e){}
+                    const reason = interaction.fields.getTextInputValue('ticket_reason');
+                    return await createTicket(interaction, reason, categoryLabel);
+                }
+                if (action === 'close' || action === 'ticket_close_btn') {
+                    return await closeTicketChannel(interaction);
+                }
+                if (action === 'claim' || action === 'ticket_claim_btn') {
+                    const { claimTicketChannel } = require('../utils/ticketManager');
+                    return await claimTicketChannel(interaction);
+                }
+            } catch (err) {
+                console.error('Ticket interaction err:', err);
+                if (!interaction.replied && !interaction.deferred && interaction.isRepliable()) {
+                    await interaction.reply({ content: 'İşlem sırasında bir hata oluştu.', ephemeral: true }).catch(()=>{});
+                }
             }
-            if (action === 'modal' || action.startsWith('ticket_modal')) {
-                let categoryLabel = 'Genel Destek';
-                try { categoryLabel = interaction.fields.getTextInputValue('ticket_category_text'); } catch(e){}
-                const reason = interaction.fields.getTextInputValue('ticket_reason');
-                return createTicket(interaction, reason, categoryLabel);
-            }
-            if (action === 'close' || action === 'ticket_close_btn') {
-                return closeTicketChannel(interaction);
-            }
-            if (action === 'claim' || action === 'ticket_claim_btn') {
-                const { claimTicketChannel } = require('../utils/ticketManager');
-                return claimTicketChannel(interaction);
-            }
+            return;
         }
 
         // MOD NAMESPACE
@@ -184,7 +191,15 @@ module.exports = {
         // YETKİLİ BAŞVURU (APP SYSTEM)
         if (action.startsWith('app_') || action === 'staff_apply_btn' || action === 'staff_apply_submit') {
             const { handleApplicationInteraction } = require('../utils/applicationSystem');
-            return handleApplicationInteraction(interaction, action);
+            try {
+                await handleApplicationInteraction(interaction, action);
+            } catch (err) {
+                console.error('App interaction err:', err);
+                if (!interaction.replied && !interaction.deferred && interaction.isRepliable()) {
+                    await interaction.reply({ content: 'İşlem sırasında bir hata oluştu.', ephemeral: true }).catch(()=>{});
+                }
+            }
+            return;
         }
 
         // SORGU NAMESPACE
