@@ -395,13 +395,18 @@ async function handleApplicationInteraction(interaction, action) {
             .setCustomId('staff_apply_submit')
             .setTitle('Yetkili Başvuru Formu');
             
-        if (config.q1) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q1').setLabel(config.q1).setStyle(TextInputStyle.Short).setRequired(true)));
-        if (config.q2) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q2').setLabel(config.q2).setStyle(TextInputStyle.Paragraph).setRequired(true)));
-        if (config.q3) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q3').setLabel(config.q3).setStyle(TextInputStyle.Paragraph).setRequired(true)));
-        if (config.q4) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q4').setLabel(config.q4).setStyle(TextInputStyle.Paragraph).setRequired(true)));
-        if (config.q5) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q5').setLabel(config.q5).setStyle(TextInputStyle.Paragraph).setRequired(true)));
+        const truncate = (str) => str.length > 45 ? str.substring(0, 42) + '...' : str;
 
-        await interaction.showModal(modal).catch(()=>{});
+        if (config.q1) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q1').setLabel(truncate(config.q1)).setStyle(TextInputStyle.Short).setRequired(true)));
+        if (config.q2) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q2').setLabel(truncate(config.q2)).setStyle(TextInputStyle.Paragraph).setRequired(true)));
+        if (config.q3) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q3').setLabel(truncate(config.q3)).setStyle(TextInputStyle.Paragraph).setRequired(true)));
+        if (config.q4) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q4').setLabel(truncate(config.q4)).setStyle(TextInputStyle.Paragraph).setRequired(true)));
+        if (config.q5) modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('q5').setLabel(truncate(config.q5)).setStyle(TextInputStyle.Paragraph).setRequired(true)));
+
+        await interaction.showModal(modal).catch(err => {
+            console.error('showModal error:', err);
+            interaction.reply({ content: 'Başvuru formu açılırken bir hata oluştu.', ephemeral: true }).catch(()=>{});
+        });
         return;
     }
 
