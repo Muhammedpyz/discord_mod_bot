@@ -76,7 +76,7 @@ async function renderDashboard(guildId) {
     const description = `## ${eReg} **Yetkili Başvuru Yönetimi**
 Başvuru kanallarını, soruları, inceleme yetkisini ve onay rolünü tek panelden yönet.
 
-───────────────
+▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
 
 ${eChan} **Yayın kanalı:** ${txtPub}
 ${eShield} **İnceleme kanalı:** ${txtRev}
@@ -316,14 +316,21 @@ async function handleApplicationInteraction(interaction, action) {
         if (config.published_message_id) {
             const oldMsg = await pubChan.messages.fetch(config.published_message_id).catch(()=>null);
             if (oldMsg) {
-                await oldMsg.edit(pubPayload).catch(()=>{});
+                await oldMsg.edit(pubPayload).catch((err)=>{ console.error('app_publish edit err:', err); });
                 msgSent = true;
+                await interaction.followUp({ content: 'Başvuru paneli mevcut kanalda başarıyla güncellendi!', ephemeral: true }).catch(()=>{});
             }
         }
 
         let sentMessage;
         if (!msgSent) {
-            sentMessage = await pubChan.send(pubPayload).catch(()=>{});
+            sentMessage = await pubChan.send(pubPayload).catch((err)=>{ 
+                console.error('app_publish send err:', err); 
+            });
+            if (!sentMessage) {
+                await interaction.followUp({ content: 'Yayın kanalına mesaj gönderilemedi. Lütfen kanal yetkilerimi (Mesaj Gönderme) kontrol edin!', ephemeral: true }).catch(()=>{});
+                return;
+            }
         }
 
         let conn;
@@ -337,6 +344,7 @@ async function handleApplicationInteraction(interaction, action) {
             if (conn) conn.release();
         }
         
+        await interaction.followUp({ content: 'Başvuru paneli başarıyla yayınlandı!', ephemeral: true }).catch(()=>{});
         const dashPayload = await renderDashboard(guildId);
         await interaction.editReply(dashPayload).catch(()=>{});
         return;
