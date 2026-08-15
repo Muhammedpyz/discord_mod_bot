@@ -56,6 +56,7 @@ client.on('error', (err) => console.error('[Client Error]:', err));
 client.commands = new Collection();
 client.spamMap = require('./utils/spamCache'); // Anti-spam için in-memory + JSON cache
 client.snipes = new Collection(); // Silinen son mesajlar için (Snipe)
+global.botDeletedMessages = new Set(); // Bot veya AutoMod tarafından silinen mesajlar (çift loglamayı önler)
 
 // Event Handler
 const eventsPath = path.join(__dirname, 'events');

@@ -35,6 +35,10 @@ module.exports = {
                 // Sadece veritabanına kaydet (Anlık snapshot). Webhook logEvents.js üzerinden gönderiliyor.
                 const rolesJson = JSON.stringify(newRoles);
                 await conn.query('INSERT INTO member_roles_snapshot (user_id, guild_id, roles_json) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE roles_json = ?', [userId, guildId, rolesJson, rolesJson]).catch(()=>{});
+
+                // Canlı Yetkili Panosunu Otomatik Güncelle
+                const { updatePublishedStaffBoard } = require('../utils/staffPanelSystem');
+                updatePublishedStaffBoard(newMember.guild).catch(() => {});
             }
 
             // 1. Manuel Timeout Kaldırma Tespiti

@@ -27,11 +27,11 @@ function channelTypeToTurkish(type) {
 
 const sysLogState = new Map();
 
-async function logSystemEvent(guild, title, fields, colorHex = '#2B2D31', logType = 'system') {
+async function logSystemEvent(guild, title, fields, colorHex = '#2B2D31', category = 'guild', eventName = null, context = {}) {
     let executorField = fields.find(f => f.name.includes('Yetkili') || f.name.includes('Kullanıcı') || f.name.includes('Değiştiren') || f.name.includes('Silen'));
     let executorVal = executorField ? executorField.value : 'System';
 
-    const stateKey = `${guild.id}_${logType}_${title}_${executorVal}`;
+    const stateKey = `${guild.id}_${category}_${title}_${executorVal}`;
     const now = Date.now();
     let state = sysLogState.get(stateKey);
 
@@ -55,7 +55,7 @@ async function logSystemEvent(guild, title, fields, colorHex = '#2B2D31', logTyp
     }
 
     const payload = buildModBResponse({ title, fields, color: colorHex });
-    const newMsg = await sendLog(guild, payload, logType);
+    const newMsg = await sendLog(guild, payload, category, eventName, context);
     
     if (newMsg) {
         sysLogState.set(stateKey, {
@@ -73,6 +73,12 @@ module.exports = [
     async execute(message, client) {
         if (!message.guild) return;
         if (message.author?.bot) return;
+
+        // Bot veya AutoMod tarafından silinen mesajları atla (Çift log oluşmasını engeller)
+        if (global.botDeletedMessages && global.botDeletedMessages.has(message.id)) {
+            global.botDeletedMessages.delete(message.id);
+            return;
+        }
 
         const authorId = message.author?.id;
         const authorName = message.author?.tag || 'Bilinmeyen';
@@ -96,6 +102,10 @@ module.exports = [
                 const deletionLog = fetchedLogs.entries.first();
                 if (deletionLog) {
                     const { executor, target, extra, createdTimestamp, reason } = deletionLog;
+                    // Eğer silen kişi bot ise logEvents üzerinden tekrar loglama yapma (zaten AutoMod logladı)
+                    if (executor && executor.id === client.user.id) {
+                        return;
+                    }
                     const isMatch = (authorId && target?.id === authorId) || (!authorId && extra?.channel?.id === message.channel.id);
                     if (isMatch && (Date.now() - createdTimestamp < 10000)) {
                         deletedById = executor.id;
@@ -135,7 +145,7 @@ module.exports = [
             fields.push({ name: 'Ghost Ping Uyarısı', value: 'Etiket içeren mesaj silindi!' });
         }
 
-        logSystemEvent(message.guild, 'Mesaj Silindi', fields, '#2B2D31', 'text');
+        logSystemEvent(message.guild, 'Mesaj Silindi', fields, '#2B2D31', 'message', 'msg_delete', { channelId: message.channel.id, userId: authorId, isBot: message.author?.bot });
     }
 },
 {
@@ -163,7 +173,7 @@ module.exports = [
             { name: 'Bağlantı', value: `[Mesaja Git](${newMessage.url})` }
         ];
 
-        logSystemEvent(oldMessage.guild, 'Mesaj Düzenlendi', fields, '#2B2D31');
+        logSystemEvent(oldMessage.guild, 'Mesaj Düzenlendi', fields, '#2B2D31', 'message', 'msg_edit', { channelId: oldMessage.channel.id, userId: oldMessage.author?.id, isBot: oldMessage.author?.bot });
     }
 },
 {
@@ -192,10 +202,10 @@ module.exports = [
                 { name: 'Değiştiren', value: executorId },
                 { name: 'Zaman', value: now }
             ];
-            logSystemEvent(newMember.guild, 'İsim (Nickname) Değiştirildi', fields, '#2B2D31');
+            logSystemEvent(newMember.guild, 'İsim (Nickname) Değiştirildi', fields, '#2B2D31', 'member', 'member_nick_change', { userId: newMember.id, isBot: newMember.user?.bot });
             
             // DB kayıt
-            const { pool } = require('../../db');
+            const { pool } = require('../db');
             pool.query('INSERT INTO user_history (user_id, guild_id, change_type, old_value, new_value) VALUES (?, ?, ?, ?, ?)', [newMember.id, newMember.guild.id, 'nickname', oldName, newName]).catch(()=>{});
         }
         
@@ -212,9 +222,9 @@ module.exports = [
                 { name: 'Yeni Fotoğraf', value: `[Tıkla ve Gör](${newAvatar})` },
                 { name: 'Zaman', value: now }
             ];
-            logSystemEvent(newMember.guild, 'Sunucu Profili Güncellendi', fields, '#2B2D31');
+            logSystemEvent(newMember.guild, 'Sunucu Profili Güncellendi', fields, '#2B2D31', 'member', 'user_avatar_change', { userId: newMember.id, isBot: newMember.user?.bot });
             
-            const { pool } = require('../../db');
+            const { pool } = require('../db');
             pool.query('INSERT INTO user_history (user_id, guild_id, change_type, old_value, new_value) VALUES (?, ?, ?, ?, ?)', [newMember.id, newMember.guild.id, 'server_avatar', oldAvatar, newAvatar]).catch(()=>{});
         }
 
@@ -257,7 +267,7 @@ module.exports = [
                         fields.push({ name: 'Alınan Roller', value: Array.from(data.removed).map(id => `<@&${id}>`).join(', ') });
                     }
 
-                    logSystemEvent(newMember.guild, 'Roller Güncellendi', fields, '#2B2D31');
+                    logSystemEvent(newMember.guild, 'Roller Güncellendi', fields, '#2B2D31', 'member', data.added.size > 0 ? 'member_role_add' : 'member_role_remove', { userId: newMember.id, roleIds: Array.from([...data.added, ...data.removed]), isBot: newMember.user?.bot });
                 }, 2000);
             }
         }
@@ -438,11 +448,14 @@ module.exports = [
 
         let executorId = 'Bilinmiyor';
         try {
-            // İzin değişiklikleri ChannelOverwriteUpdate olarak geçer, bu yüzden type kısıtlamasını kaldırıyoruz.
             const fetchedLogs = await newChannel.guild.fetchAuditLogs({ limit: 1 });
             const log = fetchedLogs.entries.first();
             if (log && log.target.id === newChannel.id && Date.now() - log.createdTimestamp < 10000) {
-                executorId = `<@${log.executor.id}> (\`${log.executor.tag}\`)`;
+                // Eğer bot yaptıysa (panel butonları/modallar üzerinden), interaction handler zaten gerçek oda sahibinin adıyla logladı. Tekrar 'Bot yaptı' diye loglama!
+                if (log.executor && log.executor.id === newChannel.client.user.id) {
+                    return;
+                }
+                executorId = `<@${log.executor.id}> (\`${escapeMarkdown(log.executor.tag)}\`)`;
             }
         } catch (e) {}
 
@@ -490,7 +503,7 @@ module.exports = [
             { name: 'Zaman', value: now }
         ];
 
-        logSystemEvent(ban.guild, 'Kullanıcı Yasaklandı (Ban)', fields, '#2B2D31');
+        logSystemEvent(ban.guild, 'Kullanıcı Yasaklandı (Ban)', fields, '#2B2D31', 'ban', 'ban_add', { userId: ban.user.id });
     }
 },
 {
@@ -515,7 +528,7 @@ module.exports = [
             { name: 'Zaman', value: now }
         ];
 
-        logSystemEvent(ban.guild, 'Yasaklama (Ban) Kaldırıldı', fields, '#2B2D31');
+        logSystemEvent(ban.guild, 'Yasaklama (Ban) Kaldırıldı', fields, '#2B2D31', 'ban', 'ban_remove', { userId: ban.user.id });
     }
 },
 {
@@ -555,7 +568,7 @@ module.exports = [
         }
 
         const color = '#2B2D31';
-        logSystemEvent(member.guild, action, fields, color);
+        logSystemEvent(member.guild, action, fields, color, executorId ? 'kick' : 'member', executorId ? 'member_kick' : 'member_leave', { userId: member.id, isBot: member.user?.bot });
     }
 },
 {
@@ -576,7 +589,7 @@ module.exports = [
             { name: 'Zaman', value: now }
         ];
 
-        logSystemEvent(invite.guild, 'Yeni Davet Bağlantısı Oluşturuldu', fields, '#2B2D31');
+        logSystemEvent(invite.guild, 'Yeni Davet Bağlantısı Oluşturuldu', fields, '#2B2D31', 'invite', 'invite_create');
     }
 },
 {
@@ -602,7 +615,7 @@ module.exports = [
             { name: 'Zaman', value: now }
         ];
 
-        logSystemEvent(invite.guild, 'Davet Bağlantısı Silindi', fields, '#2B2D31');
+        logSystemEvent(invite.guild, 'Davet Bağlantısı Silindi', fields, '#2B2D31', 'invite', 'invite_delete');
     }
 },
 {
@@ -641,7 +654,7 @@ module.exports = [
             ...changes
         ];
 
-        logSystemEvent(newRole.guild, 'Rol Güncellendi', fields, '#2B2D31');
+        logSystemEvent(newRole.guild, 'Rol Güncellendi', fields, '#2B2D31', 'role', 'role_update', { roleIds: [newRole.id] });
     }
 },
 {
@@ -661,7 +674,7 @@ module.exports = [
             { name: 'Rol', value: `<@&${role.id}> (\`${escapeMarkdown(role.name)}\`)` },
             { name: 'Zaman', value: now }
         ];
-        logSystemEvent(role.guild, 'Yeni Rol Oluşturuldu', fields, '#2B2D31');
+        logSystemEvent(role.guild, 'Yeni Rol Oluşturuldu', fields, '#2B2D31', 'role', 'role_create', { roleIds: [role.id] });
     }
 },
 {
@@ -681,7 +694,7 @@ module.exports = [
             { name: 'Silinen Rol', value: `\`${escapeMarkdown(role.name)}\` (ID: \`${role.id}\`)` },
             { name: 'Zaman', value: now }
         ];
-        logSystemEvent(role.guild, 'Rol Silindi', fields, '#2B2D31');
+        logSystemEvent(role.guild, 'Rol Silindi', fields, '#2B2D31', 'role', 'role_delete', { roleIds: [role.id] });
     }
 },
 {
@@ -707,7 +720,7 @@ module.exports = [
             { name: 'Aksiyon', value: action },
             { name: 'Zaman', value: now }
         ];
-        logSystemEvent(channel.guild, 'Webhook Güncellemesi', fields, '#2B2D31');
+        logSystemEvent(channel.guild, 'Webhook Güncellemesi', fields, '#2B2D31', 'guild', 'webhook_ops', { channelId: channel.id });
     }
 },
 {
@@ -731,7 +744,7 @@ module.exports = [
             { name: 'Zaman', value: now },
             ...changes
         ];
-        logSystemEvent(newGuild, 'Sunucu Ayarları Güncellendi', fields, '#2B2D31');
+        logSystemEvent(newGuild, 'Sunucu Ayarları Güncellendi', fields, '#2B2D31', 'guild', 'guild_update');
     }
 },
 {
@@ -749,7 +762,7 @@ module.exports = [
             { name: 'Ekleyen', value: executorId },
             { name: 'Emoji', value: `${emoji} (\`${emoji.name}\`)` },
             { name: 'Zaman', value: now }
-        ], '#2B2D31');
+        ], '#2B2D31', 'guild', 'emoji_create');
     }
 },
 {
@@ -767,7 +780,7 @@ module.exports = [
             { name: 'Silen', value: executorId },
             { name: 'Emoji Adı', value: `\`${emoji.name}\`` },
             { name: 'Zaman', value: now }
-        ], '#2B2D31');
+        ], '#2B2D31', 'guild', 'emoji_delete');
     }
 },
 {
@@ -789,13 +802,13 @@ module.exports = [
                 { name: 'Zaman', value: now }
             ];
 
-            const { pool } = require('../../db');
+            const { pool } = require('../db');
             pool.query('INSERT INTO user_history (user_id, guild_id, change_type, old_value, new_value) VALUES (?, ?, ?, ?, ?)', [newUser.id, null, 'global_avatar', oldAvatar, newAvatar]).catch(()=>{});
 
             // Log to all mutual guilds
             for (const guild of client.guilds.cache.values()) {
                 if (guild.members.cache.has(newUser.id)) {
-                    logSystemEvent(guild, 'Kullanıcı Profili Güncellendi', fields, '#2B2D31');
+                    logSystemEvent(guild, 'Kullanıcı Profili Güncellendi', fields, '#2B2D31', 'member', 'user_avatar_change', { userId: newUser.id, isBot: newUser.bot });
                 }
             }
         }
@@ -813,12 +826,12 @@ module.exports = [
                 { name: 'Zaman', value: now }
             ];
 
-            const { pool } = require('../../db');
+            const { pool } = require('../db');
             pool.query('INSERT INTO user_history (user_id, guild_id, change_type, old_value, new_value) VALUES (?, ?, ?, ?, ?)', [newUser.id, null, 'username', oldName, newName]).catch(()=>{});
 
             for (const guild of client.guilds.cache.values()) {
                 if (guild.members.cache.has(newUser.id)) {
-                    logSystemEvent(guild, 'Kullanıcı Adı (Global) Değiştirildi', fields, '#2B2D31');
+                    logSystemEvent(guild, 'Kullanıcı Adı (Global) Değiştirildi', fields, '#2B2D31', 'member', 'user_name_change', { userId: newUser.id, isBot: newUser.bot });
                 }
             }
         }

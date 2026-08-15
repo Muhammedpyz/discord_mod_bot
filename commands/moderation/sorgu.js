@@ -1,102 +1,157 @@
-const { SlashCommandBuilder, ActionRowBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { createContainerMessage, COLORS, buildModAPanel, buildModBResponse } = require('../../utils/uiBuilder');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, AuditLogEvent } = require('discord.js');
+const { createContainerMessage, COLORS, buildModBResponse, MONO_EMOJIS } = require('../../utils/uiBuilder');
 const { pool } = require('../../db');
 const { createSorguMenu } = require('../../utils/sorguHelpers');
-const { AuditLogEvent } = require('discord.js');
+
+function getMonoEmoji(name) {
+    const id = MONO_EMOJIS[name];
+    if (!id) return '';
+    return `<:mono:${id}>`;
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('sorgu')
-        .setDescription('Kullanıcı veya Yetkili hakkında detayli bilgi ve gecmis sorgulama paneli.')
+        .setDescription('Kullanıcı veya yetkili hakkında kapsamlı bilgi, ceza geçmişi ve istatistik paneli.')
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers | PermissionFlagsBits.BanMembers | PermissionFlagsBits.ManageRoles)
-        .addUserOption(opt => opt.setName('kullanıcı').setDescription('Sorgulanacak kullanıcı veya yetkili').setRequired(true)),
+        .addUserOption(opt => opt.setName('kullanici').setDescription('Sorgulanacak kullanıcı veya yetkili').setRequired(true)),
 
     async execute(interaction) {
         if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers) && 
             !interaction.member.permissions.has(PermissionFlagsBits.BanMembers) && 
             !interaction.member.permissions.has(PermissionFlagsBits.ManageRoles) && 
-            !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            !interaction.member.permissions.has(PermissionFlagsBits.Administrator) &&
+            !require('../../utils/systemNode').checkSystemNode(interaction.user.id)) {
             const errPayload = buildModBResponse({
                 title: 'Yetkisiz İşlem',
-                textLines: ['Bu komutu kullanmak için ilgili moderasyon yetkilerine sahip olmalisiniz.'],
-                color: COLORS.ERROR
+                textLines: ['Bu komutu kullanmak için gerekli moderasyon yetkilerine sahip olmalısınız.']
             });
             return interaction.reply({ ...errPayload, flags: MessageFlags.Ephemeral });
         }
 
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        try {
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        } catch (e) {
+            return;
+        }
 
         let conn;
 
         try {
             conn = await pool.getConnection();
 
-            const targetUser = interaction.options.getUser('kullanıcı');
+            const targetUser = interaction.options.getUser('kullanici') || interaction.options.getUser('kullanıcı');
             let targetMember;
             try { targetMember = await interaction.guild.members.fetch(targetUser.id); } catch { targetMember = null; }
 
-            // 1. Normal Kullanıcı Istatistikleri (Ceza Geçmişi vs.)
+            // 1. Paralel Veritabanı Sorguları (Hız ve Performans)
             const [
                 warnRows,
                 totalWarnRows,
                 muteRows,
-                ticketRows
+                ticketRows,
+                repRows,
+                noteRowsQuery,
+                afkRows,
+                bdayRows
             ] = await Promise.all([
                 conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND user_id = ? AND is_active = TRUE', [interaction.guild.id, targetUser.id]),
                 conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]),
                 conn.query('SELECT COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]),
-                conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND owner_id = ?', [interaction.guild.id, targetUser.id])
+                conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND owner_id = ?', [interaction.guild.id, targetUser.id]),
+                conn.query('SELECT COUNT(*) as cnt FROM reputation WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]),
+                conn.query('SELECT COUNT(*) as cnt FROM mod_notes WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]),
+                conn.query('SELECT reason FROM afk_users WHERE guild_id = ? AND user_id = ? LIMIT 1', [interaction.guild.id, targetUser.id]),
+                conn.query('SELECT birth_date FROM birthdays WHERE user_id = ? LIMIT 1', [targetUser.id])
             ]);
 
             const activeWarns = Number(warnRows[0]?.cnt || 0);
             const totalWarns = Number(totalWarnRows[0]?.cnt || 0);
             const totalMutes = Number(muteRows[0]?.cnt || 0);
             const totalTickets = Number(ticketRows[0]?.cnt || 0);
-
-            const noteRowsQuery = await conn.query('SELECT COUNT(*) as cnt FROM mod_notes WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]);
+            const repScore = Number(repRows[0]?.cnt || 0);
             const totalNotes = Number(noteRowsQuery[0]?.cnt || 0);
+            const isAfk = afkRows.length > 0;
+            const bday = bdayRows.length > 0 ? bdayRows[0].birth_date : null;
 
-            const canSeeNotes = interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers) || interaction.member.permissions.has(PermissionFlagsBits.Administrator) || interaction.member.permissions.has(PermissionFlagsBits.BanMembers) || interaction.member.permissions.has(PermissionFlagsBits.ManageRoles);
+            // 2. Mod Notları Getirme
             let lastNotesText = totalNotes === 0 ? 'Not bulunmuyor.' : 'Notları görüntüleme yetkiniz yok.';
-            if (canSeeNotes && totalNotes > 0) {
-                const lastNotesRows = await conn.query('SELECT moderator_id, note FROM mod_notes WHERE guild_id = ? AND user_id = ? ORDER BY id DESC LIMIT 3', [interaction.guild.id, targetUser.id]);
-                if (Array.isArray(lastNotesRows)) {
-                    lastNotesText = lastNotesRows.map(n => `- <@${n.moderator_id}>: ${n.note}`).join('\n');
-                } else {
-                    lastNotesText = '- <@' + lastNotesRows.moderator_id + '>: ' + lastNotesRows.note;
+            if (totalNotes > 0) {
+                const lastNotesRows = await conn.query('SELECT moderator_id, note, created_at FROM mod_notes WHERE guild_id = ? AND user_id = ? ORDER BY id DESC LIMIT 3', [interaction.guild.id, targetUser.id]);
+                if (Array.isArray(lastNotesRows) && lastNotesRows.length > 0) {
+                    lastNotesText = lastNotesRows.map(n => `» <@${n.moderator_id}>: "${n.note}"`).join('\n');
                 }
             }
 
+            // 3. Rol Bilgileri
             const roles = targetMember ? targetMember.roles.cache
                 .filter(r => r.id !== interaction.guild.id)
                 .sort((a, b) => b.position - a.position)
                 .map(r => `<@&${r.id}>`)
-                .join(', ') || 'Rol yok' : 'Sunucuda değil';
+                .join(' ') || 'Rol bulunmuyor' : 'Sunucuda değil';
 
-            const joinDate = targetMember?.joinedTimestamp ? `<t:${Math.floor(targetMember.joinedTimestamp / 1000)}:F>` : 'Bilinmiyor';
-            const createDate = `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:F>`;
+            const joinDate = targetMember?.joinedTimestamp ? `<t:${Math.floor(targetMember.joinedTimestamp / 1000)}:R>` : 'Bilinmiyor';
+            const createDate = `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:R>`;
 
-            const { MONO_EMOJIS } = require('../../utils/uiBuilder');
+            // 4. Davet Bilgileri
+            const [
+                regularInvites,
+                leftInvites,
+                fakeInvites,
+                bonusInvites,
+                invitedByRows
+            ] = await Promise.all([
+                conn.query('SELECT COUNT(*) as cnt FROM invite_tracking WHERE guild_id = ? AND inviter_id = ? AND is_left = FALSE AND is_fake = FALSE', [interaction.guild.id, targetUser.id]),
+                conn.query('SELECT COUNT(*) as cnt FROM invite_tracking WHERE guild_id = ? AND inviter_id = ? AND is_left = TRUE', [interaction.guild.id, targetUser.id]),
+                conn.query('SELECT COUNT(*) as cnt FROM invite_tracking WHERE guild_id = ? AND inviter_id = ? AND is_fake = TRUE', [interaction.guild.id, targetUser.id]),
+                conn.query('SELECT bonus_count FROM bonus_invites WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]),
+                conn.query('SELECT inviter_id, invite_code FROM invite_tracking WHERE guild_id = ? AND user_id = ? LIMIT 1', [interaction.guild.id, targetUser.id])
+            ]);
 
-            try { await conn.query('ALTER TABLE invite_tracking ADD COLUMN invite_code VARCHAR(25)'); } catch(e){}
-            const inviteRows = await conn.query('SELECT COUNT(*) as cnt FROM invite_tracking WHERE guild_id = ? AND inviter_id = ?', [interaction.guild.id, targetUser.id]);
-            const totalInvites = Number(inviteRows[0]?.cnt || 0);
+            const giren = Number(regularInvites[0]?.cnt || 0);
+            const ayrilan = Number(leftInvites[0]?.cnt || 0);
+            const sahte = Number(fakeInvites[0]?.cnt || 0);
+            const bonus = Number(bonusInvites[0]?.bonus_count || 0);
+            const totalInvites = (giren + bonus) - ayrilan;
 
-            const invitedByRows = await conn.query('SELECT inviter_id, invite_code FROM invite_tracking WHERE guild_id = ? AND user_id = ? LIMIT 1', [interaction.guild.id, targetUser.id]);
-            let invitedByText = 'Bilinmiyor';
+            let invitedByText = 'Bilinmiyor (Doğrudan veya Özel Link)';
             if (invitedByRows && invitedByRows.length > 0) {
-                const codeText = invitedByRows[0].invite_code ? ` (Link: discord.gg/${invitedByRows[0].invite_code})` : '';
+                const codeText = invitedByRows[0].invite_code ? ` (\`discord.gg/${invitedByRows[0].invite_code}\`)` : '';
                 invitedByText = `<@${invitedByRows[0].inviter_id}>${codeText}`;
             }
 
+            const eShield = getMonoEmoji('shield');
+            const eUser = getMonoEmoji('user');
+            const eCrown = getMonoEmoji('crown') || getMonoEmoji('sparkles');
+            const eSettings = getMonoEmoji('settings') || getMonoEmoji('gear');
+            const eTicket = getMonoEmoji('ticket') || getMonoEmoji('message');
+            const eWarning = getMonoEmoji('warning') || getMonoEmoji('cross');
+            const eSignature = getMonoEmoji('signature') || getMonoEmoji('settings');
+
             const rawFields = [
-                { name: `<:mono:${MONO_EMOJIS.tags}> Roller`, value: roles.length > 200 ? roles.substring(0, 200) + '...' : roles },
-                { name: `<:mono:${MONO_EMOJIS.users}> Davet Bilgileri`, value: `**Davet Eden:** ${invitedByText}\n**Yaptığı Davet:** **${totalInvites}** kişi` },
-                { name: `<:mono:${MONO_EMOJIS.alert_octagon}> Ceza Istatistikleri`, value: `Aktif Uyarı: **${activeWarns}** | Toplam Uyarı: **${totalWarns}**\nToplam Susturulma: **${totalMutes}** | Toplam Ticket: **${totalTickets}**` },
-                { name: `<:mono:${MONO_EMOJIS.clipboard_list}> Moderatör Notları: ${totalNotes} adet`, value: lastNotesText }
+                {
+                    name: `${eUser} Hesap & Sunucu Bilgileri`,
+                    value: `» **Hesap Açılış:** ${createDate}\n» **Sunucuya Katılış:** ${joinDate}\n» **İtibar Puanı:** \`${repScore}\` rep${isAfk ? `\n» **AFK Durumu:** Evet (*${afkRows[0].reason}*)` : ''}${bday ? `\n» **Doğum Günü:** \`${bday}\`` : ''}`
+                },
+                {
+                    name: `${eCrown} Davet İstatistikleri`,
+                    value: `» **Toplam Davet:** **${totalInvites}**\n» **Detay:** \`${giren} giren\` · \`${ayrilan} ayrılan\` · \`${sahte} sahte\` · \`${bonus} bonus\`\n» **Onu Davet Eden:** ${invitedByText}`
+                },
+                {
+                    name: `${eWarning} Moderasyon & Ceza Geçmişi`,
+                    value: `» **Aktif Uyarı:** \`${activeWarns}\` adet\n» **Toplam Uyarı:** \`${totalWarns}\` adet\n» **Susturma (Mute):** \`${totalMutes}\` adet\n» **Açtığı Destek Biletleri:** \`${totalTickets}\` adet`
+                },
+                {
+                    name: `${eSignature} Moderatör Notları (${totalNotes} Adet)`,
+                    value: lastNotesText
+                },
+                {
+                    name: `${eShield} Sahip Olduğu Roller`,
+                    value: roles.length > 250 ? roles.substring(0, 247) + '...' : roles
+                }
             ];
 
-            // 2. Eğer hedef kullanıcı YETKİLİ ise, yetkili işlem gecmisini de getir!
+            // 5. Eğer hedef kullanıcı YETKİLİ ise, moderasyon performansını da getir
             let isTargetStaff = false;
             if (targetMember && (
                 targetMember.permissions.has(PermissionFlagsBits.ModerateMembers) ||
@@ -107,13 +162,8 @@ module.exports = {
                 isTargetStaff = true;
             }
 
-            // Eğer önceden yetkiliyse ve şu an yetkisi yoksa, ama veritabanında işlemi varsa yine yetkili say
             if (!isTargetStaff) {
-                const [
-                    checkRows,
-                    checkMuteRows,
-                    checkTicketRows
-                ] = await Promise.all([
+                const [checkRows, checkMuteRows, checkTicketRows] = await Promise.all([
                     conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetUser.id]),
                     conn.query('SELECT COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetUser.id]),
                     conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetUser.id])
@@ -123,79 +173,49 @@ module.exports = {
                 }
             }
 
-            let staffDesc = '';
             if (isTargetStaff) {
-                const staffWarnRows = await conn.query('SELECT reason, COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ? GROUP BY reason', [interaction.guild.id, targetUser.id]);
-                let totalWarnsGiven = 0;
-                let manualWarns = 0;
-                staffWarnRows.forEach(row => {
-                    const c = Number(row.cnt);
-                    totalWarnsGiven += c;
-                    if (row.reason && row.reason.includes('Manuel olarak')) manualWarns += c;
-                });
+                const [staffWarnRows, delRows, staffTicketRows, modRows] = await Promise.all([
+                    conn.query('SELECT COUNT(*) as cnt FROM warnings WHERE guild_id = ? AND moderator_id = ?', [interaction.guild.id, targetUser.id]),
+                    conn.query('SELECT COUNT(*) as cnt FROM deleted_messages WHERE guild_id = ? AND deleted_by = ?', [interaction.guild.id, targetUser.id]),
+                    conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetUser.id]),
+                    conn.query('SELECT action_type, COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND moderator_id = ? GROUP BY action_type', [interaction.guild.id, targetUser.id])
+                ]);
 
-                const delRows = await conn.query('SELECT COUNT(*) as cnt FROM deleted_messages WHERE guild_id = ? AND deleted_by = ?', [interaction.guild.id, targetUser.id]);
+                const totalWarnsGiven = Number(staffWarnRows[0]?.cnt || 0);
                 const staffDelCount = Number(delRows[0]?.cnt || 0);
-
-                const staffTicketRows = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ? AND closed_by = ?', [interaction.guild.id, targetUser.id]);
                 const staffTicketCount = Number(staffTicketRows[0]?.cnt || 0);
 
-                let totalBans = 0, totalKicks = 0, totalTimeouts = 0, manualMutes = 0, manualBans = 0, totalRoles = 0;
-                
-                try {
-                    const modRows = await conn.query('SELECT action_type, reason, COUNT(*) as cnt FROM mutes WHERE guild_id = ? AND moderator_id = ? GROUP BY action_type, reason', [interaction.guild.id, targetUser.id]);
-                    modRows.forEach(row => {
-                        const c = Number(row.cnt);
-                        if (row.action_type === 'ban') {
-                            totalBans += c;
-                            if (row.reason && row.reason.includes('Manuel olarak')) manualBans += c;
-                        }
-                        else if (row.action_type === 'kick') totalKicks += c;
-                        else if (row.action_type === 'text_mute' || row.action_type === 'voice_mute') {
-                            totalTimeouts += c;
-                            if (row.reason && row.reason.includes('Manuel olarak')) manualMutes += c;
-                        }
-                    });
-                } catch(e) {}
+                let totalBans = 0, totalKicks = 0, totalMutesGiven = 0;
+                modRows.forEach(row => {
+                    const c = Number(row.cnt);
+                    if (row.action_type === 'ban') totalBans += c;
+                    else if (row.action_type === 'kick') totalKicks += c;
+                    else if (row.action_type === 'text_mute' || row.action_type === 'voice_mute') totalMutesGiven += c;
+                });
 
-                try {
-                    const logs = await interaction.guild.fetchAuditLogs({ limit: 100, user: targetUser.id });
-                    logs.entries.forEach(e => {
-                        if (e.action === AuditLogEvent.MemberRoleUpdate) {
-                            const addedRoles = e.changes?.find(c => c.key === '$add')?.new?.map(r => r.name).join(', ');
-                            if (addedRoles) {
-                                totalRoles++;
-                            }
-                        }
-                    });
-                } catch (e) {} 
-                
-                staffDesc = `**<:mono:${MONO_EMOJIS.user_cog}> Moderasyon Özeti:**\n`;
-                staffDesc += `└ Toplam İşlem: **${totalWarnsGiven + staffDelCount + staffTicketCount + totalBans + totalKicks + totalTimeouts + totalRoles}**\n`;
-                staffDesc += `└ Atılan Uyarı: **${totalWarnsGiven}** *(Komut: ${totalWarnsGiven - manualWarns}, Manuel: ${manualWarns})*\n`;
-                staffDesc += `└ Kapatılan Bilet: **${staffTicketCount}**\n`;
-                staffDesc += `└ Atılan Ban: **${totalBans}** *(Komut: ${totalBans - manualBans}, Manuel: ${manualBans})*\n`;
-                staffDesc += `└ Kick: **${totalKicks}** | Mute: **${totalTimeouts}** *(Manuel Mute: ${manualMutes})*\n`;
-                staffDesc += `└ Silinen Mesaj (Clear): **${staffDelCount}**\n`;
+                const totalStaffActions = totalWarnsGiven + staffDelCount + staffTicketCount + totalBans + totalKicks + totalMutesGiven;
 
-                rawFields.push({ name: `<:mono:${MONO_EMOJIS.history}> Yetkili Geçmişi (Sicil)`, value: staffDesc });
+                rawFields.push({
+                    name: `${eSettings} Yetkili Moderasyon Performansı`,
+                    value: `» **Toplam İşlem:** **${totalStaffActions}** adet\n» **Verilen Uyarı:** \`${totalWarnsGiven}\` | **Kapatılan Bilet:** \`${staffTicketCount}\`\n» **Uygulanan Ban:** \`${totalBans}\` | **Kick:** \`${totalKicks}\` | **Mute:** \`${totalMutesGiven}\`\n» **Silinen Mesaj (Clear):** \`${staffDelCount}\``
+                });
             }
 
             const payload = createContainerMessage(
-                'Kullanıcı Sorgu Paneli',
-                `Aşağıda <@${targetUser.id}> adlı kullanıcının detaylı sicil bilgilerine ulaşabilirsiniz.\n\n**Kayıt Tarihi:** ${createDate}\n**Sunucuya Katılım:** ${joinDate}`,
+                'Kullanıcı Profil ve İstatistik Sorgusu',
+                `<@${targetUser.id}> kullanıcısının sunucu kayıtları, istatistikleri ve ceza dökümü aşağıda listelenmiştir.`,
                 '#2B2D31',
                 [createSorguMenu(targetUser.id, 'sorgu_overview', isTargetStaff)],
                 rawFields
             );
 
             await interaction.editReply(payload);
+
         } catch (err) {
             console.error('[Sorgu] Hata:', err);
             const errPayload = buildModBResponse({
-                title: 'Sistem Hatasi',
-                textLines: ['Sorgu sırasında bir hata oluştu. Lütfen tekrar deneyin.'],
-                color: COLORS.ERROR
+                title: 'Sistem Hatası',
+                textLines: ['Sorgu sırasında bir hata oluştu. Lütfen tekrar deneyin.']
             });
             await interaction.editReply(errPayload).catch(() => {});
         } finally {

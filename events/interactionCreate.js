@@ -1,4 +1,4 @@
-const { Events, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelType, PermissionFlagsBits, AttachmentBuilder } = require('discord.js');
+const { Events, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelType, PermissionFlagsBits, AttachmentBuilder, MessageFlags } = require('discord.js');
 const { COLORS } = require('../utils/embeds');
 const { pool, updateConfigCache } = require('../db');
 const config = require('../config.json');
@@ -8,7 +8,6 @@ const { createTicket, checkTicketLimits, closeTicketChannel } = require('../util
 const { handleSorguSelect, handleExport } = require('../utils/sorguHelpers');
 const { generateDiscordTranscriptHtml, generateDiscordTranscriptText } = require('../utils/discordHtmlExporter');
 const { helpEmbedHome, createHelpComponents } = require('../commands/moderation/yardim');
-const { getSettingsPage, handleSettingsSelect } = require('../commands/moderation/settings');
 
 module.exports = {
     name: Events.InteractionCreate,
@@ -69,13 +68,14 @@ module.exports = {
                 await command.execute(interaction, client);
             } catch (error) {
                 console.error(`Komut hatası: ${interaction.commandName}`, error);
-                let title = 'Hata';
-                let desc = 'Bu komutu çalıştırırken bir hata oluştu.';
+                const { buildWrongUsageContainer } = require('../utils/commandUsageHelper');
+                let desc = error.message;
                 if (error.message && error.message.includes('Missing Permissions')) {
-                    title = 'Yetki Hatası';
                     desc = 'Botun bu işlemi gerçekleştirmek için yeterli yetkisi bulunmuyor.';
                 }
-                const payload = buildModBResponse({ title, textLines: [desc], color: COLORS.ERROR });
+                const payload = buildWrongUsageContainer(command.data, '/', desc);
+                payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+
                 if (interaction.replied || interaction.deferred) await interaction.followUp(payload).catch(e => console.error('Silent catch:', e.message));
                 else await interaction.reply(payload).catch(e => console.error('Silent catch:', e.message));
             }
@@ -88,6 +88,36 @@ module.exports = {
         // Özel Oda (Private Room) Yönlendirmesi
         const { handlePrivateRoomInteraction } = require('../utils/privateRoomInteractionHandler');
         await handlePrivateRoomInteraction(interaction, client);
+
+        // AutoMod (Koruma & Filtre) Yönlendirmesi
+        const { handleAutoModInteraction } = require('../utils/automodInteractionHandler');
+        const automodHandled = await handleAutoModInteraction(interaction, client);
+        if (automodHandled) return;
+
+        // Karşılama & Uğurlama (Welcome / Goodbye) Yönlendirmesi
+        if (interaction.customId.startsWith('welcome_') || 
+            interaction.customId.startsWith('goodbye_') || 
+            interaction.customId.startsWith('modal_welcome_') || 
+            interaction.customId.startsWith('modal_goodbye_')) {
+            const { handleWelcomeInteraction } = require('../utils/welcomeInteractionHandler');
+            try {
+                await handleWelcomeInteraction(interaction, client);
+            } catch (err) {
+                console.error("Welcome interaction error:", err);
+            }
+            return;
+        }
+
+        // Gelişmiş Log Sistemi Yönlendirmesi
+        if (interaction.customId.startsWith('log_')) {
+            const { handleLogInteraction } = require('../utils/logInteractionHandler');
+            try {
+                await handleLogInteraction(interaction, client);
+            } catch (err) {
+                console.error("Log interaction error:", err);
+            }
+            return;
+        }
 
         // Geçiş dönemi için (henüz tam namespace'e geçmemiş eskiler için fallback)
         let namespace, action, targetId;
@@ -102,7 +132,7 @@ module.exports = {
         }
 
         // TICKET NAMESPACE
-        if (namespace === 'ticket' || action.startsWith('ticket_')) {
+        if (interaction.customId.startsWith('ticket') || namespace === 'ticket' || action.startsWith('ticket_')) {
             const { handleTicketInteraction } = require('../utils/ticketSystem');
             try {
                 await handleTicketInteraction(interaction);
@@ -110,6 +140,100 @@ module.exports = {
                 console.error('Ticket interaction err:', err);
                 if (!interaction.replied && !interaction.deferred && interaction.isRepliable()) {
                     await interaction.reply({ content: 'İşlem sırasında bir hata oluştu.', ephemeral: true }).catch(()=>{});
+                }
+            }
+            return;
+        }
+
+        // SUGGESTION / ONERI NAMESPACE
+        if (interaction.customId.startsWith('oneri') || namespace === 'oneri' || action.startsWith('oneri_')) {
+            const { handleSuggestionInteraction } = require('../utils/suggestionSystem');
+            try {
+                await handleSuggestionInteraction(interaction);
+            } catch (err) {
+                console.error('Suggestion interaction err:', err);
+                if (!interaction.replied && !interaction.deferred && interaction.isRepliable()) {
+                    await interaction.reply({ content: 'İşlem sırasında bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(()=>{});
+                }
+            }
+            return;
+        }
+
+        // YETKILI PANOSU (STAFF PANEL) NAMESPACE
+        if (
+            interaction.customId.startsWith('staff_btn_') || 
+            interaction.customId.startsWith('modal_staff_panel_') ||
+            interaction.customId.startsWith('staff_sel_')
+        ) {
+            const { handleStaffPanelButtons, handleStaffPanelModals, handleStaffPanelSelectMenus } = require('../utils/staffPanelSystem');
+            try {
+                if (interaction.isModalSubmit()) {
+                    await handleStaffPanelModals(interaction);
+                } else if (interaction.isChannelSelectMenu() || interaction.isRoleSelectMenu() || interaction.isStringSelectMenu()) {
+                    await handleStaffPanelSelectMenus(interaction);
+                } else if (interaction.isButton()) {
+                    await handleStaffPanelButtons(interaction);
+                }
+            } catch (err) {
+                console.error('Staff panel interaction err:', err);
+                if (!interaction.replied && !interaction.deferred && interaction.isRepliable()) {
+                    await interaction.reply({ content: 'İşlem sırasında bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(()=>{});
+                }
+            }
+            return;
+        }
+
+        // PREFIX YÖNETİMİ NAMESPACE
+        if (
+            interaction.customId.startsWith('prefix_btn_') || 
+            interaction.customId.startsWith('modal_prefix_') ||
+            interaction.customId.startsWith('prefix_sel_')
+        ) {
+            const { handlePrefixButtons, handlePrefixModals, handlePrefixSelect } = require('../utils/prefixSystem');
+            try {
+                if (interaction.isModalSubmit()) {
+                    await handlePrefixModals(interaction);
+                } else if (interaction.isStringSelectMenu()) {
+                    await handlePrefixSelect(interaction);
+                } else if (interaction.isButton()) {
+                    await handlePrefixButtons(interaction);
+                }
+            } catch (err) {
+                console.error('Prefix interaction err:', err);
+                if (!interaction.replied && !interaction.deferred && interaction.isRepliable()) {
+                    await interaction.reply({ content: 'İşlem sırasında bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(()=>{});
+                }
+            }
+            return;
+        }
+
+        // --- AUTOROLE (OTOROL) ROUTER ---
+        if (interaction.customId && interaction.customId.startsWith('autorole_')) {
+            const { handleAutoroleInteractions } = require('../utils/autoroleSystem');
+            try {
+                await handleAutoroleInteractions(interaction);
+            } catch (err) {
+                console.error('Autorole interaction error:', err);
+                if (!interaction.replied && !interaction.deferred && interaction.isRepliable()) {
+                    await interaction.reply({ content: 'Otorol işlemi sırasında bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(()=>{});
+                }
+            }
+            return;
+        }
+
+        // --- PRIVATE ROOM (ÖZEL ODA) ADMIN ROUTER ---
+        if (interaction.customId && (interaction.customId.startsWith('privroom_') || interaction.customId.startsWith('modal_privroom_'))) {
+            const { handlePrivateRoomAdminInteractions, handlePrivateRoomModals } = require('../utils/privateRoomSystem');
+            try {
+                if (interaction.isModalSubmit()) {
+                    await handlePrivateRoomModals(interaction);
+                } else {
+                    await handlePrivateRoomAdminInteractions(interaction);
+                }
+            } catch (err) {
+                console.error('Privroom admin interaction error:', err);
+                if (!interaction.replied && !interaction.deferred && interaction.isRepliable()) {
+                    await interaction.reply({ content: 'Özel oda işlemi sırasında bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(()=>{});
                 }
             }
             return;
@@ -390,125 +514,52 @@ module.exports = {
         // YARDIM
         if (action === 'help_category_select') {
             try { await interaction.deferUpdate(); } catch (e) { return; }
-            const { helpEmbedHome, createHelpComponents } = require('../commands/moderation/yardim.js');
-            const { createContainerMessage, MONO_EMOJIS } = require('../utils/uiBuilder');
+            const { helpEmbedHome, createHelpComponents, getCategoryHelpPayload } = require('../commands/moderation/yardim.js');
             
             const val = interaction.values[0];
-            if (val === 'help_home') return interaction.editReply(helpEmbedHome(interaction.guild, interaction.user, [createHelpComponents('home')]));
+            if (val === 'help_home') {
+                return interaction.editReply(helpEmbedHome(interaction.guild, interaction.user, [createHelpComponents('home')]));
+            }
             
-            const getHelpPayload = (title, lines, fields, selected) => {
-                const desc = lines.join('\n\n');
-                const formattedFields = fields.map(f => ({
-                    name: `<:mono:${MONO_EMOJIS.chevron_right}> ${f.name}`,
-                    value: f.value,
-                    inline: false
-                }));
-
-                // showBrand = false for subpages
-                return createContainerMessage(title, desc, '#2B2D31', [createHelpComponents(selected)], formattedFields, false);
-            };
-            
-            if (val === 'help_punish') {
-                return interaction.editReply(getHelpPayload(
-                    'Ceza İşlemleri', 
-                    [`<:mono:${MONO_EMOJIS.hammer}> Kuralları ihlal eden kullanıcılara uygulanacak doğrudan ceza komutları:`], 
-                    [
-                        { name: 'Sunucudan Yasaklama', value: `\`\`\`/yasakla [kullanıcı] [sebep]\`\`\`Kullanıcıyı sunucudan tamamen yasaklar. İsteğe bağlı sebep belirtilebilir.\n\`\`\`/unban [kullanıcı]\`\`\`Yasaklı kullanıcının cezasını kaldırır.` },
-                        { name: 'Sunucudan Atma', value: `\`\`\`/at [kullanıcı] [sebep]\`\`\`Kullanıcıyı sunucudan uzaklaştırır, ancak tekrar katılabilir.` },
-                        { name: 'Susturma (Time-Out)', value: `\`\`\`/sustur [kullanıcı] [süre(örn: 10m, 1h)] [sebep]\`\`\`Kullanıcının yazı yazmasını süreli engeller.\n\`\`\`/unmute [kullanıcı]\`\`\`Aktif susturmayı veya zaman aşımını iptal eder.` },
-                        { name: 'Sesli Odadan Susturma', value: `\`\`\`/ses-sustur [kullanıcı] [sebep]\`\`\`Kullanıcının ses kanallarında konuşmasını yasaklar.` },
-                        { name: 'Karantina (Yakında)', value: `\`\`\`/karantina [kullanıcı] [sebep]\`\`\`Kullanıcıyı izole bir odaya hapseder, diğer kanalları göremez.` }
-                    ], 
-                    'punish'
-                ));
-            }
-            if (val === 'help_stats') {
-                return interaction.editReply(getHelpPayload(
-                    'Kullanıcı & Sicil Yönetimi', 
-                    [`<:mono:${MONO_EMOJIS.clipboard_list}> Kullanıcıların istatistik, uyarı ve geçmiş sicil durumlarını yöneten sistemler:`], 
-                    [
-                        { name: 'Kapsamlı Sorgu', value: `\`\`\`/sorgu [kullanıcı]\`\`\`Kullanıcının hesap yaşı, davetleri, uyarıları ve mod notlarını tek panelde listeler.` },
-                        { name: 'Uyarı Sistemi', value: `\`\`\`/uyar [kullanıcı] [sebep]\`\`\`Kullanıcıya resmi uyarı verir (3 uyarıda otomatik işlem yapılabilir).\n\`\`\`/uyarılar [kullanıcı]\`\`\`Aktif ve geçmiş uyarıları listeler.\n\`\`\`/uyarı-temizle [kullanıcı]\`\`\`Tüm uyarılarını sıfırlar.` },
-                        { name: 'Moderatör Notları', value: `\`\`\`/not [kullanıcı] [not]\`\`\`Kullanıcının profiline, sadece yetkililerin görebileceği kalıcı not bırakır.` },
-                        { name: 'Davet / Stat (Yakında)', value: `\`\`\`/davet [kullanıcı]\`\`\`Kullanıcının kaç kişi davet ettiğini listeler.\n\`\`\`/mod-stat [yetkili]\`\`\`Yetkilinin kaç işlem (ban, mute) yaptığını gösterir.` }
-                    ], 
-                    'stats'
-                ));
-            }
-            if (val === 'help_channel') {
-                return interaction.editReply(getHelpPayload(
-                    'Kanal Yönetimi', 
-                    [`<:mono:${MONO_EMOJIS.layout_grid}> Odalar üzerinde toplu işlem, temizlik ve güvenlik sağlayan sistemler:`], 
-                    [
-                        { name: 'Mesaj Temizliği', value: `\`\`\`/temizle [sayı(1-100)]\`\`\`Kanaldaki son mesajları toplu şekilde siler.` },
-                        { name: 'Kanal Kilidi', value: `\`\`\`/kilit [durum: Aç / Kapat]\`\`\`Bulunulan kanalı üyelerin mesaj yazmasına kapatır veya açar.` },
-                        { name: 'Yavaş Mod (Slowmode)', value: `\`\`\`/yavaş-mod [süre(saniye)]\`\`\`Kanala iki mesaj arası bekleme süresi koyar (Kapatmak için 0).` },
-                        { name: 'Snipe (Mesaj Geri Alma)', value: `\`\`\`/snipe\`\`\`Kanaldaki en son silinen mesajı (fotoğraflar dahil) gösterir.` },
-                        { name: 'Oda Sıfırlama (Nuke)', value: `\`\`\`/nuke\`\`\`Kanalı tüm ayarlarıyla kopyalayıp eskisini siler, tertemiz yapar.` }
-                    ], 
-                    'channel'
-                ));
-            }
-            if (val === 'help_system') {
-                return interaction.editReply(getHelpPayload(
-                    'Sistem Yapılandırma', 
-                    [`<:mono:${MONO_EMOJIS.sliders}> Sunucunun kalbini (ayarları) yönettiğiniz ana modüller:`], 
-                    [
-                        { name: 'Gelişmiş Kontrol Paneli', value: `\`\`\`/ayarlar\`\`\`Sunucu log kanalları, ticket kurulumu ve sistemlerin aktif/pasif durumlarını yönetebileceğiniz görsel arayüz.` },
-                        { name: 'Filtre Yönetimi', value: `\`\`\`/kara-liste\`\`\`Otomatik kelime engelleyiciye yasaklı kelime ekler/çıkarır.` },
-                        { name: 'Bilet (Ticket) Sistemi', value: `\`\`\`/destek\`\`\`Destek menüsünü kanala gönderir. Üyeler özel oda açarak yetkililerle görüşebilir.\n\`\`\`/bilet [ekle/çıkar] [kullanıcı]\`\`\`Mevcut bilet odasına başka birini dahil eder.` },
-                        { name: 'Özel (Geçici) Odalar', value: `\`\`\`/odapanel\`\`\`Sesli odasını açmış üyelere, kendi odalarını kilitlemeleri, limit koymaları için panel gönderir.` }
-                    ], 
-                    'system'
-                ));
-            }
-            if (val === 'help_security') {
-                return interaction.editReply(getHelpPayload(
-                    'Otomatik Korumalar (7/24 Aktif)', 
-                    [`<:mono:${MONO_EMOJIS.shield_check}> Komut gerektirmeyen, arka planda çalışan ve sizi koruyan sistemler (Tümü /ayarlar içinden açılıp kapatılabilir):`], 
-                    [
-                        { name: 'Anti-Spam & Mass Mention', value: `Kullanıcı saniyede birden fazla mesaj atarsa veya tek mesajda 5'ten fazla kişiyi etiketlerse, otomatik uyarılıp 5 dakika susturulur.` },
-                        { name: 'Anti-Link & Reklam (Gelişmiş)', value: `Sunucu içi veya özel DM reklamlarını, Discord davet linklerini ve zararlı siteleri anında tespit edip siler.` },
-                        { name: 'Akıllı Kelime Filtresi (Anti-Küfür)', value: `(Masa/Kasa ayrımını yapabilen) akıllı algoritma ile, kelimeyi kökünden süzerek sadece argo kullanımları cezalandırır.` },
-                        { name: 'Büyük Harf Koruması', value: `Mesajın %65'i veya daha fazlası büyük harften oluşuyorsa (caps lock), mesajı silerek sunucu düzenini sağlar.` }
-                    ], 
-                    'security'
-                ));
+            const payload = getCategoryHelpPayload(val);
+            if (payload) {
+                return interaction.editReply(payload);
             }
         }
 
-        if (action.startsWith('toggle_')) {
-            if (!interaction.member.permissions.has('Administrator') && !systemNode.checkSystemNode(interaction.user.id)) return interaction.reply({ content: 'Yönetici izniniz yok.', ephemeral: true }).catch(e => console.error('Silent catch:', e.message));
+        // PING YENİLEME
+        if (interaction.customId === 'ping_refresh') {
             try { await interaction.deferUpdate(); } catch (e) { return; }
-            let conn;
-            try {
-                conn = await pool.getConnection();
-                let field = '';
-                if (action === 'toggle_anti_spam') field = 'anti_spam_enabled';
-                if (action === 'toggle_anti_link') field = 'anti_link_enabled';
-                if (action === 'toggle_anti_swear') field = 'anti_swear_enabled';
-                if (action === 'toggle_caps') field = 'caps_filter_enabled';
-                if (action === 'toggle_anti_raid') field = 'anti_raid_enabled';
-                
-                if (field) {
-                    const rows = await conn.query(`SELECT ${field} FROM guild_config WHERE guild_id = ?`, [interaction.guild.id]);
-                    let newValue = true;
-                    if (rows.length > 0) { newValue = !rows[0][field]; await conn.query(`UPDATE guild_config SET ${field} = ? WHERE guild_id = ?`, [newValue, interaction.guild.id]); } 
-                    else { newValue = false; await conn.query(`INSERT INTO guild_config (guild_id, ${field}) VALUES (?, ?)`, [interaction.guild.id, newValue]); }
-                    updateConfigCache(interaction.guild.id, field, newValue);
-                    const pageData = await getSettingsPage(interaction.guild.id, 'page_filters');
-                    if (pageData) await interaction.editReply(pageData);
-                    await interaction.followUp({ content: `Ayar güncellendi: ${field} = ${newValue ? 'Açık' : 'Kapalı'}`, ephemeral: true }).catch(e => console.error('Silent catch:', e.message));
-                }
-            } finally { if (conn) conn.release(); }
+            const { buildPingPayload } = require('../commands/moderation/ping');
+            const payload = await buildPingPayload(interaction, client);
+            return await interaction.editReply(payload);
         }
 
-        if (interaction.isRoleSelectMenu() || interaction.isChannelSelectMenu() || action === 'settings_menu' || action === 'auto_setup_ticket') {
-            if (handleSettingsSelect) {
-                return handleSettingsSelect(interaction);
-            }
+        // BOT BİLGİ YENİLEME
+        if (interaction.customId === 'bot_info_refresh') {
+            try { await interaction.deferUpdate(); } catch (e) { return; }
+            const { buildBotInfoPayload } = require('../commands/moderation/bot-bilgi');
+            const payload = await buildBotInfoPayload(interaction, client);
+            return await interaction.editReply(payload);
         }
-        
+
+        // SUNUCU BİLGİ YENİLEME
+        if (interaction.customId === 'server_info_refresh') {
+            try { await interaction.deferUpdate(); } catch (e) { return; }
+            const { buildServerInfoPayload } = require('../commands/moderation/sunucu-bilgi');
+            const payload = await buildServerInfoPayload(interaction);
+            return await interaction.editReply(payload);
+        }
+
+        // İSTATİSTİK SEKMELERİ
+        if (interaction.customId === 'server_stats_menu') {
+            try { await interaction.deferUpdate(); } catch (e) { return; }
+            const page = interaction.values?.[0]?.replace('stats_', '') || 'activity';
+            const { buildStatsPayload } = require('../commands/moderation/istatistik');
+            const payload = await buildStatsPayload(interaction.guild, page);
+            return await interaction.editReply(payload);
+        }
+
         // Catch-all: Eğer hiçbir handler cevap vermediyse, timeout yememesi için cevapla
         if (!interaction.replied && !interaction.deferred && !interaction.isModalSubmit()) {
             if (interaction.isRepliable()) {

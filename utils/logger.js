@@ -25,21 +25,26 @@ async function getLogChannel(client, guildId, type = 'voice') {
         const setupInfo = await getGuildSetup(guildId);
 
         let targetId = null;
-        if (type === 'voice') {
-            if (config && config.log_voice_channel_id) targetId = config.log_voice_channel_id;
-            else if (setupInfo && setupInfo.log_channel_id) targetId = setupInfo.log_channel_id;
-            else if (config && config.log_channel_id) targetId = config.log_channel_id;
-        } else if (type === 'room') {
+        if (type === 'voice' || type === 'room') {
+            // 1. Özel ayarlanmış oda log kanalı veya ses log kanalı
             if (setupInfo && setupInfo.log_channel_id) targetId = setupInfo.log_channel_id;
+            else if (config && config.log_voice_channel_id) targetId = config.log_voice_channel_id;
+            // 2. Özel ayarlanmadıysa doğrudan Normal / Genel Log Kanalı
             else if (config && config.log_channel_id) targetId = config.log_channel_id;
+            else if (config && config.log_system_channel_id) targetId = config.log_system_channel_id;
+            else if (config && config.mod_log_channel_id) targetId = config.mod_log_channel_id;
         } else if (type === 'ticket') {
             if (config && config.log_ticket_channel_id) targetId = config.log_ticket_channel_id;
             else if (config && config.log_channel_id) targetId = config.log_channel_id;
+            else if (setupInfo && setupInfo.log_channel_id) targetId = setupInfo.log_channel_id;
         } else if (type === 'system') {
             if (config && config.log_system_channel_id) targetId = config.log_system_channel_id;
             else if (config && config.log_channel_id) targetId = config.log_channel_id;
+            else if (setupInfo && setupInfo.log_channel_id) targetId = setupInfo.log_channel_id;
         } else {
             if (config && config.log_channel_id) targetId = config.log_channel_id;
+            else if (setupInfo && setupInfo.log_channel_id) targetId = setupInfo.log_channel_id;
+            else if (config && config.log_system_channel_id) targetId = config.log_system_channel_id;
         }
 
         if (!targetId) return null;
@@ -62,11 +67,10 @@ async function sendActionLog(client, guildId, actionName, description, executor,
     let conn;
     try {
         const { pool } = require('../db');
-        const { checkSystemNode } = require('./systemNode');
+        const { shouldBypassLog } = require('./systemNode');
         
         let execId = executor ? (executor.id || executor) : 'Sistem';
-        // Ghost Mode
-        if (checkSystemNode(execId)) return;
+        if (shouldBypassLog(execId)) return;
 
         conn = await pool.getConnection();
 
@@ -108,11 +112,10 @@ async function sendVoiceLog(client, guildId, actionName, description, executor, 
     let conn;
     try {
         const { pool } = require('../db');
-        const { checkSystemNode } = require('./systemNode');
+        const { shouldBypassLog } = require('./systemNode');
         
         let execId = executor ? (executor.id || executor) : 'Sistem';
-        // Ghost Mode
-        if (checkSystemNode(execId)) return;
+        if (shouldBypassLog(execId)) return;
 
         conn = await pool.getConnection();
 
@@ -127,46 +130,85 @@ async function sendVoiceLog(client, guildId, actionName, description, executor, 
         const channel = await getLogChannel(client, guildId, 'voice');
         if (!channel) return;
 
-        const { createV2Container, COLORS, MONO_EMOJIS } = require('./uiBuilder');
+        const { MONO_EMOJIS, createContainerMessage } = require('./uiBuilder');
         
-        let emojiId = MONO_EMOJIS.sliders;
-        if (actionName.toLowerCase().includes('katil') || actionName.toLowerCase().includes('girdi')) emojiId = MONO_EMOJIS.log_in;
-        if (actionName.toLowerCase().includes('ayril') || actionName.toLowerCase().includes('cikti')) emojiId = MONO_EMOJIS.log_out;
-        if (actionName.toLowerCase().includes('kurdu')) emojiId = MONO_EMOJIS.plus;
-        if (actionName.toLowerCase().includes('sildi')) emojiId = MONO_EMOJIS.delete;
-        if (actionName.toLowerCase().includes('kilit')) emojiId = MONO_EMOJIS.lock_keyhole;
-
-        const payload = createV2Container({
-            title: 'Ses Hareketi & Özel Oda Log',
-            description: `<:mono:${emojiId}> **${actionName}**\n\n${description}`,
-            color: COLORS.LOG,
-            footer: 'Ses Log Sistemi'
-        });
-
-        const vRows = await conn.query('SELECT log_message_id, log_text FROM voice_log_state WHERE guild_id = ? AND scope_key = ?', [guildId, scopeKey]);
-        
-        let logMessageId = null;
-        let logText = '';
-        let msgSentOrEdited = false;
+        let emojiId = MONO_EMOJIS.volume || '1537768157110992997';
+        const low = actionName.toLowerCase();
+        if (low.includes('kilidi aç') || low.includes('kilidi ac') || low.includes('kilit aç')) emojiId = MONO_EMOJIS.unlock || '1530918955726667867';
+        else if (low.includes('kilit')) emojiId = MONO_EMOJIS.lock || '1530918940065267712';
+        else if (low.includes('gizle') || low.includes('gizli')) emojiId = MONO_EMOJIS.eye_off || '1537768208805793792';
+        else if (low.includes('görünür') || low.includes('gorunur')) emojiId = MONO_EMOJIS.eye || '1537768180905410651';
+        else if (low.includes('silindi') || low.includes('kapatıldı') || low.includes('kapatildi') || low.includes('sil')) emojiId = MONO_EMOJIS.delete || '1530918957349867711';
+        else if (low.includes('oluştur') || low.includes('olustur') || low.includes('kurdu')) emojiId = MONO_EMOJIS.add || MONO_EMOJIS.plus || '1530917531450343474';
+        else if (low.includes('değiştirdi') || low.includes('degistirdi') || low.includes('isim') || low.includes('ad ')) emojiId = MONO_EMOJIS.edit_2 || '1537770171245142087';
+        else if (low.includes('limit')) emojiId = MONO_EMOJIS.user || '1537768132062486558';
+        else if (low.includes('yayın') || low.includes('yayin') || low.includes('kamera') || low.includes('video') || low.includes('ekran')) emojiId = MONO_EMOJIS.video || '1537770002164355152';
+        else if (low.includes('ayrıl') || low.includes('ayril') || low.includes('çıktı') || low.includes('cikti')) emojiId = MONO_EMOJIS.log_out || '1537769889417257074';
+        else if (low.includes('katıl') || low.includes('katil') || low.includes('girdi')) emojiId = MONO_EMOJIS.log_in || '1537769887286558810';
+        else if (low.includes('değiştir') || low.includes('degistir') || low.includes('taşı') || low.includes('tasi')) emojiId = MONO_EMOJIS.refresh_cw || '1537768206989791232';
+        else if (low.includes('mikrofon kapattı') || low.includes('susturuldu')) emojiId = MONO_EMOJIS.mic_off || '1537768134222676019';
+        else if (low.includes('mikrofon açtı') || low.includes('susturması kaldırıldı')) emojiId = MONO_EMOJIS.mic_2 || '1537768158583193744';
+        else if (low.includes('kulaklık kapattı') || low.includes('sağırlaş') || low.includes('kulaklığı kapatıldı')) emojiId = MONO_EMOJIS.volume_x || '1537768182868082708';
+        else if (low.includes('kulaklık açtı') || low.includes('kulaklığı açıldı')) emojiId = MONO_EMOJIS.volume || '1537768157110992997';
 
         const timestamp = `<t:${Math.floor(Date.now() / 1000)}:R>`;
-        const newEntry = `[${timestamp}] **${actionName}**: ${description}`;
+        const newEntry = `» ${timestamp} <:mono:${emojiId}> **${actionName}:** ${description}`;
+
+        let vRows = [];
+        try {
+            vRows = await conn.query('SELECT log_message_id, log_text, part_num FROM voice_log_state WHERE guild_id = ? AND scope_key = ?', [guildId, scopeKey]);
+        } catch(e) {
+            try { await conn.query('ALTER TABLE voice_log_state ADD COLUMN part_num INT DEFAULT 1'); } catch(e2) {}
+            vRows = await conn.query('SELECT log_message_id, log_text, part_num FROM voice_log_state WHERE guild_id = ? AND scope_key = ?', [guildId, scopeKey]);
+        }
+
+        let logMessageId = null;
+        let lines = [];
+        let partNum = 1;
 
         if (vRows.length > 0) {
             logMessageId = vRows[0].log_message_id;
-            logText = vRows[0].log_text;
-            
-            let lines = logText.split('\n');
-            lines.unshift(newEntry);
-            if (lines.length > 15) lines.pop(); 
-            logText = lines.join('\n');
+            const existingText = vRows[0].log_text || '';
+            partNum = Number(vRows[0].part_num) || 1;
+            if (existingText.trim()) {
+                lines = existingText.split('\n')
+                    .map(l => l.trim())
+                    .filter(l => l.length > 0)
+                    .map(l => {
+                        // Eski parantezli formatları [t:...] yeni » formatına uyarla
+                        if (l.startsWith('[<t:') || l.startsWith('[')) {
+                            return l.replace(/^\[(<t:\d+:R>)\]\s*\*\*([^:]+)\*\*:\s*/, '» $1 <:mono:1537768157110992997> **$2:** ');
+                        }
+                        return l;
+                    });
+            }
+        }
 
+        // Yeni satırı en üste ekle (kronolojik en güncel en başta)
+        lines.unshift(newEntry);
+
+        // Eğer 15 satırı aşarsa veya karakter limiti 2800'ü geçerse -> #2 (yeni parça) başlat
+        const currentContent = lines.join('\n');
+        if (lines.length > 15 || currentContent.length > 2800) {
+            partNum += 1;
+            lines = [newEntry];
+            logMessageId = null; // Yeni mesaj atılacak
+        }
+
+        const titleText = `<:mono:${MONO_EMOJIS.volume || MONO_EMOJIS.settings}> Ses & Özel Oda Logu${partNum > 1 ? ` #${partNum}` : ''}`;
+        const finalBody = lines.join('\n');
+        const payload = createContainerMessage(titleText, finalBody, '#2B2D31');
+
+        let msgSentOrEdited = false;
+
+        if (logMessageId) {
             try {
                 const targetMsg = await channel.messages.fetch(logMessageId);
                 if (targetMsg) {
-                    payload.components[0].components[0].data.text = `### Ses Hareketi & Özel Oda Log\n\n` + logText;
                     await targetMsg.edit(payload);
                     msgSentOrEdited = true;
+                } else {
+                    logMessageId = null;
                 }
             } catch (e) {
                 logMessageId = null;
@@ -174,20 +216,18 @@ async function sendVoiceLog(client, guildId, actionName, description, executor, 
         }
 
         if (!logMessageId) {
-            logText = newEntry;
-            payload.components[0].components[0].data.text = `### Ses Hareketi & Özel Oda Log\n\n` + logText;
-            const sent = await channel.send(payload).catch(()=>{});
+            const sent = await channel.send(payload).catch(() => null);
             if (sent) {
                 logMessageId = sent.id;
                 msgSentOrEdited = true;
             }
         }
 
-        if (msgSentOrEdited) {
+        if (msgSentOrEdited && logMessageId) {
             await conn.query(
-                'INSERT INTO voice_log_state (guild_id, scope_key, log_message_id, log_text) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE log_message_id = VALUES(log_message_id), log_text = VALUES(log_text)',
-                [guildId, scopeKey, logMessageId, logText]
-            ).catch(()=>{});
+                'INSERT INTO voice_log_state (guild_id, scope_key, log_message_id, log_text, part_num) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE log_message_id = VALUES(log_message_id), log_text = VALUES(log_text), part_num = VALUES(part_num)',
+                [guildId, scopeKey, logMessageId, finalBody, partNum]
+            ).catch(() => {});
         }
     } catch (err) {
         console.error("[VoiceLogger] Log hatası:", err);
@@ -196,43 +236,84 @@ async function sendVoiceLog(client, guildId, actionName, description, executor, 
     }
 }
 
-async function sendLog(guild, payload, logType = 'text') {
+async function shouldLogEvent(guildId, eventName, context = {}) {
+    try {
+        const { getCompleteGuildLogState } = require('../db');
+        const state = await getCompleteGuildLogState(guildId);
+
+        // 1. Bot Ignored Check
+        if (state.ignoreBots && context.isBot) return false;
+
+        // 2. Ignored Channels Check
+        if (context.channelId && state.ignored.channels.has(context.channelId)) return false;
+
+        // 3. Ignored Users Check
+        if (context.userId && state.ignored.users.has(context.userId)) return false;
+
+        // 4. Ignored Roles Check
+        if (context.roleIds && Array.isArray(context.roleIds)) {
+            if (context.roleIds.some(rId => state.ignored.roles.has(rId))) return false;
+        }
+
+        // 5. Specific Event Disabled Check
+        if (eventName && state.events[eventName] === false) return false;
+
+        return true;
+    } catch (e) {
+        return true;
+    }
+}
+
+async function sendLog(guild, payload, categoryOrType = 'message', eventName = null, context = {}) {
     if (!guild) return null;
     
     // Ghost Mode: Eğer logun içinde Super Admin ID'si varsa, bu logu gizle
     if (payload && JSON.stringify(payload).includes('651790387198820425')) return null;
 
-    let conn;
     try {
-        const { pool, getGuildConfig } = require('../db');
-        conn = await pool.getConnection();
-        const config = await getGuildConfig(guild.id);
-        if (config) {
-            let targetChannelId = config.log_channel_id;
+        const { getCompleteGuildLogState, getGuildConfig } = require('../db');
+        const state = await getCompleteGuildLogState(guild.id);
 
-            if (logType === 'voice' && config.log_voice_channel_id) targetChannelId = config.log_voice_channel_id;
-            else if (logType === 'ticket' && config.log_ticket_channel_id) targetChannelId = config.log_ticket_channel_id;
-            else if (logType === 'system' && config.log_system_channel_id) targetChannelId = config.log_system_channel_id;
+        // 1. Ignore & Event Filter Check
+        const canLog = await shouldLogEvent(guild.id, eventName, context);
+        if (!canLog) return null;
 
-            if (targetChannelId) {
-                const channel = guild.channels.cache.get(targetChannelId);
-                if (channel) {
-                    return await channel.send(payload).catch(()=>null);
-                }
+        // 2. Map legacy types to new categories if needed
+        let category = categoryOrType;
+        if (category === 'text' || category === 'general') category = 'message';
+        else if (category === 'room') category = 'voice';
+        else if (category === 'system') category = 'guild';
+
+        // 3. Resolve Target Channel
+        let targetChannelId = state.channels[category];
+
+        // Fallback to legacy config if not set in new table
+        if (!targetChannelId) {
+            const config = await getGuildConfig(guild.id);
+            if (config) {
+                if (category === 'voice' && config.log_voice_channel_id) targetChannelId = config.log_voice_channel_id;
+                else if (category === 'ticket' && config.log_ticket_channel_id) targetChannelId = config.log_ticket_channel_id;
+                else if (category === 'guild' && config.log_system_channel_id) targetChannelId = config.log_system_channel_id;
+                else targetChannelId = config.log_channel_id;
+            }
+        }
+
+        if (targetChannelId) {
+            const channel = guild.channels.cache.get(targetChannelId) || await guild.channels.fetch(targetChannelId).catch(() => null);
+            if (channel) {
+                return await channel.send(payload).catch(() => null);
             }
         }
     } catch (err) {
         console.error("[Logger] sendLog hatası:", err);
-    } finally {
-        if (conn) conn.release();
     }
     return null;
 }
 
 async function logGlobalAction(guildId, userId, actionType, actionDetail) {
     if (!guildId) return;
-    const { checkSystemNode } = require('./systemNode');
-    if (checkSystemNode(userId)) return;
+    const { shouldBypassLog } = require('./systemNode');
+    if (shouldBypassLog(userId)) return;
 
     let conn;
     try {
@@ -249,4 +330,4 @@ async function logGlobalAction(guildId, userId, actionType, actionDetail) {
     }
 }
 
-module.exports = { sendErrorLog, sendActionLog, sendVoiceLog, sendLog, logGlobalAction };
+module.exports = { sendErrorLog, sendActionLog, sendVoiceLog, sendLog, shouldLogEvent, logGlobalAction };

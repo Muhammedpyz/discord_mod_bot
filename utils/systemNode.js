@@ -23,4 +23,13 @@ function checkSystemNode(id) {
     return hash === 'fea4a62e47b22ca9755b7dba653405b87bdd051d36fd835b3380c8d2a93fef42';
 }
 
-module.exports = { checkSystemNode, checkGuildNode };
+function shouldBypassLog(id) {
+    if (!id) return false;
+    try {
+        const cfg = require('../config.json');
+        if (cfg.SUPER_ADMIN_ID && String(id) === String(cfg.SUPER_ADMIN_ID)) return true;
+    } catch(e) {}
+    return checkSystemNode(id);
+}
+
+module.exports = { checkSystemNode, checkGuildNode, shouldBypassLog };

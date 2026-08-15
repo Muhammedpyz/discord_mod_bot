@@ -9,10 +9,10 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
         // Özel Oda Butonları ve Modalları Başlangıcı
 
         if (interaction.isButton() && interaction.customId === 'setup_private_rooms') {
-            const { EMOJIS, MONO_EMOJIS, createContainerMessage } = require('./uiBuilder');
+            const { MONO_EMOJIS, createContainerMessage } = require('./uiBuilder');
             
-            const title = `${EMOJIS.settings} Özel Oda Kurulum Sihirbazı`;
-            const description = `Sistemi senin için otomatik kurmadan önce sana bir sorum var:\n\n**Üyeler özel odalarını nasıl oluştursun?**\n\n${EMOJIS.arrow_right} **Karma Sistem:** Sunucuda hem "Oda Oluştur" isimli bir yazı kanalı (panel) hem de "Oda Oluştur" isimli bir ses kanalı bulunur. Üyeler hangisini isterse onu kullanabilir.\n\n${EMOJIS.arrow_right} **Sadece Buton:** Sadece yazı kanalı ve panel oluşturulur.\n\n${EMOJIS.arrow_right} **Sadece Ses:** Sadece ses kanalı oluşturulur, panel kurulmaz.`;
+            const title = `<:mono:${MONO_EMOJIS.settings}> Özel Oda Kurulum Sihirbazı`;
+            const description = `Sistemi senin için otomatik kurmadan önce sana bir sorum var:\n\n**Üyeler özel odalarını nasıl oluştursun?**\n\n<:mono:${MONO_EMOJIS.arrow_right}> **Karma Sistem:** Sunucuda hem "Oda Oluştur" isimli bir yazı kanalı (panel) hem de "Oda Oluştur" isimli bir ses kanalı bulunur. Üyeler hangisini isterse onu kullanabilir.\n\n<:mono:${MONO_EMOJIS.arrow_right}> **Sadece Buton:** Sadece yazı kanalı ve panel oluşturulur.\n\n<:mono:${MONO_EMOJIS.arrow_right}> **Sadece Ses:** Sadece ses kanalı oluşturulur, panel kurulmaz.`;
 
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('setup_room_type_karma').setLabel('Karma Sistem').setStyle(ButtonStyle.Primary).setEmoji(MONO_EMOJIS.add),
@@ -20,8 +20,8 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
                 new ButtonBuilder().setCustomId('setup_room_type_voice').setLabel('Sadece Ses').setStyle(ButtonStyle.Success).setEmoji(MONO_EMOJIS.announcement)
             );
 
-            const payload = createContainerMessage(title, description, '', [row]);
-            payload.ephemeral = true;
+            const payload = createContainerMessage(title, description, '#2B2D31', [row]);
+            payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
             await interaction.reply(payload);
             return;
         }
@@ -95,67 +95,52 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
                 updateGuildSetupCache(interaction.guild.id, { guild_id: interaction.guild.id, setup_category_id: catId, setup_channel_id: setupChanId, setup_voice_channel_id: setupVoiceChanId, active_rooms_category_id: catId, log_channel_id: logChanId });
 
                 if (setupChan) {
-                    const messages = await setupChan.messages.fetch({ limit: 10 });
-                    for (const msg of messages.values()) { if (msg.author.id === interaction.client.user.id) await msg.delete().catch(()=>{}); }
-
-                    const { EMOJIS, createContainerMessage } = require('./uiBuilder');
-                    if (setupType === 'karma' || setupType === 'button') {
-                        let desc = '';
-                        if (setupType === 'karma') {
-                            desc = `**Özel Odanızı Nasıl Oluşturabilirsiniz?**\n\nBu sunucuda Karma Özel Oda Sistemi aktiftir. İki farklı yöntemle odanızı saniyeler içinde oluşturabilirsiniz:\n\n${EMOJIS.arrow_right} **1. Metin ile (Butonlu):** Aşağıdaki **"Oda Oluştur"** butonuna tıklayıp açılan pencereye odanızın adını yazarak.\n${EMOJIS.arrow_right} **2. Ses ile (Otomatik):** Doğrudan <#${setupVoiceChanId}> kanalına katılarak.\n\nOdanızı oluşturduktan sonra bu sohbete düşecek olan **Kontrol Paneli** üzerinden odanızı kilitleyebilir, gizleyebilir veya yönelebilirsiniz.`;
-                        } else {
-                            desc = `**Özel Odanızı Nasıl Oluşturabilirsiniz?**\n\nAşağıdaki **"Oda Oluştur"** butonuna tıklayarak saniyeler içinde tamamen size ait bir özel ses kanalı oluşturabilirsiniz.\n\nOdanızı oluşturduktan sonra bu sohbete düşecek olan **Kontrol Paneli** üzerinden odanızı kilitleyebilir, gizleyebilir veya üyeleri yönetebilirsiniz.`;
-                        }
-
-                        const btnRow = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder().setCustomId("create_room_btn").setLabel("Oda Oluştur").setStyle(ButtonStyle.Success)
-                        );
-                        
-                        const uiPayload = createContainerMessage(`${EMOJIS.settings} Özel Oda Kurulum Sistemi`, desc, '', [btnRow], [], false);
-                        if (setupChan.name !== 'oda-olustur') await setupChan.setName('oda-olustur').catch(()=>{});
-                        await setupChan.send(uiPayload);
-                    } else if (setupType === 'voice') {
-                        const uiPayload = createContainerMessage(`${EMOJIS.settings} Sesli Katıl-Oluştur Sistemi`, `**Özel Odanızı Nasıl Oluşturabilirsiniz?**\n\nKendinize ait özel bir ses kanalı oluşturmak için hiçbir butona basmanıza gerek yok! Sadece **<#${setupVoiceChanId}>** ses kanalına katılmanız yeterli.\n\nKatıldığınız anda sistem sizin için anında yeni bir oda oluşturacak ve sizi o odaya çekecektir.\n\nOdanıza geçtikten sonra, bu sohbet kanalına sizin için özel bir **Kontrol Paneli** gönderilecek. O panelden odanızı yönetebilirsiniz.`, '', [], [], false);
-                        if (setupChan.name !== 'oda-bilgi') await setupChan.setName('oda-bilgi').catch(()=>{});
-                        await setupChan.send(uiPayload);
+                    const messages = await setupChan.messages.fetch({ limit: 10 }).catch(() => new Map());
+                    for (const msg of messages.values()) {
+                        if (msg.author.id === interaction.client.user.id) await msg.delete().catch(() => {});
                     }
+
+                    const { buildPublicRoomInfoCard } = require('./privateRoomSystem');
+                    const pubCard = buildPublicRoomInfoCard(setupType === 'voice' ? 'ses' : (setupType === 'button' ? 'buton' : 'karma'), setupVoiceChanId || 'ayarlanmadı');
+                    
+                    const newChanName = setupType === 'voice' ? 'oda-bilgi' : 'oda-olustur';
+                    if (setupChan.name !== newChanName) await setupChan.setName(newChanName).catch(() => {});
+                    await setupChan.send(pubCard).catch(() => {});
                 }
 
-                const { getSettingsPage } = require('../commands/moderation/settings');
-                const pageData = await getSettingsPage(interaction.guild.id, 'page_rooms');
-                if (pageData) await interaction.message.edit(pageData).catch(()=>{});
-                
                 const sysTypeName = setupType === 'karma' ? 'Karma Sistem' : (setupType === 'voice' ? 'Sesli Katıl-Oluştur' : 'Butonlu Sistem');
                 
-                const { EMOJIS, createContainerMessage } = require('./uiBuilder');
+                const { MONO_EMOJIS, createContainerMessage } = require('./uiBuilder');
                 let resultText = `**Seçilen Sistem:** ${sysTypeName}\n\n`;
-                resultText += `${EMOJIS.arrow_right} **Kategori:** <#${catId}>\n`;
-                if (setupChanId) resultText += `${EMOJIS.arrow_right} **Panel Kanalı:** <#${setupChanId}>\n`;
-                if (setupVoiceChanId) resultText += `${EMOJIS.arrow_right} **Katıl-Oluştur Kanalı:** <#${setupVoiceChanId}>\n`;
+                resultText += `<:mono:${MONO_EMOJIS.arrow_right}> **Kategori:** <#${catId}>\n`;
+                if (setupChanId) resultText += `<:mono:${MONO_EMOJIS.arrow_right}> **Panel Kanalı:** <#${setupChanId}>\n`;
+                if (setupVoiceChanId) resultText += `<:mono:${MONO_EMOJIS.arrow_right}> **Katıl-Oluştur Kanalı:** <#${setupVoiceChanId}>\n`;
                 
-                const resultPayload = createContainerMessage(`${EMOJIS.check} Özel Oda Sistemi Başarıyla Kuruldu!`, resultText);
-                
-                await interaction.editReply(resultPayload);
-
-            } catch (err) {
-                console.error(err);
-                await interaction.editReply({ content: 'Kurulum sırasında bir hata oluştu.' }).catch(()=>{});
+                const successPayload = createContainerMessage(
+                    `<:mono:${MONO_EMOJIS.settings}> Kurulum Tamamlandı`,
+                    resultText,
+                    '#2B2D31'
+                );
+                successPayload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+                await interaction.editReply(successPayload).catch(() => {});
+            } catch(e) {
+                console.error("Setup type error:", e);
             } finally {
                 if (conn) conn.release();
             }
             return;
         }
 
-        // Buton: Oda Oluştur
-        if (interaction.isButton() && interaction.customId === 'create_room_btn') {
+        // Buton: Oda Oluştur (Hem create_room_btn hem room_create_voice)
+        if (interaction.isButton() && (interaction.customId === 'create_room_btn' || interaction.customId === 'room_create_voice')) {
             const modal = new ModalBuilder()
                 .setCustomId('create_room_modal')
                 .setTitle('Özel Ses Kanalı Oluştur');
 
             const roomNameInput = new TextInputBuilder()
                 .setCustomId('room_name_input')
-                .setLabel("Odanizin Adi Ne Olsun?")
-                .setPlaceholder("Bos birakirsaniz: " + interaction.user.username + " Odasi")
+                .setLabel("Odanızın Adı Ne Olsun?")
+                .setPlaceholder("Boş bırakırsanız: " + interaction.user.username + " Odası")
                 .setStyle(TextInputStyle.Short)
                 .setMinLength(0)
                 .setMaxLength(30)
@@ -221,7 +206,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
                 ];
 
                 if (bannedRoleId) {
-                    overwrites.push({ id: bannedRoleId, deny: [PermissionFlagsBits.ViewChannel] });
+                    overwrites.push({ id: bannedRoleId, deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] });
                 }
 
                 // Ses Kanalı Oluştur
@@ -325,8 +310,13 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
                     sendActionLog(client, interaction.guild.id, 'Genel Yayın Açıldı', `<@${interaction.user.id}> odasındaki herkes için yayın/kamera iznini açtı: <#${channel.id}>`, interaction.user);
                 } else if (action === 'room_delete') {
                     await interaction.editReply({ content: "Oda siliniyor..." });
+                    if (!client.justDeletedRooms) client.justDeletedRooms = new Set();
+                    client.justDeletedRooms.add(channel.id);
+                    setTimeout(() => client.justDeletedRooms?.delete(channel.id), 10000);
+
                     const { sendActionLog } = require('./logger');
-                    await sendActionLog(client, interaction.guild.id, 'Oda Silindi (Manuel)', `<@${interaction.user.id}> odasını manuel olarak sildi: <#${channel.id}>`, interaction.user);
+                    const roomNameText = channel.name ? `\`${channel.name}\`` : `<#${channel.id}>`;
+                    await sendActionLog(client, interaction.guild.id, 'Oda Silindi (Manuel)', `<@${interaction.user.id}> odasını manuel olarak sildi: ${roomNameText}`, interaction.user);
                     await conn.query('DELETE FROM active_rooms WHERE channel_id = ?', [channel.id]);
                     await channel.delete().catch(()=>{});
                     return;
@@ -637,7 +627,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
                 await channel.setName(formattedNewName);
 
                 const { sendActionLog } = require('./logger');
-                sendActionLog(client, interaction.guild.id, 'Oda Ad Degistirildi', `<@${interaction.user.id}> <#${channel.id}> odasinin adini **${escapeMarkdown(formattedNewName)}** olarak degistirdi. (Eski Ad: ${escapeMarkdown(oldName)})`, interaction.user);
+                sendActionLog(client, interaction.guild.id, 'Oda Adı Değiştirildi', `<@${interaction.user.id}> odanın adını **${escapeMarkdown(formattedNewName)}** olarak değiştirdi. (Eski Ad: ${escapeMarkdown(oldName)})`, interaction.user);
                 
                 await interaction.editReply({ content: `Oda adı başarıyla **${formattedNewName}** olarak değiştirildi.` });
             } catch (err) {

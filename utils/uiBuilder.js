@@ -531,34 +531,49 @@ function buildModAPanel({ title, description, bannerUrl = DEFAULT_BANNER_URL, ac
     return { flags: MessageFlags.IsComponentsV2, components: [container] };
 }
 
-// YENİ STRICT KURAL: MOD B (İşlevsel/Operasyonel - Sadece Metin + Butonlar)
-function buildModBResponse({ title, textLines = [], fields = [], actionRows = [], files = [], images = [] }) {
-    const { FileBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
+// YENİ STRICT KURAL: MOD B (İşlevsel/Operasyonel - Sadece Metin + Butonlar + Thumbnail)
+function buildModBResponse({ title, textLines = [], fields = [], actionRows = [], files = [], images = [], thumbnail = null }) {
+    const { FileBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, SectionBuilder, TextDisplayBuilder, SeparatorBuilder, ThumbnailBuilder } = require('discord.js');
     const container = new ContainerBuilder();
 
     let mediaGallery = null;
 
-    if ((files && files.length > 0) || (images && images.length > 0)) {
+    if (images && images.length > 0) {
         mediaGallery = new MediaGalleryBuilder();
-        if (files) {
-            for (const file of files) {
-                mediaGallery.addItems(new MediaGalleryItemBuilder({ media: { url: `attachment://${file}` } }));
+        for (const imgUrl of images) {
+            if (typeof imgUrl === 'string' && imgUrl.trim()) {
+                mediaGallery.addItems(new MediaGalleryItemBuilder({ media: { url: imgUrl.trim() } }));
             }
         }
-        if (images) {
-            for (const imgUrl of images) {
-                mediaGallery.addItems(new MediaGalleryItemBuilder({ media: { url: imgUrl } }));
-            }
+        if (mediaGallery.items.length > 0) {
+            container.addMediaGalleryComponents(mediaGallery);
         }
-        container.addMediaGalleryComponents(mediaGallery);
     }
 
-    if (title) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${title}`));
+    const fullText = textLines && textLines.length > 0 ? textLines.join('\n') : '';
+    const sections = fullText ? fullText.split('---SEPARATOR---') : [];
 
-    if (textLines && textLines.length > 0) {
-        const fullText = textLines.join('\n');
-        const sections = fullText.split('---SEPARATOR---');
-        const { SeparatorBuilder } = require('discord.js');
+    if (thumbnail && typeof thumbnail === 'string' && thumbnail.trim()) {
+        const topSection = new SectionBuilder();
+        let topContent = '';
+        if (title) topContent += `### ${title}\n`;
+        if (sections.length > 0 && sections[0].trim()) {
+            topContent += sections[0].trim();
+        }
+        topSection.addTextDisplayComponents(new TextDisplayBuilder().setContent(topContent.trim() || '### ' + (title || 'Bilgi')));
+        topSection.setThumbnailAccessory(new ThumbnailBuilder({ media: { url: thumbnail.trim() } }));
+        container.addSectionComponents(topSection);
+
+        // Kalan bölümler (varsa separator ile)
+        for (let i = 1; i < sections.length; i++) {
+            if (sections[i].trim()) {
+                container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+                container.addTextDisplayComponents(new TextDisplayBuilder().setContent(sections[i].trim()));
+            }
+        }
+    } else {
+        if (title) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${title}`));
+
         for (let i = 0; i < sections.length; i++) {
             if (sections[i].trim()) {
                 container.addTextDisplayComponents(new TextDisplayBuilder().setContent(sections[i].trim()));
@@ -579,6 +594,13 @@ function buildModBResponse({ title, textLines = [], fields = [], actionRows = []
         }
     }
 
+    if (files && files.length > 0) {
+        for (const f of files) {
+            const fileName = f?.name || (typeof f === 'string' ? f : 'attachment.txt');
+            container.addFileComponents(new FileBuilder({ file: { url: `attachment://${fileName}` } }));
+        }
+    }
+
     if (actionRows && actionRows.length > 0) {
         const { SeparatorBuilder } = require('discord.js');
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
@@ -587,7 +609,11 @@ function buildModBResponse({ title, textLines = [], fields = [], actionRows = []
         }
     }
 
-    return { flags: MessageFlags.IsComponentsV2, components: [container] };
+    const result = { flags: MessageFlags.IsComponentsV2, components: [container] };
+    if (files && files.length > 0) {
+        result.files = files;
+    }
+    return result;
 }
 
 function createContainerMessage(title, description, colorHex = null, customActionRows = [], fields = [], showBrand = false, ephemeral = false, files = []) {

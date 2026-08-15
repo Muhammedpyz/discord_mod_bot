@@ -36,6 +36,12 @@ module.exports = {
             }
 
             const deleted = await interaction.channel.bulkDelete(messages, true);
+            if (global.botDeletedMessages) {
+                deleted.forEach(m => {
+                    global.botDeletedMessages.add(m.id);
+                    setTimeout(() => global.botDeletedMessages?.delete(m.id), 30000);
+                });
+            }
 
             const payload = createContainerMessage(
                 `${EMOJIS.delete} Temizlik Tamamlandi`,

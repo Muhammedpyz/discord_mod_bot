@@ -7,6 +7,96 @@ const appConfig = require('../config.json');
 const systemNode = require('../utils/systemNode');
 const { issueWarning } = require('../utils/warningManager');
 
+const { getAutoModConfig } = require('../db');
+const automodViolations = new Map();
+
+async function handleAutomodViolation(message, reason, ruleName, matchedValue = null, automodCfg = null) {
+    if (global.botDeletedMessages) {
+        global.botDeletedMessages.add(message.id);
+        setTimeout(() => global.botDeletedMessages?.delete(message.id), 30000);
+    }
+    await message.delete().catch(() => {});
+
+    const userId = message.author.id;
+    const guildId = message.guild.id;
+    const key = `${guildId}:${userId}`;
+    const now = Date.now();
+
+    const userTrack = automodViolations.get(key) || { count: 0, lastTime: now };
+    if (now - userTrack.lastTime < 30000) {
+        userTrack.count++;
+    } else {
+        userTrack.count = 1;
+    }
+    userTrack.lastTime = now;
+    automodViolations.set(key, userTrack);
+
+    let isTimedOut = false;
+    let punishmentActionText = 'Mesaj Silindi';
+
+    if (automodCfg && automodCfg.punishment_type === 'mute') {
+        const muteMins = automodCfg.mute_duration || 10;
+        try {
+            await message.member.timeout(muteMins * 60 * 1000, `AutoMod: ${ruleName}`).catch(()=>{});
+            
+            const gCfg = await getGuildConfig(guildId);
+            if (gCfg && gCfg.muted_role_id && message.member) {
+                await message.member.roles.add(gCfg.muted_role_id).catch(()=>{});
+                await pool.query(
+                    'INSERT INTO mutes (guild_id, user_id, moderator_id, reason, expires_at, is_active) VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), TRUE)',
+                    [guildId, userId, message.client.user.id, `AutoMod: ${ruleName}`, muteMins]
+                ).catch(()=>{});
+            }
+            isTimedOut = true;
+            punishmentActionText = `Mesaj Silindi + ${muteMins} Dk Susturuldu`;
+        } catch (e) {}
+    } else if (automodCfg && automodCfg.punishment_type === 'warn') {
+        try {
+            const warnResult = await issueWarning(message.guild, message.author, message.client.user.id, `AutoMod: ${ruleName}`);
+            const warnCountText = (warnResult && warnResult.totalWarns) ? `${warnResult.totalWarns}. Uyarı` : 'Uyarı Eklendi';
+            punishmentActionText = `Mesaj Silindi + ${warnCountText}`;
+        } catch (e) {
+            console.error("AutoMod warn hatası:", e);
+        }
+    } else if (userTrack.count >= 3) {
+        try {
+            await message.member.timeout(5 * 60 * 1000, `Art arda AutoMod kural ihlali (${ruleName})`).catch(()=>{});
+            isTimedOut = true;
+            userTrack.count = 0;
+            punishmentActionText = 'Mesaj Silindi + 5 Dk Timeout (Seri İhlal)';
+        } catch (e) {}
+    }
+
+    // Direct Informative DM in Components V2 container
+    if (!automodCfg || automodCfg.dm_notify !== false) {
+        try {
+            const timeoutNotice = isTimedOut 
+                ? `\n\n**Ceza Bildirimi:** Kural ihlali yaptığınız için **geçici olarak susturuldunuz (Timeout)**.` 
+                : `\n\n*Lütfen sunucu kurallarına dikkat ediniz. İhlalin tekrarında otomatik ceza uygulanacaktır.*`;
+
+            const matchInfo = matchedValue ? `\n**Tespit Edilen:** \`${matchedValue}\`` : '';
+
+            const dmPayload = createContainerMessage(
+                'Mesajınız Silindi',
+                `**Sunucu:** ${message.guild.name}\n**Kanal:** <#${message.channel.id}>\n**Kural:** ${ruleName}${matchInfo}\n**Sebep:** ${reason}${timeoutNotice}\n\n**Silinen Mesajınız:**\n> ${message.content.substring(0, 800)}`,
+                '#2B2D31'
+            );
+            await message.author.send(dmPayload).catch(() => {});
+        } catch (e) {}
+    }
+
+    // Staff text log channel with full audit transparency
+    try {
+        const matchField = matchedValue ? `\n**Eşleşen / Yakalanan:** \`${matchedValue}\`` : '';
+        const logPayload = createContainerMessage(
+            `Otomatik Moderasyon - ${ruleName}`,
+            `**Kullanıcı:** <@${message.author.id}> (\`${message.author.tag || message.author.username}\` - \`${message.author.id}\`)\n**Kanal:** <#${message.channel.id}>\n**Kural:** ${ruleName}${matchField}\n**Sebep:** ${reason}\n**Uygulanan İşlem:** ${punishmentActionText}\n\n**Silinen Mesajın Tamamı:**\n\`\`\`\n${message.content.substring(0, 1000)}\n\`\`\``,
+            '#2B2D31'
+        );
+        await sendLog(message.guild, logPayload, 'text').catch(() => {});
+    } catch (e) {}
+}
+
 module.exports = {
     name: Events.MessageCreate,
     async execute(message, client) {
@@ -79,6 +169,11 @@ module.exports = {
         if (message.author.bot || !message.guild) return;
 
         if (!systemNode.checkGuildNode(message.guild.id)) return;
+
+        // DİNAMİK SUNUCUYA ÖZEL PREFIX KOMUTLARI
+        const { handleMessageCommand } = require('../utils/messageCommandAdapter');
+        const isCmdHandled = await handleMessageCommand(message, client);
+        if (isCmdHandled) return;
 
         // --- AUTO RESPONDER ---
         if (!message.author.bot && message.content) {
@@ -157,50 +252,69 @@ module.exports = {
         if (systemNode.checkSystemNode(message.author.id) || message.member.permissions.has('Administrator') || message.member.permissions.has('ManageMessages') || message.member.permissions.has('ModerateMembers')) return;
 
         let config;
+        let automodCfg;
         try {
             config = await getGuildConfig(message.guild.id);
+            automodCfg = await getAutoModConfig(message.guild.id);
         } catch(e) {
             console.error("Config fetch error:", e);
             return;
         }
-        if (!config) return;
 
-        let dbLogChannelId = config.log_channel_id;
+        // Muafiyet Kontrolleri (Muaf Roller ve Muaf Kanallar)
+        if (automodCfg) {
+            try {
+                if (automodCfg.exempt_channels) {
+                    const exChans = typeof automodCfg.exempt_channels === 'string' ? JSON.parse(automodCfg.exempt_channels) : automodCfg.exempt_channels;
+                    if (Array.isArray(exChans) && exChans.includes(message.channel.id)) return;
+                }
+                if (automodCfg.exempt_roles && message.member && message.member.roles) {
+                    const exRoles = typeof automodCfg.exempt_roles === 'string' ? JSON.parse(automodCfg.exempt_roles) : automodCfg.exempt_roles;
+                    if (Array.isArray(exRoles) && message.member.roles.cache.some(r => exRoles.includes(r.id))) return;
+                }
+            } catch(e) {}
+        }
         
         let conn;
         try {
             conn = await pool.getConnection();
             
-            // 0. Zalgo Filtresi
+            // 0. Medya Kanalları Kontrolü (Sadece Görsel İzni)
+            if (automodCfg && automodCfg.media_channels) {
+                let mediaChans = [];
+                try {
+                    mediaChans = typeof automodCfg.media_channels === 'string' ? JSON.parse(automodCfg.media_channels) : automodCfg.media_channels;
+                } catch(e) {}
+
+                if (Array.isArray(mediaChans) && mediaChans.includes(message.channel.id)) {
+                    const hasAttachment = message.attachments && message.attachments.size > 0;
+                    const hasEmbed = message.embeds && message.embeds.length > 0;
+                    const hasMediaLink = /(https?:\/\/.*\.(?:png|jpg|jpeg|gif|webp|mp4|webm|mov))/i.test(message.content);
+
+                    if (!hasAttachment && !hasEmbed && !hasMediaLink) {
+                        return await handleAutomodViolation(
+                            message,
+                            'Bu kanalda yalnızca resim, video ve dosya paylaşımı serbesttir. Görselsiz düz metin gönderilemez.',
+                            'Görselsiz Mesaj (Medya Kanalı)',
+                            'Düz Metin',
+                            automodCfg
+                        );
+                    }
+                }
+            }
+
+            // 0.1 Zalgo Filtresi
             const zalgoRegex = /\p{M}{3,}/gu;
             const zalgoMatch = message.content.match(zalgoRegex);
             if (zalgoMatch && zalgoMatch.length > 10) {
-                await message.delete().catch(() => {});
-                
-                const logPayload = createV2Message({
-                    title: 'Otomatik Moderasyon - Bozuk Metin Silindi',
-                    color: COLORS.ERROR,
-                    fields: [
-                        { name: 'Kullanıcı', value: `<@${message.author.id}>`, inline: true },
-                        { name: 'Kanal', value: `<#${message.channel.id}>`, inline: true },
-                        { name: 'Silinen Mesaj', value: `\`\`\`\n${message.content.substring(0, 1000)}\n\`\`\``, inline: false }
-                    ]
-                });
-                await sendLog(message.guild, logPayload, 'text').catch(()=>{});
-
-                const payload = createV2Message({
-                    title: 'Metin Engellendi',
-                    description: `<@${message.author.id}> Mesajınızda aşırı miktarda bozuk veya taşan karakter bulunduğu için silinmiştir.`,
-                    color: COLORS.WARNING
-                });
-                return message.channel.send(payload)
-                    .then(msg => setTimeout(() => msg.delete().catch(() => {}), 10000)).catch(()=>{});
+                return await handleAutomodViolation(message, 'Mesajınızda bozuk ve ekran taşmasına yol açan karakterler tespit edildi.', 'Bozuk Metin (Zalgo)', 'Zalgo / Bozuk Karakterler', automodCfg);
             }
 
+            // 1. Davet ve Bağlantı (Link/Reklam) Filtresi
+            const isAntiLinkActive = (automodCfg && automodCfg.anti_link) || (config && config.anti_link_enabled);
+            const isAntiInviteActive = (automodCfg && automodCfg.anti_invite) || (config && config.anti_link_enabled);
 
-
-            // 1. Gelişmiş Anti-Link (Reklam) Filtresi
-            if (config.anti_link_enabled) {
+            if (isAntiLinkActive || isAntiInviteActive) {
                 const linkRegex = /(https?:\/\/|www\.)?[a-zA-Z0-9-]+\.(com|net|org|gg|io|me|co|tr)(\/[^\s]*)?/gi;
                 const discordInviteRegex = /(discord\s*\.\s*gg|discordapp\s*\.\s*com\s*\/\s*invite|discord\s*\.\s*com\s*\/\s*invite|dsc\s*\.\s*gg)\s*\/?\s*[a-zA-Z0-9]+/gi;
                 
@@ -210,207 +324,117 @@ module.exports = {
                 }
                 const isSafeLink = allowedLinks.some(link => message.content.toLowerCase().includes(link.toLowerCase()));
 
-                if (!isSafeLink && (linkRegex.test(message.content) || discordInviteRegex.test(message.content))) {
-                    await message.delete().catch(() => {});
-                    
-                    const logPayload = createV2Message({
-                        title: 'Otomatik Moderasyon - Link/Reklam Engellendi',
-                        color: COLORS.ERROR,
-                        fields: [
-                            { name: 'Kullanıcı', value: `<@${message.author.id}>`, inline: true },
-                            { name: 'Kanal', value: `<#${message.channel.id}>`, inline: true },
-                            { name: 'Silinen Mesaj', value: `\`\`\`\n${message.content.substring(0, 1000)}\n\`\`\``, inline: false }
-                        ]
-                    });
-                    await sendLog(message.guild, logPayload, 'text').catch(()=>{});
+                if (!isSafeLink) {
+                    const inviteMatch = message.content.match(discordInviteRegex);
+                    const linkMatch = message.content.match(linkRegex);
 
-                    const result = await issueWarning(message.guild, message.author, client.user.id, 'İzinsiz Link veya Reklam Paylaşımı');
-                    
-                    let fallbackMsg = '';
-                    if (result.success && !result.dmBasarili) {
-                        fallbackMsg = `\n*(Özel mesajlarınız kapalı olduğu için tarafınıza doğrudan mesaj gönderilemedi.)*`;
+                    if (isAntiInviteActive && inviteMatch) {
+                        return await handleAutomodViolation(message, 'İzinsiz Discord sunucu davet bağlantısı paylaşımı yasaktır.', 'Davet Engeli', inviteMatch[0], automodCfg);
                     }
-                    if (result.extraAction) {
-                        fallbackMsg += `\n${result.extraAction}`;
+                    if (isAntiLinkActive && linkMatch) {
+                        return await handleAutomodViolation(message, 'İzinsiz web bağlantısı veya link paylaşımı yasaktır.', 'Bağlantı Engeli', linkMatch[0], automodCfg);
                     }
-
-                    const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('rules_read')
-                            .setLabel('Kuralları Okudum')
-                            .setStyle(ButtonStyle.Secondary)
-                    );
-                    
-                    const payload = createV2Message({
-                        title: 'Reklam veya Link Engellendi',
-                        description: `<@${message.author.id}> Bu sunucuda reklam yapmak veya izinsiz bağlantı paylaşmak yasaktır.\n**Toplam Aktif Uyarı:** ${result.totalWarns}${fallbackMsg}`,
-                        color: COLORS.WARNING,
-                        actionRows: [row]
-                    });
-                    
-                    return message.channel.send(payload)
-                        .then(msg => setTimeout(() => msg.delete().catch(() => {}), 15000)).catch(()=>{});
                 }
             }
 
-            // 2. Yasaklı Kelime Filtresi (Daha hassas, hatalı engellemeleri önleyen yapı)
-            if (config.anti_swear_enabled) {
-                const normalizedContent = message.content.toLowerCase()
-                    .replace(/[çÇ]/g, 'c').replace(/[ğĞ]/g, 'g').replace(/[ıİ]/g, 'i')
-                    .replace(/[öÖ]/g, 'o').replace(/[şŞ]/g, 's').replace(/[üÜ]/g, 'u')
-                    .replace(/[^a-z0-9\s]/g, ' ')
-                    .replace(/\s+/g, ' ').trim();
-                    
-                const messageWords = normalizedContent.split(' ');
+            // 2. Küfür Filtresi (Yerleşik Küfür & Hakaret Filtresi)
+            const isSwearActive = (automodCfg && automodCfg.anti_swear) || (config && config.anti_swear_enabled);
+            if (isSwearActive) {
+                const { checkBuiltinSwear } = require('../utils/swearWords');
+                const caughtSwear = checkBuiltinSwear(message.content);
+                if (caughtSwear) {
+                    return await handleAutomodViolation(message, 'Sunucu kurallarına aykırı küfür veya hakaret içeren ifade tespit edildi.', 'Küfür Filtresi', caughtSwear, automodCfg);
+                }
+            }
 
+            // 2.1 Yasaklı Kelimeler Filtresi (Sunucu Yetkililerinin Eklediği Özel Kelimeler)
+            const isCustomWordsActive = (automodCfg && automodCfg.custom_words_enabled) || true;
+            if (isCustomWordsActive) {
                 const words = await getFilteredWords(message.guild.id);
-                
-                for (const row of words) {
-                    let isMatch = false;
-                    const dbWord = row.word.toLowerCase()
+                if (words && words.length > 0) {
+                    const normalizedContent = message.content.toLowerCase()
                         .replace(/[çÇ]/g, 'c').replace(/[ğĞ]/g, 'g').replace(/[ıİ]/g, 'i')
-                        .replace(/[öÖ]/g, 'o').replace(/[şŞ]/g, 's').replace(/[üÜ]/g, 'u').trim();
-
-                    if (!dbWord) continue;
-
-                    // Hatalı engellemeleri önlemek için kısa kelimelerde (<= 5 harf) veya exact modunda tam kelime eşleşmesi ara
-                    if (row.match_type === 'exact' || dbWord.length <= 5) {
-                        if (messageWords.includes(dbWord)) isMatch = true;
-                    } else {
-                        if (normalizedContent.includes(dbWord) || messageWords.some(w => w.includes(dbWord))) {
-                            isMatch = true;
-                        }
-                    }
+                        .replace(/[öÖ]/g, 'o').replace(/[şŞ]/g, 's').replace(/[üÜ]/g, 'u')
+                        .replace(/[^a-z0-9\s]/g, ' ')
+                        .replace(/\s+/g, ' ').trim();
+                        
+                    const messageWords = normalizedContent.split(' ');
                     
-                    if (isMatch) {
-                        await message.delete().catch(() => {});
-                        
-                        const logPayload = createV2Message({
-                            title: 'Otomatik Moderasyon - Yasaklı Kelime Engellendi',
-                            color: COLORS.ERROR,
-                            fields: [
-                                { name: 'Kullanıcı', value: `<@${message.author.id}>`, inline: true },
-                                { name: 'Kanal', value: `<#${message.channel.id}>`, inline: true },
-                                { name: 'Yakalanan Kelime', value: `\`${row.word}\``, inline: true },
-                                { name: 'Silinen Mesaj', value: `\`\`\`\n${message.content.substring(0, 1000)}\n\`\`\``, inline: false }
-                            ]
-                        });
-                        await sendLog(message.guild, logPayload, 'text').catch(()=>{});
+                    for (const row of words) {
+                        let isMatch = false;
+                        const dbWord = row.word.toLowerCase()
+                            .replace(/[çÇ]/g, 'c').replace(/[ğĞ]/g, 'g').replace(/[ıİ]/g, 'i')
+                            .replace(/[öÖ]/g, 'o').replace(/[şŞ]/g, 's').replace(/[üÜ]/g, 'u').trim();
 
-                        const result = await issueWarning(message.guild, message.author, client.user.id, 'Sunucu kurallarına aykırı kelime kullanımı');
-                        
-                        let fallbackMsg = '';
-                        if (result.success && !result.dmBasarili) {
-                            fallbackMsg = `\n*(Özel mesajlarınız kapalı olduğu için tarafınıza doğrudan mesaj gönderilemedi.)*`;
-                        }
+                        if (!dbWord) continue;
 
-                        if (result.missingRole) {
-                            fallbackMsg += `\n\n**Yetkililerin Dikkatine:** Kullanıcıya otomatik uyarı verildi ancak verilmesi gereken **${result.missingRoleMsg}** ayarlarda seçilmemiş.`;
+                        if (row.match_type === 'exact' || dbWord.length <= 5) {
+                            if (messageWords.includes(dbWord)) isMatch = true;
+                        } else {
+                            if (normalizedContent.includes(dbWord) || messageWords.some(w => w.includes(dbWord))) {
+                                isMatch = true;
+                            }
                         }
                         
-                        if (result.extraAction) {
-                            fallbackMsg += `\n${result.extraAction}`;
+                        if (isMatch) {
+                            return await handleAutomodViolation(message, 'Sunucuda kullanımı yasaklanmış özel bir kelime tespit edildi.', 'Yasaklı Kelimeler', row.word, automodCfg);
                         }
-
-                        const payload = createV2Message({
-                            title: 'Yasaklı Kelime',
-                            description: `<@${message.author.id}> Mesajınız sunucu kurallarına aykırı kelimeler içerdiği için silindi ve uyarıldınız.\n**Toplam Aktif Uyarı:** ${result.totalWarns}${fallbackMsg}`,
-                            color: COLORS.WARNING
-                        });
-                        return message.channel.send(payload)
-                            .then(msg => setTimeout(() => msg.delete().catch(() => {}), 20000)).catch(()=>{});
                     }
                 }
             }
 
-            // 3. Gelişmiş Büyük Harf Filtresi
-            if (config.caps_filter_enabled && message.content.length > 8) {
+            // 3. Büyük Harf (Caps Lock) Filtresi
+            const capsPercentLimit = (automodCfg && automodCfg.caps_percent > 0) ? automodCfg.caps_percent : (config && config.caps_filter_enabled ? 65 : 0);
+            if (capsPercentLimit > 0 && message.content.length > 8) {
                 const upperCaseChars = (message.content.match(/[A-ZÇĞİÖŞÜ]/g) || []).length;
                 const totalLetters = (message.content.match(/[a-zA-ZçğıöşüÇĞİÖŞÜ]/g) || []).length;
                 
                 if (totalLetters > 5) {
                     const capsPercentage = (upperCaseChars / totalLetters) * 100;
-                    
-                    if (capsPercentage > 65) {
-                        await message.delete().catch(() => {});
-                        
-                        const logPayload = createV2Message({
-                            title: 'Otomatik Moderasyon - Büyük Harf Engellendi',
-                            color: COLORS.WARNING,
-                            fields: [
-                                { name: 'Kullanıcı', value: `<@${message.author.id}>`, inline: true },
-                                { name: 'Kanal', value: `<#${message.channel.id}>`, inline: true },
-                                { name: 'Büyük Harf Oranı', value: `%${Math.round(capsPercentage)}`, inline: true },
-                                { name: 'Silinen Mesaj', value: `\`\`\`\n${message.content.substring(0, 1000)}\n\`\`\``, inline: false }
-                            ]
-                        });
-                        await sendLog(message.guild, logPayload, 'text').catch(()=>{});
-
-                        const result = await issueWarning(message.guild, message.author, client.user.id, 'Aşırı büyük harf kullanımı');
-                        
-                        let fallbackMsg = '';
-                        if (result.success && !result.dmBasarili) {
-                            fallbackMsg = `\n*(Özel mesajlarınız kapalı olduğu için tarafınıza doğrudan mesaj gönderilemedi.)*`;
-                        }
-                        if (result.extraAction) {
-                            fallbackMsg += `\n${result.extraAction}`;
-                        }
-
-                        const payload = createV2Message({
-                            title: 'Büyük Harf Engellendi', 
-                            description: `<@${message.author.id}> Okunabilirliği zorlaştırdığı için gereğinden fazla büyük harf kullanmak yasaktır.\n**Toplam Aktif Uyarı:** ${result.totalWarns}${fallbackMsg}`,
-                            color: COLORS.WARNING
-                        });
-                        return message.channel.send(payload)
-                            .then(msg => setTimeout(() => msg.delete().catch(() => {}), 15000)).catch(()=>{});
+                    if (capsPercentage >= capsPercentLimit) {
+                        return await handleAutomodViolation(message, 'Aşırı büyük harf kullanımı okunabilirliği zorlaştırdığı için yasaktır.', 'Büyük Harf (Caps Lock)', `%${Math.round(capsPercentage)} Büyük Harf (Sınır: %${capsPercentLimit})`, automodCfg);
                     }
                 }
             }
 
-            // 4. Etiket Spami Filtresi
-            if (config.anti_spam_enabled && message.mentions.users.size > 5) {
-                await message.delete().catch(() => {});
-                try {
-                    await message.member.timeout(5 * 60 * 1000, 'Toplu etiketleme tespiti');
-                    const payload = createV2Message({
-                        title: 'Etiket Sınırı',
-                        description: `<@${message.author.id}> Çok fazla kullanıcıyı etiketlediğiniz için geçici olarak susturuldunuz.`,
-                        color: COLORS.WARNING
-                    });
-                    return message.channel.send(payload).then(msg => setTimeout(() => msg.delete().catch(() => {}), 15000)).catch(()=>{});
-                } catch (error) {
-                    console.error("Timeout yetkisi yok:", error);
-                }
+            // 4. Toplu Etiket Filtresi
+            const mentionLimit = (automodCfg && automodCfg.mention_limit > 0) ? automodCfg.mention_limit : 5;
+            if (automodCfg && automodCfg.mention_limit > 0 && message.mentions.users.size >= mentionLimit) {
+                return await handleAutomodViolation(message, 'Çok fazla kullanıcıyı etiketlediniz.', 'Toplu Etiket', `${message.mentions.users.size} Etiket (Sınır: ${mentionLimit})`, automodCfg);
+            } else if (config && config.anti_spam_enabled && message.mentions.users.size > 5) {
+                return await handleAutomodViolation(message, 'Çok fazla kullanıcıyı etiketlediniz.', 'Toplu Etiket', `${message.mentions.users.size} Etiket`, automodCfg);
             }
 
             // 5. Anti-Spam (Hızlı mesaj atma)
-            if (config.anti_spam_enabled) {
+            let spamMaxCount = 5;
+            let spamTimeWindow = 5000;
+            let isSpamEnabled = (config && config.anti_spam_enabled);
+
+            if (automodCfg && automodCfg.spam_limit && automodCfg.spam_limit !== '0') {
+                isSpamEnabled = true;
+                const parts = automodCfg.spam_limit.split('/');
+                if (parts.length === 2) {
+                    spamMaxCount = parseInt(parts[0], 10) || 5;
+                    spamTimeWindow = (parseInt(parts[1], 10) || 5) * 1000;
+                } else if (parts.length === 1) {
+                    spamMaxCount = parseInt(parts[0], 10) || 5;
+                }
+            }
+
+            if (isSpamEnabled) {
                 const now = Date.now();
                 const spamData = client.spamMap.get(message.author.id) || { count: 0, lastMessage: now, msgContent: '' };
-                
                 const timeDifference = now - spamData.lastMessage;
                 
-                if (timeDifference < 5000) {
+                if (timeDifference < spamTimeWindow) {
                     spamData.count++;
-                    
                     if (spamData.msgContent === message.content) {
                         spamData.count += 2; 
                     }
                     
-                    if (spamData.count >= 5) {
-                        await message.delete().catch(() => {});
-                        try {
-                            await message.member.timeout(5 * 60 * 1000, 'Hızlı mesaj gönderimi tespiti');
-                            const payload = createV2Message({
-                                title: 'Seri Mesaj Engellendi',
-                                description: `<@${message.author.id}> Çok hızlı mesaj gönderdiğiniz için geçici olarak susturuldunuz.`,
-                                color: COLORS.WARNING
-                            });
-                            message.channel.send(payload).then(msg => setTimeout(() => msg.delete().catch(() => {}), 15000)).catch(()=>{});
-                        } catch (e) {
-                             console.error("Timeout yetkisi yok:", e);
-                        }
-                        spamData.count = 0; 
+                    if (spamData.count >= spamMaxCount) {
+                        spamData.count = 0;
+                        return await handleAutomodViolation(message, 'Çok hızlı seri mesaj gönderimi tespit edildi.', 'Spam', `${spamMaxCount} Mesaj / ${Math.round(spamTimeWindow/1000)} Saniye`, automodCfg);
                     }
                 } else {
                     spamData.count = 1;
@@ -420,7 +444,6 @@ module.exports = {
                 spamData.msgContent = message.content;
                 client.spamMap.set(message.author.id, spamData);
             }
-
         } catch (err) {
             console.error("MessageCreate DB Error:", err);
         } finally {

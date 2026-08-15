@@ -97,6 +97,9 @@ module.exports = {
         let isMuted = false;
         let activeWarnsCount = 0;
         let globalInviter = null;
+        let globalInviteCode = null;
+        let globalInviteDuration = null;
+        let globalInviteMaxUses = null;
         try {
             conn2 = await pool.getConnection();
             
@@ -130,6 +133,9 @@ module.exports = {
                         inviter = usedInvite.inviterId;
                         inviteCode = usedInvite.code;
                         globalInviter = inviter;
+                        globalInviteCode = inviteCode;
+                        globalInviteDuration = usedInvite.maxAge;
+                        globalInviteMaxUses = usedInvite.maxUses;
                         for (const [code, inv] of newInvites) {
                             cachedInvites.set(code, inv.uses);
                         }
@@ -202,11 +208,43 @@ module.exports = {
             } catch(e) { console.error("Warn rol geri verme hatası:", e); }
         }
         
-        if (autoroleId && shouldGiveAutorole) {
+        if (shouldGiveAutorole) {
             try {
-                await member.roles.add(autoroleId, 'Sunucuya katılım otorol işlemi');
+                const { getAutoroleConfig } = require('../utils/autoroleSystem');
+                const aConfig = await getAutoroleConfig(member.guild.id);
+                if (aConfig && (aConfig.is_enabled === 1 || aConfig.is_enabled === true)) {
+                    let roleToAssign = null;
+                    if (member.user.bot && aConfig.bot_role_id) {
+                        roleToAssign = aConfig.bot_role_id;
+                    } else if (!member.user.bot && aConfig.user_role_id) {
+                        roleToAssign = aConfig.user_role_id;
+                    } else if (autoroleId) {
+                        roleToAssign = autoroleId;
+                    }
+
+                    if (roleToAssign) {
+                        await member.roles.add(roleToAssign, 'Otomatik rol (Otorol) tanımlandı').catch(() => {});
+                        
+                        if (aConfig.channel_id) {
+                            const notifyChan = member.guild.channels.cache.get(aConfig.channel_id);
+                            if (notifyChan) {
+                                const { buildModBResponse, MONO_EMOJIS } = require('../utils/uiBuilder');
+                                const eUser = `<:mono:${MONO_EMOJIS.user || '1535662025232097504'}>`;
+                                const payload = buildModBResponse({
+                                    title: `${eUser} Otorol Verildi`,
+                                    textLines: [
+                                        `**Üye:** <@${member.id}> (${member.user.tag})`,
+                                        `**Verilen Rol:** <@&${roleToAssign}>`,
+                                        `**Tür:** ${member.user.bot ? 'Bot 🤖' : 'Kullanıcı 👤'}`
+                                    ]
+                                });
+                                await notifyChan.send(payload).catch(() => {});
+                            }
+                        }
+                    }
+                }
             } catch (err) {
-                console.error(`Otorol verilemedi: ${err.message}`);
+                console.error(`Otorol işlemi hatası: ${err.message}`);
             }
         }
 
@@ -246,29 +284,114 @@ module.exports = {
             if (connMute) connMute.release();
         }
 
-        if (targetChannelId) {
-            const channel = member.guild.channels.cache.get(targetChannelId);
-            if (channel) {
-                const welcomeMessages = [
-                    "Aramıza hoş geldin {user}. Katılımınla daha güçlüyüz.",
-                    "Merhaba {user}, sunucuya giriş yaptın. Kuralları okumayı unutma.",
-                    "Hoş geldin {user}. Seninle birlikte büyümeye devam ediyoruz.",
-                    "Sunucumuza katıldığın için teşekkürler {user}.",
-                    "{user} aramıza katıldı. Hoş geldin."
-                ];
-                const randomMsg = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)].replace('{user}', `<@${member.id}>`);
-                
-                let inviteText = '';
-                if (globalInviter) inviteText = `\n**Davet Eden:** <@${globalInviter}>`;
+        // Karşılama (Welcome) Sistemi
+        try {
+            const { getWelcomeConfig } = require('../db');
+            const { parseWelcomePlaceholders } = require('../utils/welcomeSystem');
+            const { generateWelcomeCard } = require('../utils/welcomeCardGenerator');
+            const { ContainerBuilder, TextDisplayBuilder, AttachmentBuilder, MessageFlags } = require('discord.js');
 
-                const payload = createV2Message({
-                    title: 'Sunucuya Katılım',
-                    description: `<@${member.id}>\n\n**${randomMsg}**${inviteText}\n\nSeninle beraber toplam **${member.guild.memberCount}** kişi olduk.`,
-                    color: COLORS.SUCCESS
-                });
+            const welcomeCfg = await getWelcomeConfig(member.guild.id);
+            const wChannelId = welcomeCfg?.welcome_channel_id || targetChannelId;
 
-                await channel.send(payload).catch(e => console.error("Welcome mesaj hatası", e));
+            let inviterUser = null;
+            let inviterTotalCount = 0;
+            if (globalInviter) {
+                try {
+                    inviterUser = await member.client.users.fetch(globalInviter).catch(() => null);
+                    const invRows = await pool.query('SELECT COUNT(user_id) as count FROM invite_tracking WHERE guild_id = ? AND inviter_id = ?', [member.guild.id, globalInviter]);
+                    inviterTotalCount = Number(invRows[0]?.count || 0);
+                } catch (e) {}
             }
+
+            // 1. DM Mesajı Gönder (Varsa)
+            if (welcomeCfg?.welcome_dm_message) {
+                const dmFormatted = parseWelcomePlaceholders(welcomeCfg.welcome_dm_message, member, inviterUser, inviterTotalCount, globalInviteCode, globalInviteDuration, globalInviteMaxUses);
+                await member.send({ content: dmFormatted }).catch(() => {});
+            }
+
+            // 2. Kanala Mesaj Gönder
+            if (wChannelId) {
+                const channel = member.guild.channels.cache.get(wChannelId);
+                if (channel) {
+                    const rawMsg = welcomeCfg?.welcome_message || '{user} sunucumuza hoş geldin!';
+                    const formattedMsg = parseWelcomePlaceholders(rawMsg, member, inviterUser, inviterTotalCount, globalInviteCode, globalInviteDuration, globalInviteMaxUses);
+
+                    let files = [];
+                    if (welcomeCfg?.welcome_gen_image) {
+                        let fetchedUser = member.user;
+                        try {
+                            fetchedUser = await member.client.users.fetch(member.user.id, { force: true });
+                        } catch (e) {
+                            fetchedUser = member.user;
+                        }
+
+                        const avatarUrl = fetchedUser.displayAvatarURL({ extension: 'png', size: 256 });
+                        const userFlags = fetchedUser.flags?.toArray() || [];
+                        const isBooster = !!member.premiumSince || member.roles?.cache?.some(r => r.name.toLowerCase().includes('boost'));
+                        const isOwner = member.guild?.ownerId === member.id;
+                        const isBot = fetchedUser.bot;
+
+                        const customCardHeader = welcomeCfg?.welcome_title 
+                            ? parseWelcomePlaceholders(welcomeCfg.welcome_title, member, inviterUser, inviterTotalCount, globalInviteCode, globalInviteDuration, globalInviteMaxUses, true)
+                            : null;
+                        const customCardSubtitle = welcomeCfg?.welcome_message
+                            ? parseWelcomePlaceholders(welcomeCfg.welcome_message, member, inviterUser, inviterTotalCount, globalInviteCode, globalInviteDuration, globalInviteMaxUses, true)
+                            : `${member.guild.name} sunucusuna katıldın`;
+
+                        const hasCountVariable = (welcomeCfg?.welcome_message && (welcomeCfg.welcome_message.includes('{count') || welcomeCfg.welcome_message.includes('{memberCount}'))) ||
+                                                 (welcomeCfg?.welcome_title && (welcomeCfg.welcome_title.includes('{count') || welcomeCfg.welcome_title.includes('{memberCount}')));
+
+                        const cardBuffer = await generateWelcomeCard({
+                            avatarUrl,
+                            username: fetchedUser.tag || fetchedUser.username,
+                            customHeader: customCardHeader,
+                            customSubtitle: customCardSubtitle,
+                            guildName: member.guild.name,
+                            memberCount: member.guild.memberCount,
+                            type: 'welcome',
+                            userFlags,
+                            isBooster,
+                            isOwner,
+                            isBot,
+                            showCountPill: !!hasCountVariable
+                        });
+                        if (cardBuffer) {
+                            files.push(new AttachmentBuilder(cardBuffer, { name: 'welcome.png' }));
+                        }
+                    }
+
+                    if (welcomeCfg?.welcome_plain_text) {
+                        await channel.send({ content: formattedMsg, files }).catch(e => console.error("Welcome send error:", e));
+                    } else {
+                        const container = new ContainerBuilder();
+                        if (welcomeCfg?.welcome_show_title !== false && welcomeCfg?.welcome_show_title !== 0) {
+                            const title = welcomeCfg?.welcome_title 
+                                ? parseWelcomePlaceholders(welcomeCfg.welcome_title, member)
+                                : `Hoş Geldin, ${member.user.username}!`;
+                            container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${title}`));
+                        }
+                        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(formattedMsg));
+
+                        if (files.length > 0) {
+                            const { MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
+                            container.addMediaGalleryComponents(
+                                new MediaGalleryBuilder().addItems(
+                                    new MediaGalleryItemBuilder().setURL('attachment://welcome.png')
+                                )
+                            );
+                        }
+
+                        await channel.send({
+                            components: [container],
+                            files,
+                            flags: MessageFlags.IsComponentsV2
+                        }).catch(e => console.error("Welcome V2 send error:", e));
+                    }
+                }
+            }
+        } catch (welcomeErr) {
+            console.error("Welcome dispatch error:", welcomeErr);
         }
     }
 };

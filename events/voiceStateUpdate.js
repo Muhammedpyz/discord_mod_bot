@@ -93,6 +93,18 @@ module.exports = {
                 // Join-to-Create (Özel Oda Sistemi) kontrolü
                 if (setupInfo && setupInfo.setup_voice_channel_id === newState.channelId) {
                     const member = newState.member;
+
+                    // Engelli roller kontrolü
+                    if (setupInfo.blocked_roles_json) {
+                        try {
+                            const blockedArr = JSON.parse(setupInfo.blocked_roles_json);
+                            if (Array.isArray(blockedArr) && blockedArr.some(rId => member.roles.cache.has(rId))) {
+                                await member.voice.disconnect('Engelli rolde olduğu için özel oda açamaz').catch(() => {});
+                                if (conn) conn.release();
+                                return;
+                            }
+                        } catch(e) {}
+                    }
                     
                     const existing = await conn.query('SELECT channel_id FROM active_rooms WHERE owner_id = ? AND guild_id = ?', [member.id, guildId]);
                     if (existing.length > 0) {
@@ -126,29 +138,42 @@ module.exports = {
                         if (configRows.length > 0) bannedRoleId = configRows[0].banned_role_id;
                     } catch(e) {}
 
+                    const isLocked = setupInfo.is_locked === 1 || setupInfo.is_locked === true;
+                    const userLimit = Number(setupInfo.user_limit) || 0;
+
                     const overwrites = [
-                        { id: guildId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] },
+                        { id: guildId, allow: [PermissionFlagsBits.ViewChannel], deny: isLocked ? [PermissionFlagsBits.Connect] : [] },
                         { id: member.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] }
                     ];
 
                     if (bannedRoleId) {
-                        overwrites.push({ id: bannedRoleId, deny: [PermissionFlagsBits.ViewChannel] });
+                        overwrites.push({ id: bannedRoleId, deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect] });
                     }
 
+                    const template = setupInfo.room_name_template || "{user}'in Odası";
+                    const roomCountRows = await conn.query('SELECT COUNT(*) as c FROM active_rooms WHERE guild_id = ?', [guildId]);
+                    const roomNum = (roomCountRows.length > 0 ? Number(roomCountRows[0].c) : 0) + 1;
+                    const roomName = template
+                        .replace(/\{user\}/gi, member.displayName || member.user.username)
+                        .replace(/\{number\}/gi, String(roomNum));
+
                     const newChannel = await newState.guild.channels.create({
-                        name: `${member.user.username} Odasi`,
+                        name: roomName,
                         type: ChannelType.GuildVoice,
                         parent: categoryId,
-                        userLimit: 0,
+                        userLimit: Math.max(0, Math.min(99, userLimit)),
                         permissionOverwrites: overwrites
                     });
 
-                    await conn.query('INSERT INTO active_rooms (channel_id, owner_id, guild_id) VALUES (?, ?, ?)', [newChannel.id, member.id, guildId]);
+                    await conn.query('INSERT INTO active_rooms (channel_id, owner_id, guild_id, room_name) VALUES (?, ?, ?, ?)', [newChannel.id, member.id, guildId, roomName]);
                     await member.voice.setChannel(newChannel).catch(()=>{});
 
-                    const panelData = createRoomPanel(member.user, newChannel.id);
-                    const panelMsg = await newChannel.send(panelData);
-                    await panelMsg.pin().catch(()=>{});
+                    const showCard = setupInfo.show_control_card !== 0 && setupInfo.show_control_card !== false;
+                    if (showCard) {
+                        const panelData = createRoomPanel(member.user, newChannel.id);
+                        const panelMsg = await newChannel.send(panelData).catch(() => {});
+                        if (panelMsg) await panelMsg.pin().catch(()=>{});
+                    }
 
                     sendVoiceLog(client, guildId, 'Özel Oda Oluşturuldu', `<@${member.id}> ses kanalına girerek yeni özel oda oluşturdu: <#${newChannel.id}>`, member.user, `room:${newChannel.id}`);
                 } else if (isMove) {
@@ -200,7 +225,9 @@ module.exports = {
                     }
                 }
 
-                sendVoiceLog(client, oldState.guild.id, 'Kanaldan Ayrıldı', `<@${oldState.member.id}> ses kanalından ayrıldı: ${channelMention}`, oldState.member.user, scopeKey);
+                if (!client.justDeletedRooms || !client.justDeletedRooms.has(oldState.channelId)) {
+                    sendVoiceLog(client, oldState.guild.id, 'Kanaldan Ayrıldı', `<@${oldState.member.id}> ses kanalından ayrıldı: ${channelMention}`, oldState.member.user, scopeKey);
+                }
 
                 if (activeRoomRows.length > 0) {
                     const ownerId = activeRoomRows[0].owner_id;
