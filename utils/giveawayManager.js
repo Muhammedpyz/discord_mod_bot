@@ -445,24 +445,15 @@ async function handleGiveawayButton(interaction) {
 
         if (customId === 'gw_modal_settings') {
             await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-            const data = { manager_roles: [], log_channel_id: null, ping_role_id: null, ignored_roles: [], dm_winner: true, show_parts: true };
-            try {
-                data.manager_roles = interaction.fields.getTextInputValue('yetkili_rolleri').split(',').map(s => s.trim()).filter(Boolean);
-            } catch(e){}
-            try {
-                const v = interaction.fields.getTextInputValue('log_kanali').trim();
-                data.log_channel_id = v || null;
-            } catch(e){}
-            try {
-                const v = interaction.fields.getTextInputValue('duyuru_rolu').trim();
-                data.ping_role_id = v || null;
-            } catch(e){}
-            try {
-                data.ignored_roles = interaction.fields.getTextInputValue('engelli_roller').split(',').map(s => s.trim()).filter(Boolean);
-            } catch(e){}
-            const secenek = interaction.fields.getTextInputValue('secenekler').toLowerCase();
-            data.dm_winner = !secenek.includes('dm:kapalı') && !secenek.includes('dm:kapali');
-            data.show_parts = !secenek.includes('katilanlar:kapalı') && !secenek.includes('katilanlar:kapali');
+            const toIds = (arr) => (arr || []).map(x => String(x && x.id !== undefined ? x.id : x)).filter(Boolean);
+            const data = {
+                manager_roles: toIds(interaction.fields.getSelectedRoles('gw_set_manager', false)),
+                log_channel_id: toIds(interaction.fields.getSelectedChannels('gw_set_log', false))[0] || null,
+                ping_role_id: toIds(interaction.fields.getSelectedRoles('gw_set_ping', false))[0] || null,
+                ignored_roles: toIds(interaction.fields.getSelectedRoles('gw_set_ignore', false)),
+                dm_winner: (interaction.fields.getCheckboxGroup('gw_set_options') || []).includes('dm'),
+                show_parts: (interaction.fields.getCheckboxGroup('gw_set_options') || []).includes('katilanlar')
+            };
             await db.setGiveawaySettings(interaction.guild.id, data);
             logGiveaway('settings_saved', { guildId: interaction.guild.id, data });
             return interaction.editReply(createContainerMessage(
@@ -494,7 +485,7 @@ async function handleGiveawayButton(interaction) {
     }
 
     // --- BUTTONS ---
-    const { MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+    const { MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, LabelBuilder, RoleSelectMenuBuilder, ChannelSelectMenuBuilder, CheckboxGroupBuilder, ChannelType, StringSelectMenuBuilder } = require('discord.js');
     const [action, messageId] = customId.split(':');
     const userId = interaction.user.id;
 
@@ -523,12 +514,31 @@ async function handleGiveawayButton(interaction) {
         const settings = await db.getGiveawaySettings(interaction.guild.id);
 
         const modal = new ModalBuilder().setCustomId('gw_modal_settings').setTitle('Çekiliş Ayarları');
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('yetkili_rolleri').setLabel('Yetkili Rolleri (virgülle ayır, boş bırakabilirsin)').setStyle(TextInputStyle.Short).setRequired(false).setValue(settings.manager_roles.join(', ')).setPlaceholder('Örn: 111111111111111111, 222222222222222222')),
-            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('log_kanali').setLabel('Log Kanalı ID (boş = kapalı)').setStyle(TextInputStyle.Short).setRequired(false).setValue(settings.log_channel_id || '').setPlaceholder('Örn: 333333333333333333')),
-            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('duyuru_rolu').setLabel('Duyuru Rolü ID (boş = kapalı)').setStyle(TextInputStyle.Short).setRequired(false).setValue(settings.ping_role_id || '').setPlaceholder('Örn: 444444444444444444')),
-            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('engelli_roller').setLabel('Katılamayacak Roller (virgülle ayır)').setStyle(TextInputStyle.Short).setRequired(false).setValue(settings.ignored_roles.join(', ')).setPlaceholder('Örn: 555555555555555555')),
-            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('secenekler').setLabel('Seçenekler (dm / katilanlar)').setStyle(TextInputStyle.Short).setRequired(true).setValue(`dm:${settings.dm_winner ? 'açık' : 'kapalı'}, katilanlar:${settings.show_parts ? 'açık' : 'kapalı'}`).setPlaceholder('dm:açık, katilanlar:açık'))
+        modal.addLabelComponents(
+            new LabelBuilder()
+                .setLabel('Yetkili Rolleri')
+                .setDescription('Çekiliş yönetebilecek roller (boş bırakılırsa Sunucuyu Yönet yetkisi yeterli).')
+                .setRoleSelectMenuComponent(new RoleSelectMenuBuilder().setCustomId('gw_set_manager').setMinValues(0).setMaxValues(10).setRequired(false)),
+            new LabelBuilder()
+                .setLabel('Log Kanalı')
+                .setDescription('Çekiliş olaylarının kaydedileceği kanal (boş = kapalı).')
+                .setChannelSelectMenuComponent(new ChannelSelectMenuBuilder().setCustomId('gw_set_log').setChannelTypes(ChannelType.GuildText).setRequired(false)),
+            new LabelBuilder()
+                .setLabel('Duyuru Rolü')
+                .setDescription('Çekiliş bittiğinde etiketlenecek rol (boş = kapalı).')
+                .setRoleSelectMenuComponent(new RoleSelectMenuBuilder().setCustomId('gw_set_ping').setMinValues(0).setMaxValues(1).setRequired(false)),
+            new LabelBuilder()
+                .setLabel('Katılamayacak Roller')
+                .setDescription('Bu rollere sahip üyeler çekilişe katılamaz.')
+                .setRoleSelectMenuComponent(new RoleSelectMenuBuilder().setCustomId('gw_set_ignore').setMinValues(0).setMaxValues(10).setRequired(false)),
+            new LabelBuilder()
+                .setLabel('Seçenekler')
+                .setCheckboxGroupComponent(
+                    new CheckboxGroupBuilder().setCustomId('gw_set_options').setOptions([
+                        { label: 'Kazanana DM at', value: 'dm', description: 'Kazanan kullanıcıya özel mesaj gönderilir.', default: settings.dm_winner },
+                        { label: 'Katılanlar Butonu', value: 'katilanlar', description: 'Çekiliş mesajında katılımcı listesi butonu gösterilir.', default: settings.show_parts }
+                    ])
+                )
         );
         await interaction.showModal(modal);
         return true;
