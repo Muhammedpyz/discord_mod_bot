@@ -7,14 +7,14 @@ function createHelpComponents(selected = 'home') {
             .setCustomId('yardim:help_category_select')
             .setPlaceholder('Bir yardım kategorisi seçin...')
             .addOptions([
-                { label: 'Ana Sayfa', value: 'help_home', description: 'Yardım paneli ana sayfası ve genel bakış', default: selected === 'home' },
-                { label: 'Müzik & Ses Sistemleri', value: 'help_music', description: 'Play, Pause, Skip, Like, Filter, 247, Queue vb. (16 Komut)', default: selected === 'music' },
-                { label: 'Ceza & Moderasyon', value: 'help_punish', description: 'Ban, Kick, Mute, Warn, Not vb. (11 Komut)', default: selected === 'punish' },
-                { label: 'Sistem & Güvenlik Panelleri', value: 'help_system', description: 'Log, AutoMod, Hoşgeldin, Ticket, Bot-Bilgi, Ping vb. (12 Komut)', default: selected === 'system' },
-                { label: 'Kanal & Mesaj Yönetimi', value: 'help_channel', description: 'Clear, Lockdown, Nuke, Slowmode, Snipe vb. (6 Komut)', default: selected === 'channel' },
-                { label: 'Yetkili & Kadro Yönetimi', value: 'help_staff', description: 'Yetkili Panosu, Başvuru, Mod-Stat (3 Komut)', default: selected === 'staff' },
-                { label: 'Sunucu & Kullanıcı Bilgisi', value: 'help_stats', description: 'Sunucu-Bilgi, Sunucu-Resim, Sorgu, İstatistik vb. (6 Komut)', default: selected === 'stats' },
-                { label: 'Topluluk & Yardımcı Araçlar', value: 'help_community', description: 'Öneri, İtibar, AFK, Hatırlat, Avatar vb. (12 Komut)', default: selected === 'community' }
+                { label: 'Ana Sayfa', value: 'help_home', emoji: '1538517265807442090', description: 'Yardım paneli ana sayfası ve genel bakış', default: selected === 'home' },
+                { label: 'Müzik & Ses Sistemleri', value: 'help_music', emoji: '1538517605902716960', description: 'Play, Pause, Skip, Like, Filter, 247, Queue vb. (16 Komut)', default: selected === 'music' },
+                { label: 'Ceza & Moderasyon', value: 'help_punish', emoji: '1538517311797854265', description: 'Ban, Kick, Mute, Warn, Not vb. (11 Komut)', default: selected === 'punish' },
+                { label: 'Sistem & Güvenlik Panelleri', value: 'help_system', emoji: '1538517230403330058', description: 'Log, AutoMod, Hoşgeldin, Ticket, Bot-Bilgi, Ping vb. (12 Komut)', default: selected === 'system' },
+                { label: 'Kanal & Mesaj Yönetimi', value: 'help_channel', emoji: '1538517289333297192', description: 'Clear, Lockdown, Nuke, Slowmode, Snipe vb. (6 Komut)', default: selected === 'channel' },
+                { label: 'Yetkili & Kadro Yönetimi', value: 'help_staff', emoji: '1530918952711094272', description: 'Yetkili Panosu, Başvuru, Mod-Stat (3 Komut)', default: selected === 'staff' },
+                { label: 'Sunucu & Kullanıcı Bilgisi', value: 'help_stats', emoji: '1538517274082938941', description: 'Sunucu-Bilgi, Sunucu-Resim, Sorgu, İstatistik vb. (6 Komut)', default: selected === 'stats' },
+                { label: 'Topluluk & Yardımcı Araçlar', value: 'help_community', emoji: '1538517365011259483', description: 'Öneri, İtibar, AFK, Hatırlat, Avatar vb. (12 Komut)', default: selected === 'community' }
             ])
     );
 }

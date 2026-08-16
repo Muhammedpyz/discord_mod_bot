@@ -1,6 +1,6 @@
 const { MessageFlags, PermissionFlagsBits } = require('discord.js');
 const { createContainerMessage, MONO_EMOJIS } = require('./uiBuilder');
-const { buildNowPlayingPayload } = require('./musicManager');
+const { buildNowPlayingPayload, APP_EMOJIS } = require('./musicManager');
 const db = require('../db');
 
 const cooldowns = new Map();
@@ -27,12 +27,12 @@ async function handleMusicButton(interaction) {
     const { client, guild, member, user } = interaction;
     const player = client.manager?.players.get(guild.id);
 
-    // 1. Spam & Cooldown Koruması (2 Saniye)
+    // 1. Spam & Cooldown Koruması (1.5 Saniye)
     const now = Date.now();
     const userCooldown = cooldowns.get(user.id) || 0;
     if (now - userCooldown < 1500) {
         await interaction.reply({
-            content: `<:mono:${MONO_EMOJIS.status || '1530917510189285528'}> Lütfen butonlara bu kadar hızlı basmayın, biraz bekleyin.`,
+            content: `<:white_info:${APP_EMOJIS.white_info}> Lütfen butonlara bu kadar hızlı basmayın, biraz bekleyin.`,
             flags: MessageFlags.Ephemeral
         }).catch(() => {});
         return true;
@@ -42,7 +42,7 @@ async function handleMusicButton(interaction) {
     // 2. Aktif Müzik Kontrolü
     if (!player || (!player.queue.current && interaction.customId !== 'music_stop')) {
         await interaction.reply({
-            content: `<:mono:${MONO_EMOJIS.cross || '1530917536806469783'}> Şu an çalan bir müzik bulunmuyor.`,
+            content: `<:white_cross:${APP_EMOJIS.white_cross}> Şu an çalan bir müzik bulunmuyor.`,
             flags: MessageFlags.Ephemeral
         }).catch(() => {});
         return true;
@@ -52,7 +52,7 @@ async function handleMusicButton(interaction) {
     const voiceChannel = member.voice.channel;
     if (!voiceChannel || voiceChannel.id !== player.voiceId) {
         await interaction.reply({
-            content: `<:mono:${MONO_EMOJIS.cross || '1530917536806469783'}> Bu butonları kullanabilmek için bot ile **aynı ses kanalında** olmalısınız!`,
+            content: `<:white_cross:${APP_EMOJIS.white_cross}> Bu butonları kullanabilmek için bot ile **aynı ses kanalında** olmalısınız!`,
             flags: MessageFlags.Ephemeral
         }).catch(() => {});
         return true;
@@ -68,7 +68,7 @@ async function handleMusicButton(interaction) {
         case 'music_pause_resume': {
             if (!isOwnerOrStaff && listenersCount > 2) {
                 await interaction.reply({
-                    content: `<:mono:${MONO_EMOJIS.cross || '1530917536806469783'}> Müziği duraklatmak/devam ettirmek için şarkıyı açan kişi (<@${currentTrack.requester?.id || currentTrack.requester}>) veya **DJ / Yetkili** olmalısınız.`,
+                    content: `<:white_cross:${APP_EMOJIS.white_cross}> Müziği duraklatmak/devam ettirmek için şarkıyı açan kişi (<@${currentTrack.requester?.id || currentTrack.requester}>) veya **DJ / Yetkili** olmalısınız.`,
                     flags: MessageFlags.Ephemeral
                 }).catch(() => {});
                 return true;
@@ -82,16 +82,14 @@ async function handleMusicButton(interaction) {
         }
 
         case 'music_skip': {
-            // Sırada başka şarkı var mı kontrolü
             if (player.queue.length === 0) {
                 await interaction.reply({
-                    content: `<:mono:${MONO_EMOJIS.info || '1530917510189285528'}> Sırada geçilecek başka bir şarkı bulunmuyor! Müziği sonlandırmak isterseniz **Durdur & Çık** butonunu kullanabilirsiniz.`,
+                    content: `<:white_info:${APP_EMOJIS.white_info}> Sırada geçilecek başka bir şarkı bulunmuyor! Müziği sonlandırmak isterseniz **Durdur & Çık** butonunu kullanabilirsiniz.`,
                     flags: MessageFlags.Ephemeral
                 }).catch(() => {});
                 return true;
             }
 
-            // Tek kişi veya yetkiliyse anında geç
             if (isOwnerOrStaff || listenersCount <= 2) {
                 await interaction.deferUpdate().catch(() => {});
                 player.skipVotes?.clear();
@@ -99,12 +97,11 @@ async function handleMusicButton(interaction) {
                 return true;
             }
 
-            // Oylama Sistemi (Vote-Skip)
             if (!player.skipVotes) player.skipVotes = new Set();
 
             if (player.skipVotes.has(user.id)) {
                 await interaction.reply({
-                    content: `<:mono:${MONO_EMOJIS.info || '1530917510189285528'}> Zaten bu şarkıyı geçmek için oy kullandınız!`,
+                    content: `<:white_info:${APP_EMOJIS.white_info}> Zaten bu şarkıyı geçmek için oy kullandınız!`,
                     flags: MessageFlags.Ephemeral
                 }).catch(() => {});
                 return true;
@@ -120,7 +117,7 @@ async function handleMusicButton(interaction) {
                 player.skip();
             } else {
                 await interaction.reply({
-                    content: `<:mono:${MONO_EMOJIS.check || '1530917534885478600'}> Şarkıyı geçmek için oy verdiniz! (\`${currentVotes}/${requiredVotes}\` oy - Geçmek için ${requiredVotes - currentVotes} oy daha gerekli).`,
+                    content: `<:white_tick:${APP_EMOJIS.white_tick}> Şarkıyı geçmek için oy verdiniz! (\`${currentVotes}/${requiredVotes}\` oy - Geçmek için ${requiredVotes - currentVotes} oy daha gerekli).`,
                     flags: MessageFlags.Ephemeral
                 }).catch(() => {});
             }
@@ -130,7 +127,7 @@ async function handleMusicButton(interaction) {
         case 'music_loop': {
             if (!isOwnerOrStaff && listenersCount > 2) {
                 await interaction.reply({
-                    content: `<:mono:${MONO_EMOJIS.cross || '1530917536806469783'}> Döngü modunu değiştirmek için şarkıyı açan kişi (<@${currentTrack.requester?.id || currentTrack.requester}>) veya **DJ / Yetkili** olmalısınız.`,
+                    content: `<:white_cross:${APP_EMOJIS.white_cross}> Döngü modunu değiştirmek için şarkıyı açan kişi (<@${currentTrack.requester?.id || currentTrack.requester}>) veya **DJ / Yetkili** olmalısınız.`,
                     flags: MessageFlags.Ephemeral
                 }).catch(() => {});
                 return true;
@@ -162,8 +159,8 @@ async function handleMusicButton(interaction) {
                 );
                 await interaction.reply({
                     content: added 
-                        ? `<:mono:${MONO_EMOJIS.heart || '1537767829275811970'}> **${track.title}** favori şarkılarına eklendi!`
-                        : `<:mono:${MONO_EMOJIS.check || '1530917534885478600'}> Bu şarkı zaten favorilerinde bulunuyor.`,
+                        ? `<:heart4:${APP_EMOJIS.heart4}> **${track.title}** favori şarkılarına eklendi!`
+                        : `<:white_tick:${APP_EMOJIS.white_tick}> Bu şarkı zaten favorilerinde bulunuyor.`,
                     flags: MessageFlags.Ephemeral
                 }).catch(() => {});
             }
@@ -173,7 +170,7 @@ async function handleMusicButton(interaction) {
         case 'music_stop': {
             if (!isOwnerOrStaff && listenersCount > 1) {
                 await interaction.reply({
-                    content: `<:mono:${MONO_EMOJIS.cross || '1530917536806469783'}> Müziği tamamen durdurup botu kanaldan çıkarmak için şarkıyı açan kişi (<@${currentTrack?.requester?.id || currentTrack?.requester}>) veya **Yetkili** olmalısınız.`,
+                    content: `<:white_cross:${APP_EMOJIS.white_cross}> Müziği tamamen durdurup botu kanaldan çıkarmak için şarkıyı açan kişi (<@${currentTrack?.requester?.id || currentTrack?.requester}>) veya **Yetkili** olmalısınız.`,
                     flags: MessageFlags.Ephemeral
                 }).catch(() => {});
                 return true;
@@ -182,7 +179,7 @@ async function handleMusicButton(interaction) {
             await interaction.deferUpdate().catch(() => {});
             player.destroy();
             const stopPayload = createContainerMessage(
-                `<:mono:${MONO_EMOJIS.music || '1537767791908884500'}> Müzik Durduruldu`,
+                `<:white_musicnote:${APP_EMOJIS.white_musicnote}> Müzik Durduruldu`,
                 `<@${user.id}> tarafından müzik tamamen durduruldu ve ses kanalından ayrıldım.`,
                 '#2B2D31'
             );

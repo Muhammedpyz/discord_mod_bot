@@ -9,6 +9,22 @@ const {
 const { MONO_EMOJIS, createContainerMessage } = require('./uiBuilder');
 const db = require('../db');
 
+// Developer Portal Bot App Emojileri
+const APP_EMOJIS = {
+    music_note: '1538517605902716960',
+    white_musicnote: '1538517890737774622',
+    next: '1538517615410946159',
+    previous: '1538517715264999516',
+    heart4: '1538517512340119664',
+    white_cross: '1538517856797331528',
+    white_tick: '1538517908815347762',
+    white_info: '1538517864640815165',
+    pr_l: '1538517686429159515',
+    pr_c: '1538517678942191719',
+    pr_r: '1538517703407706162',
+    pr_e: '1538517672063410229'
+};
+
 function formatDuration(ms) {
     if (!ms || isNaN(ms)) return '0:00';
     const totalSec = Math.floor(ms / 1000);
@@ -29,7 +45,7 @@ function buildMusicProgressBar(currentMs, totalMs) {
     
     const filled = '▰'.repeat(filledCount);
     const empty = '▱'.repeat(emptyCount);
-    return `<:mono:${MONO_EMOJIS.disc_3 || '1537767766566768681'}> \`${formatDuration(currentMs)}\` ${filled}${empty} \`${formatDuration(totalMs)}\` (\`%${percentage}\`)`;
+    return `<:music_note:${APP_EMOJIS.music_note}> \`${formatDuration(currentMs)}\` ${filled}${empty} \`${formatDuration(totalMs)}\` (\`%${percentage}\`)`;
 }
 
 function buildNowPlayingPayload(player, track) {
@@ -49,12 +65,12 @@ function buildNowPlayingPayload(player, track) {
     const rad247Val = player.is247 ? 'Aktif' : 'Deaktif';
 
     const contentLines = [
-        `### <:mono:${MONO_EMOJIS.music || '1537767791908884500'}> Şimdi Çalıyor`,
+        `### <:music_note:${APP_EMOJIS.music_note}> Şimdi Çalıyor`,
         '',
-        `<:mono:${MONO_EMOJIS.disc_2 || '1537767790394482688'}> **Şarkı:** [${title}](${uri})`,
+        `<:white_musicnote:${APP_EMOJIS.white_musicnote}> **Şarkı:** [${title}](${uri})`,
         `<:mono:${MONO_EMOJIS.user || '1537768132062486558'}> **Sanatçı:** ${author}`,
         `<:mono:${MONO_EMOJIS.crown || '1530918952711094272'}> **İsteyen:** ${requester}`,
-        `<:mono:${MONO_EMOJIS.status || '1530917510189285528'}> **Süre:** \`${durationStr}\`${barText}`,
+        `<:white_info:${APP_EMOJIS.white_info}> **Süre:** \`${durationStr}\`${barText}`,
         '',
         `<:mono:${MONO_EMOJIS.speaker || '1537769826636927006'}> **Ses:** \`%${volumeVal}\`   <:mono:${MONO_EMOJIS.sliders_horizontal || '1537769889840889956'}> **Filtre:** \`${filterVal}\``,
         `<:mono:${MONO_EMOJIS.infinity || '1537769920111190056'}> **Döngü:** \`${loopVal}\`   <:mono:${MONO_EMOJIS.antenna || '1537769784983162920'}> **7/24:** \`${rad247Val}\``
@@ -75,7 +91,7 @@ function buildNowPlayingPayload(player, track) {
     }
     mainContainer.addSectionComponents(section);
 
-    // 2. İnteraktif Buton Kartı
+    // 2. İnteraktif Buton Kartı (App Emojileri ile)
     const buttonContainer = new ContainerBuilder();
     const isPaused = player.paused;
     const row = new ActionRowBuilder().addComponents(
@@ -83,27 +99,27 @@ function buildNowPlayingPayload(player, track) {
             .setCustomId('music_pause_resume')
             .setLabel(isPaused ? 'Devam Et' : 'Duraklat')
             .setStyle(isPaused ? ButtonStyle.Success : ButtonStyle.Secondary)
-            .setEmoji(MONO_EMOJIS.disc_2 || '1537767790394482688'),
+            .setEmoji(APP_EMOJIS.music_note),
         new ButtonBuilder()
             .setCustomId('music_skip')
             .setLabel('Geç')
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji(MONO_EMOJIS.arrow_right || '1530918943424778350'),
+            .setEmoji(APP_EMOJIS.next),
         new ButtonBuilder()
             .setCustomId('music_loop')
             .setLabel(player.loop === 'track' ? 'Şarkı Döngüsü' : player.loop === 'queue' ? 'Sıra Döngüsü' : 'Döngü')
             .setStyle(player.loop !== 'none' ? ButtonStyle.Primary : ButtonStyle.Secondary)
-            .setEmoji(MONO_EMOJIS.infinity || '1537769920111190056'),
+            .setEmoji(APP_EMOJIS.previous),
         new ButtonBuilder()
             .setCustomId('music_like')
             .setLabel('Beğen')
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji(MONO_EMOJIS.heart || '1537767829275811970'),
+            .setEmoji(APP_EMOJIS.heart4),
         new ButtonBuilder()
             .setCustomId('music_stop')
             .setLabel('Durdur & Çık')
             .setStyle(ButtonStyle.Danger)
-            .setEmoji(MONO_EMOJIS.power || '1537769966898647149')
+            .setEmoji(APP_EMOJIS.white_cross)
     );
     buttonContainer.addActionRowComponents(row);
 
@@ -177,7 +193,6 @@ function initMusicManager(client) {
         }
     );
 
-    // Kazagumo Olay Dinleyicileri
     manager.shoukaku.on('ready', (name) => {
         console.log(`[Müzik] Lavalink Düğümü Hazır: ${name}`);
     });
@@ -207,18 +222,15 @@ function initMusicManager(client) {
             player.filterName = player.filterName || 'Normal';
         } catch (e) {}
 
-        // Oyları sıfırla
         if (player.skipVotes) player.skipVotes.clear();
 
         if (!player.textId) return;
         const channel = client.channels.cache.get(player.textId);
         if (!channel) return;
 
-        // 7/24 durumunu DB'den kontrol et
         const config = await db.getMusicConfig(player.guildId).catch(() => null);
         player.is247 = config ? !!config.is_247_enabled : false;
 
-        // Eski nowplaying mesajını temizle
         if (player.nowPlayingMessageId) {
             try {
                 const oldMsg = await channel.messages.fetch(player.nowPlayingMessageId).catch(() => null);
@@ -228,7 +240,6 @@ function initMusicManager(client) {
             } catch (e) {}
         }
 
-        // Geçmişe ekle
         if (player.guildId && track.requester) {
             db.addMusicHistory(player.guildId, track.requester.id || track.requester, track.title, track.uri).catch(() => {});
         }
@@ -238,7 +249,6 @@ function initMusicManager(client) {
             const msg = await channel.send(payload).catch(() => null);
             if (msg) {
                 player.nowPlayingMessageId = msg.id;
-                // Canlı İlerleme Çubuğu Güncelleyicisini Başlat (4 saniyede bir)
                 startProgressUpdater(client, player);
             }
         } catch (e) {
@@ -252,13 +262,12 @@ function initMusicManager(client) {
         if (!player.textId) return;
         const channel = client.channels.cache.get(player.textId);
 
-        // Eski panelin butonlarını temizle ve "Müzik Sona Erdi" olarak güncelle
         if (player.nowPlayingMessageId && channel) {
             try {
                 const oldMsg = await channel.messages.fetch(player.nowPlayingMessageId).catch(() => null);
                 if (oldMsg) {
                     const emptyPayload = createContainerMessage(
-                        `<:mono:${MONO_EMOJIS.music || '1537767791908884500'}> Müzik Sona Erdi`,
+                        `<:music_note:${APP_EMOJIS.music_note}> Müzik Sona Erdi`,
                         'Sırada başka şarkı kalmadığı için müzik tamamlandı.',
                         '#2B2D31'
                     );
@@ -294,5 +303,6 @@ module.exports = {
     buildMusicProgressBar,
     startProgressUpdater,
     clearProgressUpdater,
-    formatDuration
+    formatDuration,
+    APP_EMOJIS
 };
