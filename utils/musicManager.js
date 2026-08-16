@@ -70,7 +70,7 @@ function buildMusicProgressBar(currentMs, totalMs) {
         : `<:bar_r_empty:${APP_EMOJIS.bar_r_empty}>`;
     
     const bar = `${leftPiece}${midPieces}${rightPiece}`;
-    return `${bar}\n\`${formatDuration(currentMs)} / ${formatDuration(totalMs)}\` (\`%${percentage}\`)`;
+    return `\`${formatDuration(currentMs)}\` ${bar} \`${formatDuration(totalMs)}\` (\`%${percentage}\`)`;
 }
 
 function buildNowPlayingPayload(player, track) {

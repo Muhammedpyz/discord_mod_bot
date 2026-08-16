@@ -5,6 +5,16 @@ const {
 } = require('discord.js');
 const { createContainerMessage, MONO_EMOJIS } = require('../../utils/uiBuilder');
 
+// Developer Portal Bot App Emojileri
+const APP_EMOJIS = {
+    bar_l_filled: '1538524468710866944',
+    bar_l_empty: '1538524459127017492',
+    bar_m_filled: '1538524484041183313',
+    bar_m_empty: '1538524476289843322',
+    bar_r_filled: '1538524509349609492',
+    bar_r_empty: '1538524497785651321'
+};
+
 function formatTime(sec) {
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60).toString().padStart(2, '0');
@@ -21,18 +31,31 @@ function buildProgressBar(currentSec, totalSec) {
         percentage = 100;
     }
 
-    const totalBlocks = 12;
-    let filledCount = Math.round((percentage / 100) * totalBlocks);
-    if (percentage === 100) {
-        filledCount = totalBlocks;
+    const totalSegments = 10;
+    const filledCount = Math.round((percentage / 100) * totalSegments);
+    
+    // 1. Sol Uç
+    const leftPiece = filledCount >= 1 
+        ? `<:bar_l_filled:${APP_EMOJIS.bar_l_filled}>` 
+        : `<:bar_l_empty:${APP_EMOJIS.bar_l_empty}>`;
+    
+    // 2. Orta Parçalar (8 Adet)
+    let midPieces = '';
+    for (let i = 2; i <= 9; i++) {
+        if (filledCount >= i) {
+            midPieces += `<:bar_m_filled:${APP_EMOJIS.bar_m_filled}>`;
+        } else {
+            midPieces += `<:bar_m_empty:${APP_EMOJIS.bar_m_empty}>`;
+        }
     }
-    filledCount = Math.min(totalBlocks, Math.max(0, filledCount));
-    const emptyCount = Math.max(0, totalBlocks - filledCount);
     
-    const filled = '▰'.repeat(filledCount);
-    const empty = '▱'.repeat(emptyCount);
+    // 3. Sağ Uç
+    const rightPiece = filledCount >= 10 
+        ? `<:bar_r_filled:${APP_EMOJIS.bar_r_filled}>` 
+        : `<:bar_r_empty:${APP_EMOJIS.bar_r_empty}>`;
     
-    return `<:mono:${MONO_EMOJIS.disc_3 || '1537767766566768681'}> \`${formatTime(currentSec)}\` ${filled}${empty} \`${formatTime(totalSec)}\` (\`%${percentage}\`)`;
+    const bar = `${leftPiece}${midPieces}${rightPiece}`;
+    return `\`${formatTime(currentSec)}\` ${bar} \`${formatTime(totalSec)}\` (\`%${percentage}\`)`;
 }
 
 function buildSpotifyPayload(targetUser, spotifyActivity, showBar = true) {
