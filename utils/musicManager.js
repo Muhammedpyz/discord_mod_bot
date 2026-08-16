@@ -24,10 +24,12 @@ const APP_EMOJIS = {
     white_cross: '1538517856797331528',
     white_tick: '1538517908815347762',
     white_info: '1538517864640815165',
-    pr_l: '1538517686429159515',
-    pr_c: '1538517678942191719',
-    pr_r: '1538517703407706162',
-    pr_e: '1538517672063410229'
+    bar_l_filled: '1538524468710866944',
+    bar_l_empty: '1538524459127017492',
+    bar_m_filled: '1538524484041183313',
+    bar_m_empty: '1538524476289843322',
+    bar_r_filled: '1538524509349609492',
+    bar_r_empty: '1538524497785651321'
 };
 
 function formatDuration(ms) {
@@ -41,16 +43,34 @@ function formatDuration(ms) {
 function buildMusicProgressBar(currentMs, totalMs) {
     if (!totalMs || totalMs <= 0) return '';
     const progress = Math.min(1, Math.max(0, currentMs / totalMs));
-    let percentage = Math.min(100, Math.round(progress * 100));
-    const totalBlocks = 12;
-    let filledCount = Math.round((percentage / 100) * totalBlocks);
-    if (percentage >= 99) filledCount = totalBlocks;
-    filledCount = Math.min(totalBlocks, Math.max(0, filledCount));
-    const emptyCount = Math.max(0, totalBlocks - filledCount);
+    const percentage = Math.min(100, Math.round(progress * 100));
     
-    const filled = '▰'.repeat(filledCount);
-    const empty = '▱'.repeat(emptyCount);
-    return `<:music_note:${APP_EMOJIS.music_note}> \`${formatDuration(currentMs)}\` ${filled}${empty} \`${formatDuration(totalMs)}\` (\`%${percentage}\`)`;
+    // 10 Parçalı Kesintisiz Özel Emoji Çubuğu (1 Sol + 8 Orta + 1 Sağ)
+    const totalSegments = 10;
+    const filledCount = Math.round((percentage / 100) * totalSegments);
+    
+    // 1. Sol Uç
+    const leftPiece = filledCount >= 1 
+        ? `<:bar_l_filled:${APP_EMOJIS.bar_l_filled}>` 
+        : `<:bar_l_empty:${APP_EMOJIS.bar_l_empty}>`;
+    
+    // 2. Orta Parçalar (8 Adet)
+    let midPieces = '';
+    for (let i = 2; i <= 9; i++) {
+        if (filledCount >= i) {
+            midPieces += `<:bar_m_filled:${APP_EMOJIS.bar_m_filled}>`;
+        } else {
+            midPieces += `<:bar_m_empty:${APP_EMOJIS.bar_m_empty}>`;
+        }
+    }
+    
+    // 3. Sağ Uç
+    const rightPiece = filledCount >= 10 
+        ? `<:bar_r_filled:${APP_EMOJIS.bar_r_filled}>` 
+        : `<:bar_r_empty:${APP_EMOJIS.bar_r_empty}>`;
+    
+    const bar = `${leftPiece}${midPieces}${rightPiece}`;
+    return `${bar}\n\`${formatDuration(currentMs)} / ${formatDuration(totalMs)}\` (\`%${percentage}\`)`;
 }
 
 function buildNowPlayingPayload(player, track) {
