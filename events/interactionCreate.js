@@ -94,6 +94,38 @@ module.exports = {
         const automodHandled = await handleAutoModInteraction(interaction, client);
         if (automodHandled) return;
 
+        // Güvenlik Panelleri (Auto-Bump & Vanity) Yönlendirmesi
+        if (interaction.customId.startsWith('sec_')) {
+            const { handleSecurityPanelInteraction } = require('../utils/securityPanelHandler');
+            try {
+                const secHandled = await handleSecurityPanelInteraction(interaction, client);
+                if (secHandled) return;
+            } catch (err) {
+                console.error("Security panel interaction error:", err);
+            }
+        }
+
+        // Dışa Aktarma Paneli (Dump) Yönlendirmesi
+        if (interaction.customId.startsWith('dump_')) {
+            const { handleDumpInteraction, handleDumpBack } = require('../commands/moderation/dump');
+            try {
+                if (await handleDumpInteraction(interaction)) return;
+                if (await handleDumpBack(interaction)) return;
+            } catch (err) {
+                console.error("Dump panel interaction error:", err);
+            }
+        }
+
+        // Mesaj Temizleme Paneli (Purge) Yönlendirmesi
+        if (interaction.customId.startsWith('purge_')) {
+            const { handlePurgeInteraction } = require('../commands/moderation/purge');
+            try {
+                if (await handlePurgeInteraction(interaction)) return;
+            } catch (err) {
+                console.error("Purge panel interaction error:", err);
+            }
+        }
+
         // Karşılama & Uğurlama (Welcome / Goodbye) Yönlendirmesi
         if (interaction.customId.startsWith('welcome_') || 
             interaction.customId.startsWith('goodbye_') || 
@@ -138,6 +170,17 @@ module.exports = {
                 if (handled) return;
             } catch (err) {
                 console.error("Music interaction error:", err);
+            }
+            return;
+        }
+
+        // Roleplay Buton Yönlendirmesi
+        if (interaction.customId.startsWith('rp_back_')) {
+            const { handleRoleplayInteraction } = require('../utils/roleplayInteractionHandler');
+            try {
+                await handleRoleplayInteraction(interaction);
+            } catch (err) {
+                console.error("Roleplay interaction error:", err);
             }
             return;
         }

@@ -1,2 +1,9 @@
-◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
-◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+[21:44:32] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+[Bot] Nyx#0026 olarak giriş yapıldı!
+[Bot] Moderasyon sistemleri aktif.
+Database tables initialized.
+[Müzik] Lavalink Düğümü Hazır: Groove-Main
+[Giveaway send hatasi]: Received one or more errors
+[Giveaway send hatasi]: Received one or more errors

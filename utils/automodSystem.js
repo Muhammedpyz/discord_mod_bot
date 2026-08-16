@@ -3,7 +3,7 @@ const {
     ButtonBuilder, ButtonStyle, ActionRowBuilder,
     MessageFlags
 } = require('discord.js');
-const { getAutoModConfig, pool } = require('../db');
+const { getAutoModConfig, pool, getAntiNukeConfig, getAntiNukeWhitelist } = require('../db');
 const { MONO_EMOJIS } = require('./uiBuilder');
 
 async function buildAutoModMainPanel(guildId) {
@@ -48,6 +48,13 @@ async function buildAutoModMainPanel(guildId) {
             const arr = typeof config.media_channels === 'string' ? JSON.parse(config.media_channels) : config.media_channels;
             if (Array.isArray(arr)) mediaCount = arr.length;
         }
+    } catch (e) {}
+
+    // Anti-Nuke kalkan durumu
+    let shieldEnabled = false;
+    try {
+        const anConfig = await getAntiNukeConfig(guildId);
+        shieldEnabled = Boolean(anConfig && anConfig.is_enabled);
     } catch (e) {}
 
     // Durum Belirteçleri
@@ -100,7 +107,8 @@ async function buildAutoModMainPanel(guildId) {
         `- **Büyük harf** › ${capsStatus}\n` +
         `- **Toplu etiket** › ${mentionStatus}\n` +
         `- **Spam** › ${spamStatus}\n` +
-        `- **Medya kanalları** › ${mediaStatus}`;
+        `- **Medya kanalları** › ${mediaStatus}\n` +
+        `- **Koruma kalkanı** › ${shieldEnabled ? '`açık`' : '`kapalı`'}`;
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(statusText));
 
@@ -153,9 +161,18 @@ async function buildAutoModMainPanel(guildId) {
             .setEmoji(MONO_EMOJIS.warning || '1530917524609175562')
     );
 
+    const row4 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('automod_antinuke_btn')
+            .setLabel('Koruma Kalkanı (Anti-Nuke)')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji(MONO_EMOJIS.shield || '1530917506867400775')
+    );
+
     container.addActionRowComponents(row1);
     container.addActionRowComponents(row2);
     container.addActionRowComponents(row3);
+    container.addActionRowComponents(row4);
 
     return {
         flags: MessageFlags.IsComponentsV2,
@@ -163,4 +180,124 @@ async function buildAutoModMainPanel(guildId) {
     };
 }
 
-module.exports = { buildAutoModMainPanel };
+module.exports = { buildAutoModMainPanel, buildAntiNukePanel };
+
+// ============================================================
+// KORUMA KALKANI (ANTI-NUKE) PANELİ
+// ============================================================
+const DEFAULT_LIMITS = {
+    channel_delete_limit: 3,
+    channel_create_limit: 3,
+    role_delete_limit: 3,
+    role_create_limit: 3,
+    ban_limit: 4,
+    kick_limit: 4
+};
+
+const PUNISHMENT_LABELS = {
+    'strip_roles': 'Yönetici Rollerini Al',
+    'kick': 'Sunucudan At (Kick)',
+    'ban': 'Sunucudan Yasakla (Ban)'
+};
+
+async function buildAntiNukePanel(guildId) {
+    let anConfig = null;
+    let whitelist = [];
+
+    try {
+        anConfig = await getAntiNukeConfig(guildId);
+        whitelist = await getAntiNukeWhitelist(guildId) || [];
+    } catch (e) {
+        console.error("Anti-Nuke panel veri yükleme hatası:", e);
+    }
+
+    anConfig = anConfig || {};
+    const isEnabled = Boolean(anConfig.is_enabled);
+    const punishment = PUNISHMENT_LABELS[anConfig.punishment] || 'Yönetici Rollerini Al';
+    const logChannel = anConfig.log_channel_id;
+    const limits = { ...DEFAULT_LIMITS, ...anConfig };
+
+    const activeStatus = isEnabled
+        ? `<:mono:${MONO_EMOJIS.check || '1530917534885478600'}> \`Aktif\``
+        : `<:mono:${MONO_EMOJIS.cross || '1530917536806469783'}> \`Kapalı\``;
+
+    const container = new ContainerBuilder();
+
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`### <:mono:${MONO_EMOJIS.shield || '1530917506867400775'}> Koruma Kalkanı (Anti-Nuke)`)
+    );
+
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            "Sunucunu baskınlardan ve yetkili saldırılarından korur.\n" +
+            "Seri kanal/rol silme, toplu ban/kick ve izinsiz bot eklemeleri otomatik engellenir."
+        )
+    );
+
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+
+    const statusText =
+        `- **Kalkan durumu** › ${activeStatus}\n` +
+        `- **Yaptırım türü** › \`${punishment}\`\n` +
+        `- **Log kanalı** › ${logChannel ? `<#${logChannel}>` : '`ayarlanmadı`'}\n\n` +
+        `- **Kanal silme** › \`${limits.channel_delete_limit}/10sn\`\n` +
+        `- **Kanal açma** › \`${limits.channel_create_limit}/10sn\`\n` +
+        `- **Rol silme** › \`${limits.role_delete_limit}/10sn\`\n` +
+        `- **Rol açma** › \`${limits.role_create_limit}/10sn\`\n` +
+        `- **Toplu ban** › \`${limits.ban_limit}/10sn\`\n` +
+        `- **Toplu kick** › \`${limits.kick_limit}/10sn\`\n\n` +
+        `- **Güvenli liste** › \`${whitelist.length}\` muaf`;
+
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(statusText));
+
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+
+    const row1 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('automod_antinuke_toggle_btn')
+            .setLabel(isEnabled ? 'Kalkanı Kapat' : 'Kalkanı Aç')
+            .setStyle(isEnabled ? ButtonStyle.Danger : ButtonStyle.Success)
+            .setEmoji(MONO_EMOJIS.power_off || '1537770135467860099'),
+        new ButtonBuilder()
+            .setCustomId('automod_antinuke_punish_btn')
+            .setLabel('Yaptırım')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji(MONO_EMOJIS.hammer || '1537770036301668352'),
+        new ButtonBuilder()
+            .setCustomId('automod_antinuke_limits_btn')
+            .setLabel('Limitler')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji(MONO_EMOJIS.sliders_horizontal || '1537769889840889956'),
+        new ButtonBuilder()
+            .setCustomId('automod_antinuke_log_btn')
+            .setLabel('Log Kanalı')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji(MONO_EMOJIS.bell || '1537768114555453561')
+    );
+
+    const row2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('automod_antinuke_whitelist_btn')
+            .setLabel('Güvenli Liste')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji(MONO_EMOJIS.user_round_plus || '1537768051833831515'),
+        new ButtonBuilder()
+            .setCustomId('automod_antinuke_reset_btn')
+            .setLabel('Sıfırla')
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji(MONO_EMOJIS.rotate_ccw || '1537768179000938526'),
+        new ButtonBuilder()
+            .setCustomId('automod_antinuke_back_btn')
+            .setLabel('Geri')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji(MONO_EMOJIS.arrow_left || '1530918962890670161')
+    );
+
+    container.addActionRowComponents(row1);
+    container.addActionRowComponents(row2);
+
+    return {
+        flags: MessageFlags.IsComponentsV2,
+        components: [container]
+    };
+}

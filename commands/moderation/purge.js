@@ -1,150 +1,223 @@
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { createContainerMessage, MONO_EMOJIS } = require('../../utils/uiBuilder');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ChannelType } = require('discord.js');
+const { MONO_EMOJIS } = require('../../utils/uiBuilder');
+
+const state = new Map();
+
+const LINK_REGEX = /(https?:\/\/|discord\.gg\/|dsc\.gg\/)/i;
+const DAY14 = 14 * 24 * 60 * 60 * 1000;
+
+async function scanChannel(channel) {
+    let messages;
+    try {
+        messages = await channel.messages.fetch({ limit: 100 });
+    } catch (e) {
+        return null;
+    }
+    const list = [...messages.values()];
+    const now = Date.now();
+    const stats = {
+        toplam: list.length,
+        bot: 0,
+        insan: 0,
+        link: 0,
+        ek: 0,
+        silinebilir: 0
+    };
+    for (const m of list) {
+        if (now - m.createdTimestamp <= DAY14) stats.silinebilir++;
+        if (m.author.bot) stats.bot++;
+        else stats.insan++;
+        if (LINK_REGEX.test(m.content || '')) stats.link++;
+        if (m.attachments.size > 0) stats.ek++;
+    }
+    return stats;
+}
+
+function filterMessages(messages, kind) {
+    return [...messages.values()].filter(m => {
+        switch (kind) {
+            case 'links': return LINK_REGEX.test(m.content || '');
+            case 'bots': return m.author.bot;
+            case 'users': return !m.author.bot;
+            case 'files': return m.attachments.size > 0;
+            default: return true;
+        }
+    });
+}
+
+async function buildPurgePanel(guild, channelId) {
+    const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder } = require('discord.js');
+
+    const container = new ContainerBuilder();
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`### <:mono:${MONO_EMOJIS.brush}> Mesaj Temizleme Paneli`)
+    );
+
+    const channel = channelId ? guild.channels.cache.get(channelId) : null;
+
+    if (!channel) {
+        container.addTextDisplayComponents(
+            new TextDisplayBuilder().setContent('Temizlemek istediğin kanalı seç. Kanal seçilince o kanalın mesaj istatistikleri burada gösterilecek.')
+        );
+        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+
+        const select = new StringSelectMenuBuilder()
+            .setCustomId('purge_select')
+            .setPlaceholder('Kanal Seç...')
+            .setMinValues(1)
+            .setMaxValues(1);
+        const textChannels = guild.channels.cache
+            .filter(c => c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement)
+            .sort((a, b) => a.position - b.position);
+        textChannels.first(25).forEach(c => select.addOptions({
+            label: `#${c.name}`,
+            value: c.id
+        }));
+
+        container.addActionRowComponents(new ActionRowBuilder().addComponents(select));
+        return { flags: MessageFlags.IsComponentsV2, components: [container] };
+    }
+
+    const stats = await scanChannel(channel);
+    if (!stats) {
+        container.addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(`Mesajlar okunamadı. Botun kanalı görüntüleme yetkisi var mı kontrol et.`)
+        );
+        return { flags: MessageFlags.IsComponentsV2, components: [container] };
+    }
+
+    const info =
+        `**Kanal:** <#${channel.id}>\n` +
+        `**Son 100 mesajda:**\n` +
+        `- Toplam › \`${stats.toplam}\`\n` +
+        `- Silinebilir (14 gün içinde) › \`${stats.silinebilir}\`\n` +
+        `- Bot mesajı › \`${stats.bot}\`\n` +
+        `- Kullanıcı mesajı › \`${stats.insan}\`\n` +
+        `- Link içeren › \`${stats.link}\`\n` +
+        `- Ek (dosya) içeren › \`${stats.ek}\``;
+
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(info));
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('Aşağıdaki butonlarla o kanaldaki son 100 mesajı filtreleyerek silebilirsin. Discord yalnızca son 14 günün mesajlarını toplu silebilir.')
+    );
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('purge_do:links').setLabel('Linkleri Sil').setStyle(ButtonStyle.Danger).setEmoji(MONO_EMOJIS.link_2),
+        new ButtonBuilder().setCustomId('purge_do:bots').setLabel('Bot Mesajlarını Sil').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.bug_play),
+        new ButtonBuilder().setCustomId('purge_do:files').setLabel('Eklileri Sil').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.image)
+    ));
+    container.addActionRowComponents(new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('purge_do:users').setLabel('Kullanıcı Mesajlarını Sil').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.users || '1537768079898050681'),
+        new ButtonBuilder().setCustomId('purge_do:all').setLabel('Tümünü Sil').setStyle(ButtonStyle.Danger).setEmoji(MONO_EMOJIS.delete),
+        new ButtonBuilder().setCustomId('purge_change').setLabel('Kanal Değiştir').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.refresh_ccw)
+    ));
+
+    return { flags: MessageFlags.IsComponentsV2, components: [container] };
+}
+
+async function handlePurgeInteraction(interaction) {
+    if (!interaction.customId?.startsWith('purge_')) return false;
+
+    if (interaction.isStringSelectMenu() && interaction.customId === 'purge_select') {
+        await interaction.deferUpdate().catch(() => {});
+        const channelId = interaction.values[0];
+        state.set(interaction.user.id, channelId);
+        const panel = await buildPurgePanel(interaction.guild, channelId);
+        panel.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+        await interaction.editReply(panel);
+        return true;
+    }
+
+    if (!interaction.isButton()) return false;
+
+    if (interaction.customId === 'purge_change') {
+        await interaction.deferUpdate().catch(() => {});
+        state.delete(interaction.user.id);
+        const panel = await buildPurgePanel(interaction.guild, null);
+        panel.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+        await interaction.editReply(panel);
+        return true;
+    }
+
+    if (interaction.customId.startsWith('purge_do:')) {
+        const kind = interaction.customId.split(':')[1];
+        const channelId = state.get(interaction.user.id);
+        if (!channelId) {
+            await interaction.deferUpdate().catch(() => {});
+            const panel = await buildPurgePanel(interaction.guild, null);
+            panel.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+            await interaction.editReply(panel);
+            return true;
+        }
+        const channel = interaction.guild.channels.cache.get(channelId);
+        if (!channel || !channel.isTextBased()) return true;
+
+        await interaction.deferUpdate().catch(() => {});
+
+        const messages = await channel.messages.fetch({ limit: 100 }).catch(() => null);
+        if (!messages || messages.size === 0) {
+            const panel = await buildPurgePanel(interaction.guild, channelId);
+            panel.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+            await interaction.editReply(panel);
+            return true;
+        }
+
+        const targets = filterMessages(messages, kind);
+        let deleted = 0;
+        if (targets.length > 0) {
+            deleted = await channel.bulkDelete(targets, true).then(r => r.size).catch(async () => {
+                let n = 0;
+                for (const m of targets) {
+                    if (await m.delete().then(() => true).catch(() => false)) n++;
+                }
+                return n;
+            });
+        }
+
+        const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder } = require('discord.js');
+        const container = new ContainerBuilder();
+        container.addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(`### <:mono:${MONO_EMOJIS.delete}> Silme Tamamlandı`)
+        );
+        container.addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(`${deleted} mesaj silindi. Güncel istatistikler için aşağıdaki butonu kullan.`)
+        );
+        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+        container.addActionRowComponents(new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('purge_refresh').setLabel('İstatistikleri Yenile').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.refresh_ccw)
+        ));
+
+        await interaction.editReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2, components: [container] });
+        return true;
+    }
+
+    if (interaction.customId === 'purge_refresh') {
+        await interaction.deferUpdate().catch(() => {});
+        const channelId = state.get(interaction.user.id);
+        const panel = await buildPurgePanel(interaction.guild, channelId);
+        panel.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+        await interaction.editReply(panel);
+        return true;
+    }
+
+    return false;
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('purge')
-        .setDescription('Mesajları kriterlere göre filtreleyerek toplu şekilde siler.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-        .addSubcommand(sub =>
-            sub.setName('botlar')
-                .setDescription('Kanalda yalnızca botların attığı mesajları siler.')
-                .addIntegerOption(opt =>
-                    opt.setName('miktar')
-                        .setDescription('Taranacak mesaj sayısı (1-100)')
-                        .setMinValue(1)
-                        .setMaxValue(100)
-                        .setRequired(true)
-                )
-        )
-        .addSubcommand(sub =>
-            sub.setName('insanlar')
-                .setDescription('Kanalda yalnızca gerçek kullanıcıların attığı mesajları siler.')
-                .addIntegerOption(opt =>
-                    opt.setName('miktar')
-                        .setDescription('Taranacak mesaj sayısı (1-100)')
-                        .setMinValue(1)
-                        .setMaxValue(100)
-                        .setRequired(true)
-                )
-        )
-        .addSubcommand(sub =>
-            sub.setName('linkler')
-                .setDescription('Kanalda yalnızca link/URL içeren mesajları siler.')
-                .addIntegerOption(opt =>
-                    opt.setName('miktar')
-                        .setDescription('Taranacak mesaj sayısı (1-100)')
-                        .setMinValue(1)
-                        .setMaxValue(100)
-                        .setRequired(true)
-                )
-        )
-        .addSubcommand(sub =>
-            sub.setName('ekler')
-                .setDescription('Kanalda yalnızca görsel, video ve dosya eki içeren mesajları siler.')
-                .addIntegerOption(opt =>
-                    opt.setName('miktar')
-                        .setDescription('Taranacak mesaj sayısı (1-100)')
-                        .setMinValue(1)
-                        .setMaxValue(100)
-                        .setRequired(true)
-                )
-        )
-        .addSubcommand(sub =>
-            sub.setName('kullanici')
-                .setDescription('Kanalda yalnızca belirli bir üyenin mesajlarını siler.')
-                .addUserOption(opt =>
-                    opt.setName('hedef')
-                        .setDescription('Mesajları silinecek kullanıcı')
-                        .setRequired(true)
-                )
-                .addIntegerOption(opt =>
-                    opt.setName('miktar')
-                        .setDescription('Taranacak mesaj sayısı (1-100)')
-                        .setMinValue(1)
-                        .setMaxValue(100)
-                        .setRequired(true)
-                )
-        )
-        .addSubcommand(sub =>
-            sub.setName('kelime')
-                .setDescription('Kanalda belirli bir kelimeyi içeren mesajları siler.')
-                .addStringOption(opt =>
-                    opt.setName('aranan_kelime')
-                        .setDescription('İçeriğinde aranacak kelime veya metin')
-                        .setRequired(true)
-                )
-                .addIntegerOption(opt =>
-                    opt.setName('miktar')
-                        .setDescription('Taranacak mesaj sayısı (1-100)')
-                        .setMinValue(1)
-                        .setMaxValue(100)
-                        .setRequired(true)
-                )
-        ),
-
+        .setDescription('Mesajları filtreleyerek toplu şekilde siler.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
     async execute(interaction) {
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-        const sub = interaction.options.getSubcommand();
-        const amount = interaction.options.getInteger('miktar');
-        const channel = interaction.channel;
-
-        const fetched = await channel.messages.fetch({ limit: amount }).catch(() => null);
-        if (!fetched || fetched.size === 0) {
-            return interaction.editReply(createContainerMessage(
-                `<:mono:${MONO_EMOJIS.info || '1530917464731422730'}> Mesaj Bulunamadı`,
-                'Kanalda taranacak mesaj bulunamadı.',
-                '#5865F2', [], [], false
-            ));
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         }
-
-        let toDelete = [];
-
-        if (sub === 'botlar') {
-            toDelete = fetched.filter(m => m.author.bot);
-        } else if (sub === 'insanlar') {
-            toDelete = fetched.filter(m => !m.author.bot);
-        } else if (sub === 'linkler') {
-            const urlRegex = /(https?:\/\/[^\s]+)/gi;
-            toDelete = fetched.filter(m => urlRegex.test(m.content));
-        } else if (sub === 'ekler') {
-            toDelete = fetched.filter(m => m.attachments.size > 0 || m.embeds.length > 0);
-        } else if (sub === 'kullanici') {
-            const target = interaction.options.getUser('hedef');
-            toDelete = fetched.filter(m => m.author.id === target.id);
-        } else if (sub === 'kelime') {
-            const word = interaction.options.getString('aranan_kelime').toLowerCase();
-            toDelete = fetched.filter(m => m.content && m.content.toLowerCase().includes(word));
-        }
-
-        if (toDelete.size === 0 && Array.isArray(toDelete) && toDelete.length === 0) {
-            return interaction.editReply(createContainerMessage(
-                `<:mono:${MONO_EMOJIS.info || '1530917464731422730'}> Eşleşen Mesaj Yok`,
-                'Belirttiğiniz filtreye uyan herhangi bir mesaj bulunamadı.',
-                '#5865F2', [], [], false
-            ));
-        }
-
-        const deleted = await channel.bulkDelete(toDelete, true).catch(() => null);
-        const count = deleted ? deleted.size : (toDelete.size || toDelete.length);
-
-        const subNames = {
-            'botlar': 'Bot Mesajları',
-            'insanlar': 'Kullanıcı Mesajları',
-            'linkler': 'Bağlantı/Link İçeren Mesajlar',
-            'ekler': 'Görsel & Ek İçeren Mesajlar',
-            'kullanici': 'Kullanıcıya Özel Mesajlar',
-            'kelime': 'Kelime Filtreli Mesajlar'
-        };
-
-        const title = `<:mono:${MONO_EMOJIS.success || '1530917482435579974'}> Filtreli Temizlik Tamamlandı`;
-        const desc = `<#${channel.id}> kanalında **${count}** adet mesaj başarıyla silindi.`;
-        const fields = [
-            { name: 'Uygulanan Filtre', value: `\`${subNames[sub] || sub}\``, inline: true },
-            { name: 'Taranan / Silinen', value: `\`${amount}\` / \`${count}\``, inline: true }
-        ];
-
-        return interaction.editReply(createContainerMessage(title, desc, '#57F287', [], fields, false));
-    }
+        const panel = await buildPurgePanel(interaction.guild, null);
+        panel.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+        await interaction.editReply(panel);
+    },
+    handlePurgeInteraction,
+    buildPurgePanel
 };

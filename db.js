@@ -717,6 +717,19 @@ async function initDB() {
             )
         `);
 
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_giveaway_settings (
+                guild_id VARCHAR(32) PRIMARY KEY,
+                manager_roles JSON DEFAULT NULL,
+                log_channel_id VARCHAR(32) DEFAULT NULL,
+                ping_role_id VARCHAR(32) DEFAULT NULL,
+                ignored_roles JSON DEFAULT NULL,
+                dm_winner BOOLEAN DEFAULT TRUE,
+                show_parts BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
         // --- PAKET 5: KULLANICI PROFİLİ & SOSYAL EVLİLİK TABLOSU ---
         await conn.query(`
             CREATE TABLE IF NOT EXISTS user_profiles (
@@ -1570,6 +1583,50 @@ async function updateAutoPostTime(id, timestamp) {
 
 // --- PAKET 2: ÇEKİLİŞ & VERİ DÖKÜMÜ YARDIMCI FONKSİYONLARI ---
 
+async function getGiveawaySettings(guildId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM guild_giveaway_settings WHERE guild_id = ?', [guildId]);
+        if (rows.length === 0) return { guild_id: guildId, manager_roles: [], log_channel_id: null, ping_role_id: null, ignored_roles: [], dm_winner: true, show_parts: true };
+        const s = rows[0];
+        try { s.manager_roles = JSON.parse(s.manager_roles || '[]'); } catch (e) { s.manager_roles = []; }
+        try { s.ignored_roles = JSON.parse(s.ignored_roles || '[]'); } catch (e) { s.ignored_roles = []; }
+        s.dm_winner = !!s.dm_winner;
+        s.show_parts = s.show_parts !== 0; // if it's explicitly 0/false
+        return s;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function setGiveawaySettings(guildId, data) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT guild_id FROM guild_giveaway_settings WHERE guild_id = ?', [guildId]);
+        if (rows.length === 0) {
+            await conn.query(`
+                INSERT INTO guild_giveaway_settings (guild_id, manager_roles, log_channel_id, ping_role_id, dm_winner, ignored_roles, show_parts)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `, [
+                guildId, JSON.stringify(data.manager_roles || []), data.log_channel_id || null, data.ping_role_id || null, data.dm_winner !== false, JSON.stringify(data.ignored_roles || []), data.show_parts !== false
+            ]);
+        } else {
+            await conn.query(`
+                UPDATE guild_giveaway_settings
+                SET manager_roles = ?, log_channel_id = ?, ping_role_id = ?, dm_winner = ?, ignored_roles = ?, show_parts = ?
+                WHERE guild_id = ?
+            `, [
+                JSON.stringify(data.manager_roles || []), data.log_channel_id || null, data.ping_role_id || null, data.dm_winner !== false, JSON.stringify(data.ignored_roles || []), data.show_parts !== false, guildId
+            ]);
+        }
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
 async function createGiveaway(data) {
     let conn;
     try {
@@ -1577,11 +1634,11 @@ async function createGiveaway(data) {
         await conn.query(`
             INSERT INTO guild_giveaways (
                 message_id, channel_id, guild_id, prize, description,
-                winner_count, required_role_id, host_id, ends_at, status, participants, winners
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', '[]', '[]')
+                winner_count, required_role_id, host_id, ends_at, status, participants, winners, show_parts
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', '[]', '[]', ?)
         `, [
             data.message_id, data.channel_id, data.guild_id, data.prize, data.description || null,
-            data.winner_count || 1, data.required_role_id || null, data.host_id, data.ends_at
+            data.winner_count || 1, data.required_role_id || null, data.host_id, data.ends_at, data.show_parts !== false
         ]);
         return true;
     } finally {
@@ -1677,6 +1734,28 @@ async function setGiveawayWinners(messageId, winnersArray) {
     try {
         conn = await pool.getConnection();
         await conn.query("UPDATE guild_giveaways SET winners = ?, status = 'ended' WHERE message_id = ?", [JSON.stringify(winnersArray), messageId]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function cancelGiveaway(messageId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query("UPDATE guild_giveaways SET status = 'cancelled' WHERE message_id = ?", [messageId]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function setShowParts(messageId, showParts) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query("UPDATE guild_giveaways SET show_parts = ? WHERE message_id = ?", [showParts, messageId]);
         return true;
     } finally {
         if (conn) conn.release();
@@ -1826,6 +1905,8 @@ module.exports = {
     addAutoPostConfig,
     removeAutoPostConfig,
     updateAutoPostTime,
+    getGiveawaySettings,
+    setGiveawaySettings,
     createGiveaway,
     getGiveaway,
     getActiveGiveaways,
@@ -1833,6 +1914,8 @@ module.exports = {
     updateGiveawayStatus,
     toggleGiveawayParticipant,
     setGiveawayWinners,
+    cancelGiveaway,
+    setShowParts,
     dumpGuildPunishments,
     dumpGuildWarnings,
     getUserProfile,
@@ -1840,6 +1923,3 @@ module.exports = {
     setMarriage,
     removeMarriage
 };
-
-
-

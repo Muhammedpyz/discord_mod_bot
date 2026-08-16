@@ -714,9 +714,9 @@ function createContainerMessage(title, description, colorHex = null, customActio
     return payload;
 }
 
-function createV2Container({ title, description, color, fields = [], actionRows = [], showBrand = false, footer = 'turklion.net' }) {
+function createV2Container({ title, description, color, fields = [], actionRows = [], images = [], showBrand = false, footer = 'turklion.net', thumbnail = null }) {
     const textLines = description ? description.split('\n\n') : [];
-    return buildModBResponse({ title, textLines, fields, actionRows, color, footer });
+    return buildModBResponse({ title, textLines, fields, actionRows, images, color, footer, thumbnail });
 }
 
 function createV2Message({ title, description, color, fields, actionRows, showBrand = false }) {
