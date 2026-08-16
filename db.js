@@ -717,6 +717,18 @@ async function initDB() {
             )
         `);
 
+        // --- PAKET 5: KULLANICI PROFİLİ & SOSYAL EVLİLİK TABLOSU ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS user_profiles (
+                user_id VARCHAR(32) PRIMARY KEY,
+                bio TEXT DEFAULT NULL,
+                partner_id VARCHAR(32) DEFAULT NULL,
+                married_at TIMESTAMP NULL,
+                badges LONGTEXT DEFAULT '[]',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
         await conn.query(`
             CREATE TABLE IF NOT EXISTS staff_applications (
                 guild_id VARCHAR(25) PRIMARY KEY,
@@ -1692,6 +1704,74 @@ async function dumpGuildWarnings(guildId) {
     }
 }
 
+// --- PAKET 5: PROFİL & EVLİLİK YARDIMCI FONKSİYONLARI ---
+
+async function getUserProfile(userId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM user_profiles WHERE user_id = ?', [userId]);
+        if (rows.length === 0) return null;
+        const p = rows[0];
+        try { p.badges = JSON.parse(p.badges || '[]'); } catch (e) { p.badges = []; }
+        return p;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function setUserBio(userId, bio) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query(`
+            INSERT INTO user_profiles (user_id, bio)
+            VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE bio = VALUES(bio)
+        `, [userId, bio]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function setMarriage(user1Id, user2Id) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const now = new Date();
+        await conn.query(`
+            INSERT INTO user_profiles (user_id, partner_id, married_at)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE partner_id = VALUES(partner_id), married_at = VALUES(married_at)
+        `, [user1Id, user2Id, now]);
+
+        await conn.query(`
+            INSERT INTO user_profiles (user_id, partner_id, married_at)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE partner_id = VALUES(partner_id), married_at = VALUES(married_at)
+        `, [user2Id, user1Id, now]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function removeMarriage(userId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const p = await getUserProfile(userId);
+        if (!p || !p.partner_id) return false;
+        const partnerId = p.partner_id;
+
+        await conn.query('UPDATE user_profiles SET partner_id = NULL, married_at = NULL WHERE user_id IN (?, ?)', [userId, partnerId]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
 module.exports = {
     pool,
     initDB,
@@ -1754,7 +1834,11 @@ module.exports = {
     toggleGiveawayParticipant,
     setGiveawayWinners,
     dumpGuildPunishments,
-    dumpGuildWarnings
+    dumpGuildWarnings,
+    getUserProfile,
+    setUserBio,
+    setMarriage,
+    removeMarriage
 };
 
 
