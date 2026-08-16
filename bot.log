@@ -7,3 +7,49 @@ Database tables initialized.
 [Müzik] Lavalink Düğümü Hazır: Groove-Main
 [Giveaway send hatasi]: Received one or more errors
 [Giveaway send hatasi]: Received one or more errors
+[23:03:04] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+[Bot] Nyx#0026 olarak giriş yapıldı!
+[Bot] Moderasyon sistemleri aktif.
+Database tables initialized.
+[Müzik] Lavalink Düğümü Hazır: Groove-Main
+Komut hatası: giveaway CombinedError (2)
+  Received one or more errors
+
+  1 ExpectedValidationError > s.instance(V)
+  |   Expected
+  | 
+  |   Expected:
+  |   | [Function: ButtonBuilder]
+  | 
+  |   Received:
+  |   | undefined
+
+  2 ExpectedValidationError > s.instance(V)
+  |   Expected
+  | 
+  |   Expected:
+  |   | [Function: ThumbnailBuilder]
+  | 
+  |   Received:
+  |   | undefined
+
+    at _UnionValidator.handle (/root/discord_mod_bot/node_modules/@sapphire/shapeshift/dist/cjs/index.cjs:1965:23)
+    at _UnionValidator.parse (/root/discord_mod_bot/node_modules/@sapphire/shapeshift/dist/cjs/index.cjs:972:90)
+    at SectionBuilder.toJSON (/root/discord_mod_bot/node_modules/@discordjs/builders/dist/index.js:3129:37)
+    at /root/discord_mod_bot/node_modules/@discordjs/builders/dist/index.js:2830:64
+    at Array.map (<anonymous>)
+    at ContainerBuilder.toJSON (/root/discord_mod_bot/node_modules/@discordjs/builders/dist/index.js:2830:35)
+    at /root/discord_mod_bot/node_modules/discord.js/src/structures/MessagePayload.js:151:46
+    at Array.map (<anonymous>)
+    at MessagePayload.resolveBody (/root/discord_mod_bot/node_modules/discord.js/src/structures/MessagePayload.js:150:49)
+    at InteractionWebhook.editMessage (/root/discord_mod_bot/node_modules/discord.js/src/structures/Webhook.js:344:50)
+[23:15:56] Bot çıktı! Exit kodu: 143
+[23:16:01] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+[Bot] Nyx#0026 olarak giriş yapıldı!
+[Bot] Moderasyon sistemleri aktif.
+Database tables initialized.
+[Müzik] Lavalink Düğümü Hazır: Groove-Main

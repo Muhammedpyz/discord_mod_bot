@@ -1,5 +1,5 @@
 const { 
-    ContainerBuilder, TextDisplayBuilder, SectionBuilder, 
+    ContainerBuilder, TextDisplayBuilder, SectionBuilder, SeparatorBuilder,
     ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, StringSelectMenuBuilder 
 } = require('discord.js');
 const db = require('../db');
@@ -11,7 +11,6 @@ function buildGiveawayPayload(gw, isEnded = false, winners = [], showPartsBtn = 
     const endsEpoch = Math.floor(gw.ends_at / 1000);
 
     const mainContainer = new ContainerBuilder();
-    const section = new SectionBuilder();
 
     if (!isEnded && gw.status === 'active') {
         const descText = `<:mono:${MONO_EMOJIS.star || '1530917515227725834'}> **${gw.prize}**\n\n` +
@@ -22,8 +21,7 @@ function buildGiveawayPayload(gw, isEnded = false, winners = [], showPartsBtn = 
             `<:mono:${MONO_EMOJIS.clock || '1537769987647733831'}> **Bitiş ›** <t:${endsEpoch}:R>\n` +
             `<:mono:${MONO_EMOJIS.user || '1537768132062486558'}> **Düzenleyen ›** <@${gw.host_id}>`;
 
-        section.addTextDisplayComponents(new TextDisplayBuilder().setContent(descText));
-        mainContainer.addSectionComponents(section);
+        mainContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(descText));
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`gw_join:${gw.message_id}`).setLabel(`Katıl`).setStyle(ButtonStyle.Success).setEmoji(MONO_EMOJIS.star || '1530917515227725834')
@@ -47,8 +45,7 @@ function buildGiveawayPayload(gw, isEnded = false, winners = [], showPartsBtn = 
             `<:mono:${MONO_EMOJIS.clock || '1537769987647733831'}> **Bitti ›** <t:${Math.floor(Date.now() / 1000)}:F>\n\n` +
             `Kazananlar aşağıdaki duyuruda etiketlendi.`;
 
-        section.addTextDisplayComponents(new TextDisplayBuilder().setContent(descText));
-        mainContainer.addSectionComponents(section);
+        mainContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(descText));
     }
 
     return {
@@ -62,7 +59,6 @@ function buildManageGiveawayPayload(gw) {
     const endsEpoch = Math.floor(gw.ends_at / 1000);
 
     const container = new ContainerBuilder();
-    const section = new SectionBuilder();
     
     const descText = `<:mono:${MONO_EMOJIS.settings || '1530917467650523176'}> **Çekiliş Yönetimi**\n\n**${gw.prize}**\n\n` +
         `<:mono:${MONO_EMOJIS.hash || '1537770187129094267'}> **Kanal ›** <#${gw.channel_id}>\n` +
@@ -73,8 +69,7 @@ function buildManageGiveawayPayload(gw) {
         `<:mono:${MONO_EMOJIS.info || '1530917464731422730'}> **Durum ›** ${gw.status === 'active' ? 'Devam ediyor' : 'Sona Erdi'}\n\n` +
         `${gw.required_role_id ? `Katılım koşulu var: <@&${gw.required_role_id}>` : 'Katılım koşulu yok — herkes katılabilir.'}`;
 
-    section.addTextDisplayComponents(new TextDisplayBuilder().setContent(descText));
-    container.addSectionComponents(section);
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(descText));
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
     const row1 = new ActionRowBuilder().addComponents(
@@ -89,13 +84,11 @@ function buildManageGiveawayPayload(gw) {
         new ButtonBuilder().setCustomId('gw_list').setLabel('Geri').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.arrow_left || '1530918962890670161')
     );
 
-    const footerSection = new SectionBuilder();
-    footerSection.addTextDisplayComponents(new TextDisplayBuilder().setContent(`Bitir: kazananı hemen çeker. İptal: kazanan çekmeden kapatır.\nÇekiliş <#${gw.channel_id}> kanalında başladı.`));
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`Bitir: kazananı hemen çeker. İptal: kazanan çekmeden kapatır.\nÇekiliş <#${gw.channel_id}> kanalında başladı.`));
 
     container.addActionRowComponents(row1);
     container.addActionRowComponents(row2);
     container.addActionRowComponents(row3);
-    container.addSectionComponents(footerSection);
 
     return { flags: MessageFlags.IsComponentsV2, components: [container] };
 }
@@ -105,9 +98,7 @@ async function buildGiveawayListPayload(guildId) {
     const activeList = list.filter(g => g.status === 'active');
 
     const container = new ContainerBuilder();
-    const section = new SectionBuilder();
-    section.addTextDisplayComponents(new TextDisplayBuilder().setContent(`<:mono:${MONO_EMOJIS.star || '1530917515227725834'}> **Aktif Çekilişler**\nYönetmek istediğin çekilişi menüden seç.`));
-    container.addSectionComponents(section);
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`<:mono:${MONO_EMOJIS.star || '1530917515227725834'}> **Aktif Çekilişler**\nYönetmek istediğin çekilişi menüden seç.`));
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
     if (activeList.length === 0) {
@@ -211,11 +202,9 @@ async function endGiveaway(messageId, client, isReroll = false, customWinnerCoun
         const winnerPings = winners.map(w => `<@${w}>`).join(' ');
         
         const announceContainer = new ContainerBuilder();
-        const section = new SectionBuilder();
         
         const descText = `<:mono:${MONO_EMOJIS.gift || '1530917482435579974'}> **${gw.prize}**\n\nÇEKİLİŞ SONUCU\n\n${winnerPings} kazandı!\n<:mono:${MONO_EMOJIS.user || '1537768132062486558'}> **Düzenleyen ›** <@${gw.host_id}>`;
-        section.addTextDisplayComponents(new TextDisplayBuilder().setContent(descText));
-        announceContainer.addSectionComponents(section);
+        announceContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(descText));
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -472,9 +461,7 @@ async function handleGiveawayButton(interaction) {
         const settings = await db.getGiveawaySettings(interaction.guild.id);
 
         const container = new ContainerBuilder();
-        const section = new SectionBuilder();
-        section.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Çekiliş Ayarları**\n\nBu form Muawh uygulamasına gönderilecek. Şifrelerini ya da diğer hassas bilgilerini paylaşmadığından emin ol.`));
-        container.addSectionComponents(section);
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Çekiliş Ayarları**\n\nBu form Muawh uygulamasına gönderilecek. Şifrelerini ya da diğer hassas bilgilerini paylaşmadığından emin ol.`));
 
         const row1 = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder().setCustomId('gw_set_manager').setPlaceholder('Çekiliş yetkilisi rolleri').setMinValues(0).setMaxValues(10)
@@ -513,9 +500,7 @@ async function handleGiveawayButton(interaction) {
         
         // update the message
         const container = new ContainerBuilder();
-        const section = new SectionBuilder();
-        section.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Çekiliş Ayarları**\n\nBu form Muawh uygulamasına gönderilecek. Şifrelerini ya da diğer hassas bilgilerini paylaşmadığından emin ol.`));
-        container.addSectionComponents(section);
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Çekiliş Ayarları**\n\nBu form Muawh uygulamasına gönderilecek. Şifrelerini ya da diğer hassas bilgilerini paylaşmadığından emin ol.`));
 
         const row1 = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('gw_set_manager').setPlaceholder('Çekiliş yetkilisi rolleri').setMinValues(0).setMaxValues(10));
         const row2 = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('gw_set_log').setPlaceholder('Log kanalı'));
@@ -599,10 +584,8 @@ async function handleGiveawayButton(interaction) {
                     return null;
                 });
                 if (msg) {
-                    const container = new ContainerBuilder();
-                    const section = new SectionBuilder();
-                    section.addTextDisplayComponents(new TextDisplayBuilder().setContent(`<:mono:${MONO_EMOJIS.octagon || '1537769843099701298'}> Çekiliş İptal Edildi`));
-                    container.addSectionComponents(section);
+const container = new ContainerBuilder();
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Çekiliş Ayarları**\n\nBu form Muawh uygulamasına gönderilecek. Şifrelerini ya da diğer hassas bilgilerini paylaşmadığından emin ol.`));
                     await msg.edit({ flags: MessageFlags.IsComponentsV2, components: [container] }).catch((e) => logGiveaway('cancel_msg_edit_failed', { messageId, error: e.message }));
                 }
             } else {
@@ -636,8 +619,7 @@ async function handleGiveawayButton(interaction) {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`<:mono:${MONO_EMOJIS.star || '1530917515227725834'}> Çekiliş Sistemi`));
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
-        const section = new SectionBuilder();
-        section.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
             `Çekiliş açmak için kuruluma gerek yok — \`/giveaway 1g 1 Nitro\` yazman yeterli.\nAşağıdaki ayarlar yalnızca varsayılanları değiştirir.\n\n` +
             `<:mono:${MONO_EMOJIS.radio || '1537767917666443346'}> **Yetkili Rolleri** › ${settings.manager_roles.length > 0 ? settings.manager_roles.map(r => `<@&${r}>`).join(', ') : 'sadece Sunucuyu Yönet yetkisi'}\n` +
             `<:mono:${MONO_EMOJIS.radio || '1537767917666443346'}> **Log Kanalı** › ${settings.log_channel_id ? `<#${settings.log_channel_id}>` : 'kapalı'}\n` +
@@ -646,7 +628,6 @@ async function handleGiveawayButton(interaction) {
             `<:mono:${MONO_EMOJIS.check || '1530917534885478600'}> **Katılanlar Butonu** › ${settings.show_parts ? 'Açık' : 'Kapalı'}\n` +
             `<:mono:${MONO_EMOJIS.radio || '1537767917666443346'}> **Engelli Roller** › ${settings.ignored_roles.length > 0 ? settings.ignored_roles.map(r => `<@&${r}>`).join(', ') : 'kapalı'}`
         ));
-        container.addSectionComponents(section);
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`Şu anda ${activeCount} aktif çekiliş var.`));
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
@@ -706,6 +687,8 @@ async function handleGiveawayButton(interaction) {
 
 module.exports = {
     buildGiveawayPayload,
+    buildManageGiveawayPayload,
+    buildGiveawayListPayload,
     endGiveaway,
     initGiveawayScheduler,
     handleGiveawayButton

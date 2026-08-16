@@ -40,9 +40,7 @@ module.exports = {
             `<:mono:${MONO_EMOJIS.check || '1530917534885478600'}> **Katılanlar Butonu** › ${settings.show_parts ? 'Açık' : 'Kapalı'}\n` +
             `<:mono:${MONO_EMOJIS.radio || '1537767917666443346'}> **Engelli Roller** › ${settings.ignored_roles.length > 0 ? settings.ignored_roles.map(r => `<@&${r}>`).join(', ') : 'kapalı'}`;
 
-        const section = new SectionBuilder();
-        section.addTextDisplayComponents(new TextDisplayBuilder().setContent(descText));
-        mainContainer.addSectionComponents(section);
+        mainContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(descText));
 
         const activeGWs = await db.getGuildGiveaways(interaction.guild.id);
         const activeCount = activeGWs.filter(g => g.status === 'active').length;
