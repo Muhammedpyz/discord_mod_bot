@@ -8,7 +8,7 @@ const { logGiveaway } = require('./giveawayLogger');
 
 function buildGiveawayPayload(gw, isEnded = false, winners = [], showPartsBtn = true) {
     const totalParts = gw.participants ? gw.participants.length : 0;
-    const endsEpoch = Math.floor(gw.ends_at / 1000);
+    const endsEpoch = Math.floor(Number(gw.ends_at) / 1000);
 
     const mainContainer = new ContainerBuilder();
 
@@ -56,7 +56,7 @@ function buildGiveawayPayload(gw, isEnded = false, winners = [], showPartsBtn = 
 
 function buildManageGiveawayPayload(gw) {
     const totalParts = gw.participants ? gw.participants.length : 0;
-    const endsEpoch = Math.floor(gw.ends_at / 1000);
+    const endsEpoch = Math.floor(Number(gw.ends_at) / 1000);
 
     const container = new ContainerBuilder();
     
@@ -104,7 +104,7 @@ async function buildGiveawayListPayload(guildId) {
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`Şu anda aktif çekiliş yok.`));
     } else {
         const listText = activeList.slice(0, 5).map(gw => {
-            const endsEpoch = Math.floor(gw.ends_at / 1000);
+            const endsEpoch = Math.floor(Number(gw.ends_at) / 1000);
             return `<:mono:${MONO_EMOJIS.star || '1530917515227725834'}> **${gw.prize}** — <#${gw.channel_id}>\n${gw.participants ? gw.participants.length : 0} katılımcı · ${gw.winner_count} kazanan · <t:${endsEpoch}:R>`;
         }).join('\n\n');
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(listText));
@@ -306,7 +306,7 @@ function initGiveawayScheduler(client) {
             const now = Date.now();
 
             for (const gw of activeList) {
-                if (now >= gw.ends_at) {
+                if (now >= Number(gw.ends_at)) {
                     logGiveaway('scheduler_ending', { messageId: gw.message_id, endsAt: gw.ends_at });
                     await endGiveaway(gw.message_id, client).catch((e) => logGiveaway('scheduler_end_error', { messageId: gw.message_id, error: e.message }));
                 }

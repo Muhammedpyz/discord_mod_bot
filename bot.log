@@ -168,3 +168,20 @@ Database tables initialized.
 [2026-08-16T20:32:20.049Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912340049}
 [2026-08-16T20:32:30.051Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912350051}
 [2026-08-16T20:32:40.052Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912360052}
+[2026-08-16T20:32:50.052Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912370052}
+[2026-08-16T20:33:00.053Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912380053}
+[2026-08-16T20:33:10.052Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912390052}
+[2026-08-16T20:33:20.054Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912400054}
+[2026-08-16T20:33:30.055Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912410055}
+[2026-08-16T20:33:40.056Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912420056}
+[2026-08-16T20:33:50.057Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912430057}
+[2026-08-16T20:34:00.058Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912440058}
+[23:34:01] Bot çıktı! Exit kodu: 143
+[23:34:06] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ enable debugging { debug: true }
+◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+[Bot] Nyx#0026 olarak giriş yapıldı!
+[Bot] Moderasyon sistemleri aktif.
+Database tables initialized.
+[Müzik] Lavalink Düğümü Hazır: Groove-Main
+[2026-08-16T20:34:27.273Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912467272}
