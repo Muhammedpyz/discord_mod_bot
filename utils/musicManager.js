@@ -45,8 +45,8 @@ function buildMusicProgressBar(currentMs, totalMs) {
     const progress = Math.min(1, Math.max(0, currentMs / totalMs));
     const percentage = Math.min(100, Math.round(progress * 100));
     
-    // 10 Parçalı Kesintisiz Özel Emoji Çubuğu (1 Sol + 8 Orta + 1 Sağ)
-    const totalSegments = 10;
+    // 7 Parçalı Mobil & Masaüstü Uyumlu Kesintisiz Özel Emoji Çubuğu (1 Sol + 5 Orta + 1 Sağ)
+    const totalSegments = 7;
     const filledCount = Math.round((percentage / 100) * totalSegments);
     
     // 1. Sol Uç
@@ -54,9 +54,9 @@ function buildMusicProgressBar(currentMs, totalMs) {
         ? `<:bar_l_filled:${APP_EMOJIS.bar_l_filled}>` 
         : `<:bar_l_empty:${APP_EMOJIS.bar_l_empty}>`;
     
-    // 2. Orta Parçalar (8 Adet)
+    // 2. Orta Parçalar (5 Adet)
     let midPieces = '';
-    for (let i = 2; i <= 9; i++) {
+    for (let i = 2; i <= 6; i++) {
         if (filledCount >= i) {
             midPieces += `<:bar_m_filled:${APP_EMOJIS.bar_m_filled}>`;
         } else {
@@ -65,7 +65,7 @@ function buildMusicProgressBar(currentMs, totalMs) {
     }
     
     // 3. Sağ Uç
-    const rightPiece = filledCount >= 10 
+    const rightPiece = filledCount >= 7 
         ? `<:bar_r_filled:${APP_EMOJIS.bar_r_filled}>` 
         : `<:bar_r_empty:${APP_EMOJIS.bar_r_empty}>`;
     
