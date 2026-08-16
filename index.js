@@ -58,6 +58,10 @@ client.spamMap = require('./utils/spamCache'); // Anti-spam için in-memory + JS
 client.snipes = new Collection(); // Silinen son mesajlar için (Snipe)
 global.botDeletedMessages = new Set(); // Bot veya AutoMod tarafından silinen mesajlar (çift loglamayı önler)
 
+// Müzik Motoru Başlatma (Kazagumo & Shoukaku)
+const { initMusicManager } = require('./utils/musicManager');
+initMusicManager(client);
+
 // Event Handler
 const eventsPath = path.join(__dirname, 'events');
 const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));

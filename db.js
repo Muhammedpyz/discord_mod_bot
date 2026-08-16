@@ -551,6 +551,45 @@ async function initDB() {
             )
         `);
 
+        // --- MUSIC SYSTEM TABLES ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS user_liked_songs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(32) NOT NULL,
+                track_title VARCHAR(255) NOT NULL,
+                artist VARCHAR(255) NULL,
+                track_url TEXT NOT NULL,
+                thumbnail_url TEXT NULL,
+                duration INT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_user (user_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_music_config (
+                guild_id VARCHAR(32) PRIMARY KEY,
+                default_volume INT DEFAULT 100,
+                is_247_enabled TINYINT(1) DEFAULT 0,
+                voice_channel_id VARCHAR(32) NULL,
+                text_channel_id VARCHAR(32) NULL,
+                autoplay_enabled TINYINT(1) DEFAULT 0,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_music_history (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                user_id VARCHAR(32) NOT NULL,
+                track_title VARCHAR(255) NOT NULL,
+                track_url TEXT NOT NULL,
+                played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_guild (guild_id)
+            )
+        `);
+
         await conn.query(`
             CREATE TABLE IF NOT EXISTS staff_applications (
                 guild_id VARCHAR(25) PRIMARY KEY,
@@ -1001,6 +1040,113 @@ async function resetGuildLogs(guildId) {
     }
 }
 
+async function getLikedSongs(userId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM user_liked_songs WHERE user_id = ? ORDER BY created_at DESC', [userId]);
+        return rows || [];
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function addLikedSong(userId, trackTitle, artist, trackUrl, thumbnailUrl, duration) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const existing = await conn.query('SELECT id FROM user_liked_songs WHERE user_id = ? AND track_url = ?', [userId, trackUrl]);
+        if (existing && existing.length > 0) return false;
+        await conn.query(
+            'INSERT INTO user_liked_songs (user_id, track_title, artist, track_url, thumbnail_url, duration) VALUES (?, ?, ?, ?, ?, ?)',
+            [userId, trackTitle, artist, trackUrl, thumbnailUrl, duration || 0]
+        );
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function removeLikedSong(userId, trackUrl) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const res = await conn.query('DELETE FROM user_liked_songs WHERE user_id = ? AND track_url = ?', [userId, trackUrl]);
+        return res.affectedRows > 0;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getMusicConfig(guildId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM guild_music_config WHERE guild_id = ?', [guildId]);
+        return rows[0] || {
+            guild_id: guildId,
+            default_volume: 100,
+            is_247_enabled: 0,
+            autoplay_enabled: 0
+        };
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function updateMusicConfig(guildId, updates = {}) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const current = await getMusicConfig(guildId);
+        const merged = { ...current, ...updates };
+        await conn.query(`
+            INSERT INTO guild_music_config (guild_id, default_volume, is_247_enabled, voice_channel_id, text_channel_id, autoplay_enabled)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+                default_volume = VALUES(default_volume),
+                is_247_enabled = VALUES(is_247_enabled),
+                voice_channel_id = VALUES(voice_channel_id),
+                text_channel_id = VALUES(text_channel_id),
+                autoplay_enabled = VALUES(autoplay_enabled)
+        `, [
+            guildId,
+            merged.default_volume || 100,
+            merged.is_247_enabled ? 1 : 0,
+            merged.voice_channel_id || null,
+            merged.text_channel_id || null,
+            merged.autoplay_enabled ? 1 : 0
+        ]);
+        return merged;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function addMusicHistory(guildId, userId, trackTitle, trackUrl) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query(
+            'INSERT INTO guild_music_history (guild_id, user_id, track_title, track_url) VALUES (?, ?, ?, ?)',
+            [guildId, userId, trackTitle, trackUrl]
+        );
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getMusicHistory(guildId, limit = 10) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM guild_music_history WHERE guild_id = ? ORDER BY played_at DESC LIMIT ?', [guildId, limit]);
+        return rows || [];
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
 module.exports = { 
     pool, 
     initDB, 
@@ -1026,6 +1172,14 @@ module.exports = {
     addGuildLogIgnored,
     removeGuildLogIgnored,
     setGuildLogSettings,
-    resetGuildLogs
+    resetGuildLogs,
+    getLikedSongs,
+    addLikedSong,
+    removeLikedSong,
+    getMusicConfig,
+    updateMusicConfig,
+    addMusicHistory,
+    getMusicHistory
 };
+
 

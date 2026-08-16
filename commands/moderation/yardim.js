@@ -8,6 +8,7 @@ function createHelpComponents(selected = 'home') {
             .setPlaceholder('Bir yardım kategorisi seçin...')
             .addOptions([
                 { label: 'Ana Sayfa', value: 'help_home', description: 'Yardım paneli ana sayfası ve genel bakış', default: selected === 'home' },
+                { label: 'Müzik & Ses Sistemleri', value: 'help_music', description: 'Play, Pause, Skip, Like, Filter, 247, Queue vb. (16 Komut)', default: selected === 'music' },
                 { label: 'Ceza & Moderasyon', value: 'help_punish', description: 'Ban, Kick, Mute, Warn, Not vb. (11 Komut)', default: selected === 'punish' },
                 { label: 'Sistem & Güvenlik Panelleri', value: 'help_system', description: 'Log, AutoMod, Hoşgeldin, Ticket, Bot-Bilgi, Ping vb. (12 Komut)', default: selected === 'system' },
                 { label: 'Kanal & Mesaj Yönetimi', value: 'help_channel', description: 'Clear, Lockdown, Nuke, Slowmode, Snipe vb. (6 Komut)', default: selected === 'channel' },
@@ -21,8 +22,8 @@ function createHelpComponents(selected = 'home') {
 function helpEmbedHome(guild, user, actionRows = []) {
     return buildModAPanel({
         title: 'Yönetim & Komut Rehberi',
-        description: `Sayın <@${user.id}>, **Turklion Moderasyon & Güvenlik Botu** yardım paneline hoş geldiniz.\n\n` +
-                     `Sunucumuzda aktif olarak **50 adet bağımsız komut** bulunmaktadır.\n` +
+        description: `Sayın <@${user.id}>, **Turklion Moderasyon & Müzik Botu** yardım paneline hoş geldiniz.\n\n` +
+                     `Sunucumuzda aktif olarak **67 adet bağımsız komut** bulunmaktadır.\n` +
                      `Aşağıdaki menüyü kullanarak incelemek istediğiniz kategoriyi seçebilir; komutların kullanım formatlarını, parametrelerini ve zorunlu/opsiyonel durumlarını detaylıca görebilirsiniz.`,
         navRow: actionRows[0],
         showSocials: true
@@ -31,6 +32,42 @@ function helpEmbedHome(guild, user, actionRows = []) {
 
 function getCategoryHelpPayload(categoryKey) {
     const navMenu = createHelpComponents(categoryKey.replace('help_', ''));
+
+    if (categoryKey === 'help_music') {
+        const title = `<:mono:${MONO_EMOJIS.music || '1537767791908884500'}> Müzik & Ses Sistemleri (16 Komut)`;
+        const desc = `Spotify, YouTube Music, SoundCloud ve bağlantı akışlarını yöneten stüdyo kalitesinde müzik motoru:`;
+        const fields = [
+            {
+                name: '1. /play & /nowplaying',
+                value: `\`\`\`/play [sarki: ZORUNLU]\`\`\`Şarkı adı, sanatçı veya çalma listesi linki ile anında müzik başlatır.\n\`\`\`/nowplaying\`\`\`Çalan şarkının ilerleme durumunu, ses seviyesini, filtresini ve kontrol butonlarını açar.`
+            },
+            {
+                name: '2. /pause & /resume & /stop',
+                value: `\`\`\`/pause\`\`\`Çalan müziği duraklatır.\n\`\`\`/resume\`\`\`Duraklatılmış müziği devam ettirir.\n\`\`\`/stop\`\`\`Müziği tamamen durdurur, sırayı temizler ve ses kanalından ayrılır.`
+            },
+            {
+                name: '3. /skip & /seek',
+                value: `\`\`\`/skip\`\`\`Çalan şarkıyı atlar (Oylama / DJ / Şarkıyı açan kişi korumalı).\n\`\`\`/seek [zaman: ZORUNLU]\`\`\`Şarkıyı belirli bir dakikaya/saniyeye sarar (Örn: 1:30 veya 90).`
+            },
+            {
+                name: '4. /queue & /shuffle & /loop',
+                value: `\`\`\`/queue <sayfa: İSTEĞE BAĞLI>\`\`\`Sıradaki şarkıların listesini gösterir.\n\`\`\`/shuffle\`\`\`Sıradaki tüm parçaları rastgele karıştırır.\n\`\`\`/loop [mod: ZORUNLU (track/queue/none)]\`\`\`Şarkı veya sıra döngü modunu ayarlar.`
+            },
+            {
+                name: '5. /volume & /filter',
+                value: `\`\`\`/volume [seviye: ZORUNLU (0-150)]\`\`\`Müzik ses seviyesini ayarlar.\n\`\`\`/filter [efekt: ZORUNLU (bassboost/nightcore/8d/vaporwave/clear)]\`\`\`Canlı ekolayzır ve ses efektlerini uygular.`
+            },
+            {
+                name: '6. /like & /lyrics',
+                value: `\`\`\`/like [ekle / liste / çal]\`\`\`Favori parçalarını kaydeder, listeler ve tek tıkla ses kanalında başlatır.\n\`\`\`/lyrics <sarki: İSTEĞE BAĞLI>\`\`\`Çalan şarkının sözlerini görüntüler.`
+            },
+            {
+                name: '7. /247 & /music-history',
+                value: `\`\`\`/247 [durum: ZORUNLU (on/off)]\`\`\`Botun ses kanalında 7/24 kesintisiz kalma modunu yönetir.\n\`\`\`/music-history\`\`\`Sunucuda son çalınan şarkıların geçmiş dökümünü listeler.`
+            }
+        ];
+        return createContainerMessage(title, desc, '#2B2D31', [navMenu], fields, false);
+    }
 
     if (categoryKey === 'help_punish') {
         const title = `<:mono:${MONO_EMOJIS.shield || '1530917506867400775'}> Ceza & Moderasyon Komutları (11 Komut)`;

@@ -119,6 +119,18 @@ module.exports = {
             return;
         }
 
+        // Müzik Oynatıcı Buton Yönlendirmesi
+        if (interaction.customId.startsWith('music_')) {
+            const { handleMusicButton } = require('../utils/musicInteractionHandler');
+            try {
+                const handled = await handleMusicButton(interaction);
+                if (handled) return;
+            } catch (err) {
+                console.error("Music interaction error:", err);
+            }
+            return;
+        }
+
         // Geçiş dönemi için (henüz tam namespace'e geçmemiş eskiler için fallback)
         let namespace, action, targetId;
         if (interaction.customId.includes(':')) {
