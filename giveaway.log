@@ -1,83 +1,14 @@
-[21:44:32] Bot başlatılıyor...
-◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
-◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
-[Bot] Nyx#0026 olarak giriş yapıldı!
-[Bot] Moderasyon sistemleri aktif.
-Database tables initialized.
-[Müzik] Lavalink Düğümü Hazır: Groove-Main
-[Giveaway send hatasi]: Received one or more errors
-[Giveaway send hatasi]: Received one or more errors
-[23:03:04] Bot başlatılıyor...
-◇ injected env (6) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
-◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
-[Bot] Nyx#0026 olarak giriş yapıldı!
-[Bot] Moderasyon sistemleri aktif.
-Database tables initialized.
-[Müzik] Lavalink Düğümü Hazır: Groove-Main
-Komut hatası: giveaway CombinedError (2)
-  Received one or more errors
-
-  1 ExpectedValidationError > s.instance(V)
-  |   Expected
-  | 
-  |   Expected:
-  |   | [Function: ButtonBuilder]
-  | 
-  |   Received:
-  |   | undefined
-
-  2 ExpectedValidationError > s.instance(V)
-  |   Expected
-  | 
-  |   Expected:
-  |   | [Function: ThumbnailBuilder]
-  | 
-  |   Received:
-  |   | undefined
-
-    at _UnionValidator.handle (/root/discord_mod_bot/node_modules/@sapphire/shapeshift/dist/cjs/index.cjs:1965:23)
-    at _UnionValidator.parse (/root/discord_mod_bot/node_modules/@sapphire/shapeshift/dist/cjs/index.cjs:972:90)
-    at SectionBuilder.toJSON (/root/discord_mod_bot/node_modules/@discordjs/builders/dist/index.js:3129:37)
-    at /root/discord_mod_bot/node_modules/@discordjs/builders/dist/index.js:2830:64
-    at Array.map (<anonymous>)
-    at ContainerBuilder.toJSON (/root/discord_mod_bot/node_modules/@discordjs/builders/dist/index.js:2830:35)
-    at /root/discord_mod_bot/node_modules/discord.js/src/structures/MessagePayload.js:151:46
-    at Array.map (<anonymous>)
-    at MessagePayload.resolveBody (/root/discord_mod_bot/node_modules/discord.js/src/structures/MessagePayload.js:150:49)
-    at InteractionWebhook.editMessage (/root/discord_mod_bot/node_modules/discord.js/src/structures/Webhook.js:344:50)
-[23:15:56] Bot çıktı! Exit kodu: 143
-[23:16:01] Bot başlatılıyor...
-◇ injected env (6) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
-◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
-[Bot] Nyx#0026 olarak giriş yapıldı!
-[Bot] Moderasyon sistemleri aktif.
-Database tables initialized.
-[Müzik] Lavalink Düğümü Hazır: Groove-Main
 [2026-08-16T20:17:53.195Z] [GIVEAWAY] start_modal {"userId":"651790387198820425","prize":"Dildo","durationStr":"1d","winnerCount":1,"channelInputStr":"1176648341015248906"}
 [2026-08-16T20:17:54.726Z] [GIVEAWAY] start_complete {"messageId":"1538642981530108094","prize":"Dildo","channelId":"1176648341015248906","endsAt":1786997873203}
 [2026-08-16T20:17:55.207Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786911475207}
 [2026-08-16T20:17:59.356Z] [GIVEAWAY] join_toggled {"messageId":"1538642981530108094","userId":"651790387198820425","joined":true,"count":1}
 [2026-08-16T20:17:59.360Z] [GIVEAWAY] join_msg_edit_error {"messageId":"1538642981530108094","error":"Cannot mix BigInt and other types, use explicit conversions"}
 [2026-08-16T20:18:04.337Z] [GIVEAWAY] list_open {"guildId":"1062369725067304990","userId":"651790387198820425"}
-Giveaway interaction error: TypeError: Cannot mix BigInt and other types, use explicit conversions
-    at /root/discord_mod_bot/utils/giveawayManager.js:108:53
-    at Array.map (<anonymous>)
-    at buildGiveawayListPayload (/root/discord_mod_bot/utils/giveawayManager.js:107:49)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async handleGiveawayButton (/root/discord_mod_bot/utils/giveawayManager.js:606:25)
-    at async Object.execute (/root/discord_mod_bot/events/interactionCreate.js:147:35)
 [2026-08-16T20:18:05.200Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786911485200}
 [2026-08-16T20:18:15.201Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786911495201}
 [2026-08-16T20:18:25.200Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786911505200}
 [2026-08-16T20:18:35.200Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786911515200}
 [2026-08-16T20:18:42.846Z] [GIVEAWAY] list_open {"guildId":"1062369725067304990","userId":"651790387198820425"}
-Giveaway interaction error: TypeError: Cannot mix BigInt and other types, use explicit conversions
-    at /root/discord_mod_bot/utils/giveawayManager.js:108:53
-    at Array.map (<anonymous>)
-    at buildGiveawayListPayload (/root/discord_mod_bot/utils/giveawayManager.js:107:49)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async handleGiveawayButton (/root/discord_mod_bot/utils/giveawayManager.js:606:25)
-    at async Object.execute (/root/discord_mod_bot/events/interactionCreate.js:147:35)
 [2026-08-16T20:18:45.200Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786911525200}
 [2026-08-16T20:18:55.201Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786911535201}
 [2026-08-16T20:19:05.201Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786911545201}
@@ -149,14 +80,6 @@ Giveaway interaction error: TypeError: Cannot mix BigInt and other types, use ex
 [2026-08-16T20:30:05.239Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912205239}
 [2026-08-16T20:30:15.241Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912215241}
 [2026-08-16T20:30:25.242Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912225242}
-[23:30:33] Bot çıktı! Exit kodu: 143
-[23:30:38] Bot başlatılıyor...
-◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
-◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
-[Bot] Nyx#0026 olarak giriş yapıldı!
-[Bot] Moderasyon sistemleri aktif.
-Database tables initialized.
-[Müzik] Lavalink Düğümü Hazır: Groove-Main
 [2026-08-16T20:31:00.056Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912260055}
 [2026-08-16T20:31:10.049Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912270049}
 [2026-08-16T20:31:20.048Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912280048}

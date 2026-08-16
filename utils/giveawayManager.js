@@ -71,6 +71,7 @@ function buildManageGiveawayPayload(gw) {
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(descText));
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`Bitir: kazananı hemen çeker. İptal: kazanan çekmeden kapatır.\nÇekiliş <#${gw.channel_id}> kanalında başladı.`));
 
     const row1 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`gw_forceend:${gw.message_id}`).setLabel('Şimdi Bitir').setStyle(ButtonStyle.Success).setEmoji(MONO_EMOJIS.trophy || '1537767825937010708').setDisabled(gw.status !== 'active'),
@@ -81,10 +82,8 @@ function buildManageGiveawayPayload(gw) {
         new ButtonBuilder().setCustomId(`gw_cancel:${gw.message_id}`).setLabel('İptal Et').setStyle(ButtonStyle.Danger).setEmoji(MONO_EMOJIS.octagon || '1537769843099701298').setDisabled(gw.status !== 'active')
     );
     const row3 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('gw_list').setLabel('Geri').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.arrow_left || '1530918962890670161')
+        new ButtonBuilder().setCustomId('gw_home').setLabel('Geri').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.arrow_left || '1530918962890670161')
     );
-
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`Bitir: kazananı hemen çeker. İptal: kazanan çekmeden kapatır.\nÇekiliş <#${gw.channel_id}> kanalında başladı.`));
 
     container.addActionRowComponents(row1);
     container.addActionRowComponents(row2);
@@ -118,8 +117,42 @@ async function buildGiveawayListPayload(guildId) {
         container.addActionRowComponents(new ActionRowBuilder().addComponents(selectMenu));
     }
 
-    const btnRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('gw_panel_back').setLabel('Geri').setStyle(ButtonStyle.Danger).setEmoji(MONO_EMOJIS.arrow_left || '1530918962890670161'));
+    const btnRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('gw_home').setLabel('Geri').setStyle(ButtonStyle.Danger).setEmoji(MONO_EMOJIS.arrow_left || '1530918962890670161'));
     container.addActionRowComponents(btnRow);
+
+    return { flags: MessageFlags.IsComponentsV2, components: [container] };
+}
+
+async function buildMainPanelPayload(guildId) {
+    const settings = await db.getGiveawaySettings(guildId);
+    const activeGWs = await db.getGuildGiveaways(guildId);
+    const activeCount = activeGWs.filter(g => g.status === 'active').length;
+
+    const container = new ContainerBuilder();
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`<:mono:${MONO_EMOJIS.star || '1530917515227725834'}> Çekiliş Sistemi`));
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `Çekiliş açmak için kuruluma gerek yok — \`/giveaway 1g 1 Nitro\` yazman yeterli.\nAşağıdaki ayarlar yalnızca varsayılanları değiştirir.\n\n` +
+        `<:mono:${MONO_EMOJIS.radio || '1537767917666443346'}> **Yetkili Rolleri** › ${settings.manager_roles.length > 0 ? settings.manager_roles.map(r => `<@&${r}>`).join(', ') : 'sadece Sunucuyu Yönet yetkisi'}\n` +
+        `<:mono:${MONO_EMOJIS.radio || '1537767917666443346'}> **Log Kanalı** › ${settings.log_channel_id ? `<#${settings.log_channel_id}>` : 'kapalı'}\n` +
+        `<:mono:${MONO_EMOJIS.radio || '1537767917666443346'}> **Duyuru Rolü** › ${settings.ping_role_id ? `<@&${settings.ping_role_id}>` : 'kapalı'}\n` +
+        `<:mono:${MONO_EMOJIS.check || '1530917534885478600'}> **Kazanana DM** › ${settings.dm_winner ? 'Açık' : 'Kapalı'}\n` +
+        `<:mono:${MONO_EMOJIS.check || '1530917534885478600'}> **Katılanlar Butonu** › ${settings.show_parts ? 'Açık' : 'Kapalı'}\n` +
+        `<:mono:${MONO_EMOJIS.radio || '1537767917666443346'}> **Engelli Roller** › ${settings.ignored_roles.length > 0 ? settings.ignored_roles.map(r => `<@&${r}>`).join(', ') : 'kapalı'}`
+    ));
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`Şu anda ${activeCount} aktif çekiliş var.`));
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+
+    const row1 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('gw_new').setLabel('Yeni Çekiliş').setStyle(ButtonStyle.Success).setEmoji(MONO_EMOJIS.plus || '1530917512333787166'),
+        new ButtonBuilder().setCustomId('gw_list').setLabel('Çekilişler').setStyle(ButtonStyle.Primary).setEmoji(MONO_EMOJIS.search || '1537768093978206240')
+    );
+    const row2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('gw_settings').setLabel('Ayarlar').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.settings || '1530917467650523176')
+    );
+    container.addActionRowComponents(row1);
+    container.addActionRowComponents(row2);
 
     return { flags: MessageFlags.IsComponentsV2, components: [container] };
 }
@@ -409,6 +442,35 @@ async function handleGiveawayButton(interaction) {
             }
             return interaction.editReply(createContainerMessage(`<:mono:${MONO_EMOJIS.success || '1530917482435579974'}> Yeniden Çekildi (Reroll)`, `Yeni kazananlar başarıyla belirlendi.`, '#57F287', [], [], false));
         }
+
+        if (customId === 'gw_modal_settings') {
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            const data = { manager_roles: [], log_channel_id: null, ping_role_id: null, ignored_roles: [], dm_winner: true, show_parts: true };
+            try {
+                data.manager_roles = interaction.fields.getTextInputValue('yetkili_rolleri').split(',').map(s => s.trim()).filter(Boolean);
+            } catch(e){}
+            try {
+                const v = interaction.fields.getTextInputValue('log_kanali').trim();
+                data.log_channel_id = v || null;
+            } catch(e){}
+            try {
+                const v = interaction.fields.getTextInputValue('duyuru_rolu').trim();
+                data.ping_role_id = v || null;
+            } catch(e){}
+            try {
+                data.ignored_roles = interaction.fields.getTextInputValue('engelli_roller').split(',').map(s => s.trim()).filter(Boolean);
+            } catch(e){}
+            const secenek = interaction.fields.getTextInputValue('secenekler').toLowerCase();
+            data.dm_winner = !secenek.includes('dm:kapalı') && !secenek.includes('dm:kapali');
+            data.show_parts = !secenek.includes('katilanlar:kapalı') && !secenek.includes('katilanlar:kapali');
+            await db.setGiveawaySettings(interaction.guild.id, data);
+            logGiveaway('settings_saved', { guildId: interaction.guild.id, data });
+            return interaction.editReply(createContainerMessage(
+                `<:mono:${MONO_EMOJIS.success || '1530917482435579974'}> Ayarlar Kaydedildi`,
+                `Çekiliş ayarları güncellendi. Yeni çekilişlerde geçerli olacak.`,
+                '#57F287', [], [], false
+            ));
+        }
         return true;
     }
 
@@ -432,7 +494,7 @@ async function handleGiveawayButton(interaction) {
     }
 
     // --- BUTTONS ---
-    const { MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ChannelSelectMenuBuilder, RoleSelectMenuBuilder, StringSelectMenuBuilder } = require('discord.js');
+    const { MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
     const [action, messageId] = customId.split(':');
     const userId = interaction.user.id;
 
@@ -457,67 +519,18 @@ async function handleGiveawayButton(interaction) {
     }
 
     if (action === 'gw_settings') {
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        logGiveaway('settings_modal_open', { userId });
         const settings = await db.getGiveawaySettings(interaction.guild.id);
 
-        const container = new ContainerBuilder();
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Çekiliş Ayarları**\n\nBu form Muawh uygulamasına gönderilecek. Şifrelerini ya da diğer hassas bilgilerini paylaşmadığından emin ol.`));
-
-        const row1 = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder().setCustomId('gw_set_manager').setPlaceholder('Çekiliş yetkilisi rolleri').setMinValues(0).setMaxValues(10)
+        const modal = new ModalBuilder().setCustomId('gw_modal_settings').setTitle('Çekiliş Ayarları');
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('yetkili_rolleri').setLabel('Yetkili Rolleri (virgülle ayır, boş bırakabilirsin)').setStyle(TextInputStyle.Short).setRequired(false).setValue(settings.manager_roles.join(', ')).setPlaceholder('Örn: 111111111111111111, 222222222222222222')),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('log_kanali').setLabel('Log Kanalı ID (boş = kapalı)').setStyle(TextInputStyle.Short).setRequired(false).setValue(settings.log_channel_id || '').setPlaceholder('Örn: 333333333333333333')),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('duyuru_rolu').setLabel('Duyuru Rolü ID (boş = kapalı)').setStyle(TextInputStyle.Short).setRequired(false).setValue(settings.ping_role_id || '').setPlaceholder('Örn: 444444444444444444')),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('engelli_roller').setLabel('Katılamayacak Roller (virgülle ayır)').setStyle(TextInputStyle.Short).setRequired(false).setValue(settings.ignored_roles.join(', ')).setPlaceholder('Örn: 555555555555555555')),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('secenekler').setLabel('Seçenekler (dm / katilanlar)').setStyle(TextInputStyle.Short).setRequired(true).setValue(`dm:${settings.dm_winner ? 'açık' : 'kapalı'}, katilanlar:${settings.show_parts ? 'açık' : 'kapalı'}`).setPlaceholder('dm:açık, katilanlar:açık'))
         );
-        const row2 = new ActionRowBuilder().addComponents(
-            new ChannelSelectMenuBuilder().setCustomId('gw_set_log').setPlaceholder('Log kanalı')
-        );
-        const row3 = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder().setCustomId('gw_set_ping').setPlaceholder('Duyuru rolü')
-        );
-        const row4 = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder().setCustomId('gw_set_ignore').setPlaceholder('Katılamayacak roller').setMinValues(0).setMaxValues(10)
-        );
-        const row5 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('gw_set_dm').setLabel('Kazanana DM at').setStyle(settings.dm_winner ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji(settings.dm_winner ? (MONO_EMOJIS.check || '1530917534885478600') : (MONO_EMOJIS.cross || '1530917536806469783')),
-            new ButtonBuilder().setCustomId('gw_set_parts').setLabel('Katılanlar Butonu').setStyle(settings.show_parts ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji(settings.show_parts ? (MONO_EMOJIS.check || '1530917534885478600') : (MONO_EMOJIS.cross || '1530917536806469783'))
-        );
-
-        container.addActionRowComponents(row1);
-        container.addActionRowComponents(row2);
-        container.addActionRowComponents(row3);
-        container.addActionRowComponents(row4);
-        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
-        container.addActionRowComponents(row5);
-
-        await interaction.editReply({ flags: MessageFlags.IsComponentsV2, components: [container] });
-        return true;
-    }
-
-    if (action === 'gw_set_dm' || action === 'gw_set_parts') {
-        await interaction.deferUpdate();
-        const settings = await db.getGiveawaySettings(interaction.guild.id);
-        if (action === 'gw_set_dm') settings.dm_winner = !settings.dm_winner;
-        if (action === 'gw_set_parts') settings.show_parts = !settings.show_parts;
-        await db.setGiveawaySettings(interaction.guild.id, settings);
-        
-        // update the message
-        const container = new ContainerBuilder();
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Çekiliş Ayarları**\n\nBu form Muawh uygulamasına gönderilecek. Şifrelerini ya da diğer hassas bilgilerini paylaşmadığından emin ol.`));
-
-        const row1 = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('gw_set_manager').setPlaceholder('Çekiliş yetkilisi rolleri').setMinValues(0).setMaxValues(10));
-        const row2 = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('gw_set_log').setPlaceholder('Log kanalı'));
-        const row3 = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('gw_set_ping').setPlaceholder('Duyuru rolü'));
-        const row4 = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('gw_set_ignore').setPlaceholder('Katılamayacak roller').setMinValues(0).setMaxValues(10));
-        const row5 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('gw_set_dm').setLabel('Kazanana DM at').setStyle(settings.dm_winner ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji(settings.dm_winner ? (MONO_EMOJIS.check || '1530917534885478600') : (MONO_EMOJIS.cross || '1530917536806469783')),
-            new ButtonBuilder().setCustomId('gw_set_parts').setLabel('Katılanlar Butonu').setStyle(settings.show_parts ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji(settings.show_parts ? (MONO_EMOJIS.check || '1530917534885478600') : (MONO_EMOJIS.cross || '1530917536806469783'))
-        );
-
-        container.addActionRowComponents(row1);
-        container.addActionRowComponents(row2);
-        container.addActionRowComponents(row3);
-        container.addActionRowComponents(row4);
-        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
-        container.addActionRowComponents(row5);
-        await interaction.editReply({ flags: MessageFlags.IsComponentsV2, components: [container] });
+        await interaction.showModal(modal);
         return true;
     }
 
@@ -601,47 +614,18 @@ const container = new ContainerBuilder();
     }
 
     if (action === 'gw_list') {
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        await interaction.deferUpdate();
         logGiveaway('list_open', { guildId: interaction.guild.id, userId });
         const payload = await buildGiveawayListPayload(interaction.guild.id);
         await interaction.editReply(payload);
         return true;
     }
 
-    if (action === 'gw_panel_back') {
+    if (action === 'gw_home') {
         await interaction.deferUpdate();
-        logGiveaway('panel_back', { guildId: interaction.guild.id, userId });
-        const settings = await db.getGiveawaySettings(interaction.guild.id);
-        const activeGWs = await db.getGuildGiveaways(interaction.guild.id);
-        const activeCount = activeGWs.filter(g => g.status === 'active').length;
-
-        const container = new ContainerBuilder();
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`<:mono:${MONO_EMOJIS.star || '1530917515227725834'}> Çekiliş Sistemi`));
-        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
-
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `Çekiliş açmak için kuruluma gerek yok — \`/giveaway 1g 1 Nitro\` yazman yeterli.\nAşağıdaki ayarlar yalnızca varsayılanları değiştirir.\n\n` +
-            `<:mono:${MONO_EMOJIS.radio || '1537767917666443346'}> **Yetkili Rolleri** › ${settings.manager_roles.length > 0 ? settings.manager_roles.map(r => `<@&${r}>`).join(', ') : 'sadece Sunucuyu Yönet yetkisi'}\n` +
-            `<:mono:${MONO_EMOJIS.radio || '1537767917666443346'}> **Log Kanalı** › ${settings.log_channel_id ? `<#${settings.log_channel_id}>` : 'kapalı'}\n` +
-            `<:mono:${MONO_EMOJIS.radio || '1537767917666443346'}> **Duyuru Rolü** › ${settings.ping_role_id ? `<@&${settings.ping_role_id}>` : 'kapalı'}\n` +
-            `<:mono:${MONO_EMOJIS.check || '1530917534885478600'}> **Kazanana DM** › ${settings.dm_winner ? 'Açık' : 'Kapalı'}\n` +
-            `<:mono:${MONO_EMOJIS.check || '1530917534885478600'}> **Katılanlar Butonu** › ${settings.show_parts ? 'Açık' : 'Kapalı'}\n` +
-            `<:mono:${MONO_EMOJIS.radio || '1537767917666443346'}> **Engelli Roller** › ${settings.ignored_roles.length > 0 ? settings.ignored_roles.map(r => `<@&${r}>`).join(', ') : 'kapalı'}`
-        ));
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`Şu anda ${activeCount} aktif çekiliş var.`));
-        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
-
-        const row1 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('gw_new').setLabel('Yeni Çekiliş').setStyle(ButtonStyle.Success).setEmoji(MONO_EMOJIS.plus || '1530917512333787166'),
-            new ButtonBuilder().setCustomId('gw_list').setLabel('Çekilişler').setStyle(ButtonStyle.Primary).setEmoji(MONO_EMOJIS.search || '1537768093978206240')
-        );
-        const row2 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('gw_settings').setLabel('Ayarlar').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.settings || '1530917467650523176')
-        );
-        container.addActionRowComponents(row1);
-        container.addActionRowComponents(row2);
-
-        await interaction.editReply({ flags: MessageFlags.IsComponentsV2, components: [container] });
+        logGiveaway('home_back', { guildId: interaction.guild.id, userId });
+        const payload = await buildMainPanelPayload(interaction.guild.id);
+        await interaction.editReply(payload);
         return true;
     }
 
@@ -689,6 +673,7 @@ module.exports = {
     buildGiveawayPayload,
     buildManageGiveawayPayload,
     buildGiveawayListPayload,
+    buildMainPanelPayload,
     endGiveaway,
     initGiveawayScheduler,
     handleGiveawayButton
