@@ -112,6 +112,10 @@ client.once(Events.ClientReady, async c => {
     const { initAutoPostScheduler } = require('./utils/autopostScheduler');
     initAutoPostScheduler(client);
 
+    // Çekiliş (Giveaway) Zamanlayıcısını Başlat
+    const { initGiveawayScheduler } = require('./utils/giveawayManager');
+    initGiveawayScheduler(client);
+
     // Snipe hafıza temizliği (1 saate bir eski snipeleri sil)
     setInterval(() => {
         const now = Date.now();

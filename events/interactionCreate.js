@@ -108,6 +108,17 @@ module.exports = {
             return;
         }
 
+        // Çekiliş (Giveaway) Buton Yönlendirmesi
+        if (interaction.customId.startsWith('gw_')) {
+            const { handleGiveawayButton } = require('../utils/giveawayManager');
+            try {
+                const gwHandled = await handleGiveawayButton(interaction);
+                if (gwHandled) return;
+            } catch (err) {
+                console.error("Giveaway interaction error:", err);
+            }
+        }
+
         // Gelişmiş Log Sistemi Yönlendirmesi
         if (interaction.customId.startsWith('log_')) {
             const { handleLogInteraction } = require('../utils/logInteractionHandler');

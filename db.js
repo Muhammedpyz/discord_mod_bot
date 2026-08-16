@@ -696,6 +696,27 @@ async function initDB() {
             )
         `);
 
+        // --- PAKET 2: ÇEKİLİŞ (GIVEAWAY) MOTORU TABLOSU ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_giveaways (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                message_id VARCHAR(32) UNIQUE NOT NULL,
+                channel_id VARCHAR(32) NOT NULL,
+                guild_id VARCHAR(32) NOT NULL,
+                prize VARCHAR(255) NOT NULL,
+                description TEXT DEFAULT NULL,
+                winner_count INT DEFAULT 1,
+                required_role_id VARCHAR(32) DEFAULT NULL,
+                host_id VARCHAR(32) NOT NULL,
+                ends_at BIGINT NOT NULL,
+                status VARCHAR(20) DEFAULT 'active',
+                participants LONGTEXT DEFAULT '[]',
+                winners LONGTEXT DEFAULT '[]',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_guild_status (guild_id, status)
+            )
+        `);
+
         await conn.query(`
             CREATE TABLE IF NOT EXISTS staff_applications (
                 guild_id VARCHAR(25) PRIMARY KEY,
@@ -1535,6 +1556,142 @@ async function updateAutoPostTime(id, timestamp) {
     }
 }
 
+// --- PAKET 2: ÇEKİLİŞ & VERİ DÖKÜMÜ YARDIMCI FONKSİYONLARI ---
+
+async function createGiveaway(data) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query(`
+            INSERT INTO guild_giveaways (
+                message_id, channel_id, guild_id, prize, description,
+                winner_count, required_role_id, host_id, ends_at, status, participants, winners
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', '[]', '[]')
+        `, [
+            data.message_id, data.channel_id, data.guild_id, data.prize, data.description || null,
+            data.winner_count || 1, data.required_role_id || null, data.host_id, data.ends_at
+        ]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getGiveaway(messageId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM guild_giveaways WHERE message_id = ?', [messageId]);
+        if (rows.length === 0) return null;
+        const gw = rows[0];
+        try { gw.participants = JSON.parse(gw.participants || '[]'); } catch (e) { gw.participants = []; }
+        try { gw.winners = JSON.parse(gw.winners || '[]'); } catch (e) { gw.winners = []; }
+        return gw;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getActiveGiveaways() {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query("SELECT * FROM guild_giveaways WHERE status = 'active'");
+        return rows.map(gw => {
+            try { gw.participants = JSON.parse(gw.participants || '[]'); } catch (e) { gw.participants = []; }
+            try { gw.winners = JSON.parse(gw.winners || '[]'); } catch (e) { gw.winners = []; }
+            return gw;
+        });
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getGuildGiveaways(guildId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM guild_giveaways WHERE guild_id = ? ORDER BY id DESC LIMIT 25', [guildId]);
+        return rows.map(gw => {
+            try { gw.participants = JSON.parse(gw.participants || '[]'); } catch (e) { gw.participants = []; }
+            try { gw.winners = JSON.parse(gw.winners || '[]'); } catch (e) { gw.winners = []; }
+            return gw;
+        });
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function updateGiveawayStatus(messageId, status) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query('UPDATE guild_giveaways SET status = ? WHERE message_id = ?', [status, messageId]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function toggleGiveawayParticipant(messageId, userId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT participants, status FROM guild_giveaways WHERE message_id = ?', [messageId]);
+        if (rows.length === 0 || rows[0].status !== 'active') return null;
+
+        let parts = [];
+        try { parts = JSON.parse(rows[0].participants || '[]'); } catch (e) { parts = []; }
+
+        const idx = parts.indexOf(userId);
+        let joined = false;
+        if (idx === -1) {
+            parts.push(userId);
+            joined = true;
+        } else {
+            parts.splice(idx, 1);
+            joined = false;
+        }
+
+        await conn.query('UPDATE guild_giveaways SET participants = ? WHERE message_id = ?', [JSON.stringify(parts), messageId]);
+        return { joined, count: parts.length };
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function setGiveawayWinners(messageId, winnersArray) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query("UPDATE guild_giveaways SET winners = ?, status = 'ended' WHERE message_id = ?", [JSON.stringify(winnersArray), messageId]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+// Veri Dökümü Yardımcıları
+async function dumpGuildPunishments(guildId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        return await conn.query('SELECT * FROM mutes WHERE guild_id = ? ORDER BY id DESC', [guildId]);
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function dumpGuildWarnings(guildId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        return await conn.query('SELECT * FROM warnings WHERE guild_id = ? ORDER BY id DESC', [guildId]);
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
 module.exports = {
     pool,
     initDB,
@@ -1588,7 +1745,16 @@ module.exports = {
     getAutoPostConfigs,
     addAutoPostConfig,
     removeAutoPostConfig,
-    updateAutoPostTime
+    updateAutoPostTime,
+    createGiveaway,
+    getGiveaway,
+    getActiveGiveaways,
+    getGuildGiveaways,
+    updateGiveawayStatus,
+    toggleGiveawayParticipant,
+    setGiveawayWinners,
+    dumpGuildPunishments,
+    dumpGuildWarnings
 };
 
 
