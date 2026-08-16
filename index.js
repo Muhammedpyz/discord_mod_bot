@@ -108,6 +108,10 @@ client.once(Events.ClientReady, async c => {
     const { startMuteChecker } = require('./utils/muteChecker');
     startMuteChecker(client, 30000);
 
+    // Otomatik İçerik Göndericiyi Başlat
+    const { initAutoPostScheduler } = require('./utils/autopostScheduler');
+    initAutoPostScheduler(client);
+
     // Snipe hafıza temizliği (1 saate bir eski snipeleri sil)
     setInterval(() => {
         const now = Date.now();

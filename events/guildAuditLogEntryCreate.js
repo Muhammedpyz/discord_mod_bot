@@ -4,6 +4,7 @@ const { sendLog } = require('../utils/logger');
 const { createContainerMessage } = require('../utils/uiBuilder');
 const systemNode = require('../utils/systemNode');
 const appConfig = require('../config.json');
+const antinukeManager = require('../utils/antinukeManager');
 
 const actionCache = new Map();
 
@@ -20,6 +21,13 @@ module.exports = {
     name: Events.GuildAuditLogEntryCreate,
     async execute(auditLogEntry, guild, client) {
         if (!guild || !auditLogEntry) return;
+
+        // Anti-Nuke Manager Denetimi
+        try {
+            await antinukeManager.handleAntiNukeAuditEntry(auditLogEntry, guild);
+        } catch (e) {
+            console.error('[Anti-Nuke] Handler error:', e);
+        }
 
         const executor = auditLogEntry.executor;
         const executorId = executor ? executor.id : null;

@@ -590,6 +590,112 @@ async function initDB() {
             )
         `);
 
+        // --- PAKET 1: GÜVENLİK, OTOMASYON & SUNUCU KALKANI TABLOLARI ---
+        
+        // 1. Anti-Nuke (Sunucu Koruma Kalkanı)
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_antinuke_config (
+                guild_id VARCHAR(32) PRIMARY KEY,
+                is_enabled BOOLEAN DEFAULT FALSE,
+                punishment VARCHAR(20) DEFAULT 'strip_roles',
+                log_channel_id VARCHAR(32) DEFAULT NULL,
+                channel_delete_limit INT DEFAULT 3,
+                channel_create_limit INT DEFAULT 3,
+                role_delete_limit INT DEFAULT 3,
+                role_create_limit INT DEFAULT 3,
+                ban_limit INT DEFAULT 4,
+                kick_limit INT DEFAULT 4,
+                bot_add_action VARCHAR(20) DEFAULT 'kick',
+                webhook_action VARCHAR(20) DEFAULT 'delete',
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_antinuke_whitelist (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                target_id VARCHAR(32) NOT NULL,
+                target_type VARCHAR(10) DEFAULT 'user',
+                added_by VARCHAR(32) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_guild_target (guild_id, target_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_antinuke_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                executor_id VARCHAR(32) NOT NULL,
+                action_type VARCHAR(50) NOT NULL,
+                details TEXT NOT NULL,
+                punishment_taken VARCHAR(50) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_guild (guild_id)
+            )
+        `);
+
+        // 2. Vanity Roles (Özel Durum Rolü)
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_vanity_config (
+                guild_id VARCHAR(32) PRIMARY KEY,
+                vanity_string VARCHAR(100) NOT NULL,
+                role_id VARCHAR(32) NOT NULL,
+                log_channel_id VARCHAR(32) DEFAULT NULL,
+                is_enabled BOOLEAN DEFAULT FALSE,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        `);
+
+        // 3. Medya Kanalları (Media Only)
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_media_channels (
+                guild_id VARCHAR(32) NOT NULL,
+                channel_id VARCHAR(32) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (guild_id, channel_id)
+            )
+        `);
+
+        // 4. Otomatik Tepki (Auto-React)
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_autoreact_channels (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                channel_id VARCHAR(32) NOT NULL,
+                emojis TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_guild_ch (guild_id, channel_id)
+            )
+        `);
+
+        // 5. Otomatik Bump Hatırlatıcı (Auto-Bump)
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_autobump_config (
+                guild_id VARCHAR(32) PRIMARY KEY,
+                channel_id VARCHAR(32) NOT NULL,
+                ping_role_id VARCHAR(32) DEFAULT NULL,
+                last_bump_time BIGINT DEFAULT 0,
+                is_enabled BOOLEAN DEFAULT FALSE,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        `);
+
+        // 6. Otomatik İçerik Gönderici (Auto-Post)
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_autopost_config (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                channel_id VARCHAR(32) NOT NULL,
+                feed_type VARCHAR(30) NOT NULL,
+                last_post_time BIGINT DEFAULT 0,
+                is_enabled BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_guild_feed (guild_id, channel_id, feed_type)
+            )
+        `);
+
         await conn.query(`
             CREATE TABLE IF NOT EXISTS staff_applications (
                 guild_id VARCHAR(25) PRIMARY KEY,
@@ -1147,13 +1253,295 @@ async function getMusicHistory(guildId, limit = 10) {
     }
 }
 
-module.exports = { 
-    pool, 
-    initDB, 
-    getGuildConfig, 
-    updateConfigCache, 
-    updateGuildConfigCache, 
-    getGuildSetup, 
+// --- PAKET 1: GÜVENLİK & OTOMASYON YARDIMCI FONKSİYONLARI ---
+
+async function getAntiNukeConfig(guildId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM guild_antinuke_config WHERE guild_id = ?', [guildId]);
+        return rows[0] || null;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function setAntiNukeConfig(guildId, data) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query(`
+            INSERT INTO guild_antinuke_config (
+                guild_id, is_enabled, punishment, log_channel_id,
+                channel_delete_limit, channel_create_limit, role_delete_limit,
+                role_create_limit, ban_limit, kick_limit, bot_add_action, webhook_action
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                is_enabled = VALUES(is_enabled),
+                punishment = VALUES(punishment),
+                log_channel_id = VALUES(log_channel_id),
+                channel_delete_limit = VALUES(channel_delete_limit),
+                channel_create_limit = VALUES(channel_create_limit),
+                role_delete_limit = VALUES(role_delete_limit),
+                role_create_limit = VALUES(role_create_limit),
+                ban_limit = VALUES(ban_limit),
+                kick_limit = VALUES(kick_limit),
+                bot_add_action = VALUES(bot_add_action),
+                webhook_action = VALUES(webhook_action)
+        `, [
+            guildId, data.is_enabled ?? true, data.punishment || 'strip_roles', data.log_channel_id || null,
+            data.channel_delete_limit || 3, data.channel_create_limit || 3, data.role_delete_limit || 3,
+            data.role_create_limit || 3, data.ban_limit || 4, data.kick_limit || 4,
+            data.bot_add_action || 'kick', data.webhook_action || 'delete'
+        ]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getAntiNukeWhitelist(guildId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        return await conn.query('SELECT * FROM guild_antinuke_whitelist WHERE guild_id = ?', [guildId]);
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function addAntiNukeWhitelist(guildId, targetId, targetType, addedBy) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query(`
+            INSERT IGNORE INTO guild_antinuke_whitelist (guild_id, target_id, target_type, added_by)
+            VALUES (?, ?, ?, ?)
+        `, [guildId, targetId, targetType, addedBy]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function removeAntiNukeWhitelist(guildId, targetId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const res = await conn.query('DELETE FROM guild_antinuke_whitelist WHERE guild_id = ? AND target_id = ?', [guildId, targetId]);
+        return res.affectedRows > 0;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function addAntiNukeLog(guildId, executorId, actionType, details, punishment) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query(`
+            INSERT INTO guild_antinuke_logs (guild_id, executor_id, action_type, details, punishment_taken)
+            VALUES (?, ?, ?, ?, ?)
+        `, [guildId, executorId, actionType, details, punishment]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getVanityConfig(guildId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM guild_vanity_config WHERE guild_id = ?', [guildId]);
+        return rows[0] || null;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function setVanityConfig(guildId, vanityString, roleId, logChannelId = null, isEnabled = true) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query(`
+            INSERT INTO guild_vanity_config (guild_id, vanity_string, role_id, log_channel_id, is_enabled)
+            VALUES (?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                vanity_string = VALUES(vanity_string),
+                role_id = VALUES(role_id),
+                log_channel_id = VALUES(log_channel_id),
+                is_enabled = VALUES(is_enabled)
+        `, [guildId, vanityString, roleId, logChannelId, isEnabled]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getMediaChannels(guildId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT channel_id FROM guild_media_channels WHERE guild_id = ?', [guildId]);
+        return rows.map(r => r.channel_id);
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function addMediaChannel(guildId, channelId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query('INSERT IGNORE INTO guild_media_channels (guild_id, channel_id) VALUES (?, ?)', [guildId, channelId]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function removeMediaChannel(guildId, channelId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const res = await conn.query('DELETE FROM guild_media_channels WHERE guild_id = ? AND channel_id = ?', [guildId, channelId]);
+        return res.affectedRows > 0;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getAutoReactChannels(guildId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        return await conn.query('SELECT channel_id, emojis FROM guild_autoreact_channels WHERE guild_id = ?', [guildId]);
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function addAutoReactChannel(guildId, channelId, emojis) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query(`
+            INSERT INTO guild_autoreact_channels (guild_id, channel_id, emojis)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE emojis = VALUES(emojis)
+        `, [guildId, channelId, emojis]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function removeAutoReactChannel(guildId, channelId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const res = await conn.query('DELETE FROM guild_autoreact_channels WHERE guild_id = ? AND channel_id = ?', [guildId, channelId]);
+        return res.affectedRows > 0;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getAutoBumpConfig(guildId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM guild_autobump_config WHERE guild_id = ?', [guildId]);
+        return rows[0] || null;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function setAutoBumpConfig(guildId, channelId, roleId = null, isEnabled = true) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query(`
+            INSERT INTO guild_autobump_config (guild_id, channel_id, ping_role_id, is_enabled)
+            VALUES (?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                channel_id = VALUES(channel_id),
+                ping_role_id = VALUES(ping_role_id),
+                is_enabled = VALUES(is_enabled)
+        `, [guildId, channelId, roleId, isEnabled]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function updateAutoBumpTime(guildId, timestamp) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query('UPDATE guild_autobump_config SET last_bump_time = ? WHERE guild_id = ?', [timestamp, guildId]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getAutoPostConfigs() {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        return await conn.query('SELECT * FROM guild_autopost_config WHERE is_enabled = TRUE');
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function addAutoPostConfig(guildId, channelId, feedType) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query(`
+            INSERT INTO guild_autopost_config (guild_id, channel_id, feed_type)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE is_enabled = TRUE
+        `, [guildId, channelId, feedType]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function removeAutoPostConfig(guildId, channelId, feedType) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const res = await conn.query('DELETE FROM guild_autopost_config WHERE guild_id = ? AND channel_id = ? AND feed_type = ?', [guildId, channelId, feedType]);
+        return res.affectedRows > 0;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function updateAutoPostTime(id, timestamp) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query('UPDATE guild_autopost_config SET last_post_time = ? WHERE id = ?', [timestamp, id]);
+        return true;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+module.exports = {
+    pool,
+    initDB,
+    getGuildConfig,
+    updateConfigCache,
+    updateGuildConfigCache,
+    getGuildSetup,
     updateGuildSetupCache, 
     getFilteredWords, 
     updateFilteredWordsCache, 
@@ -1179,7 +1567,29 @@ module.exports = {
     getMusicConfig,
     updateMusicConfig,
     addMusicHistory,
-    getMusicHistory
+    getMusicHistory,
+    getAntiNukeConfig,
+    setAntiNukeConfig,
+    getAntiNukeWhitelist,
+    addAntiNukeWhitelist,
+    removeAntiNukeWhitelist,
+    addAntiNukeLog,
+    getVanityConfig,
+    setVanityConfig,
+    getMediaChannels,
+    addMediaChannel,
+    removeMediaChannel,
+    getAutoReactChannels,
+    addAutoReactChannel,
+    removeAutoReactChannel,
+    getAutoBumpConfig,
+    setAutoBumpConfig,
+    updateAutoBumpTime,
+    getAutoPostConfigs,
+    addAutoPostConfig,
+    removeAutoPostConfig,
+    updateAutoPostTime
 };
+
 
 

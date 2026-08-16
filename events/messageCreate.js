@@ -166,9 +166,61 @@ module.exports = {
                 .catch(err => console.error('[TicketMsg] Kayıt hatası:', err.message));
         }
 
+        // Disboard Bump Takibi & Hatırlatıcı
+        if (message.guild && message.author.id === '302050872383242240') {
+            const isBumpSuccess = (message.embeds && message.embeds.some(e => e.description && (e.description.includes('Bump done') || e.description.includes('patlatıldı')))) ||
+                                  (message.interaction && message.interaction.name === 'bump');
+            if (isBumpSuccess) {
+                const bumpCfg = await db.getAutoBumpConfig(message.guild.id).catch(() => null);
+                if (bumpCfg && bumpCfg.is_enabled) {
+                    const now = Date.now();
+                    await db.updateAutoBumpTime(message.guild.id, now);
+                    // 2 saat (7200000 ms) sonra hatırlatıcı zamanlayıcısı
+                    setTimeout(async () => {
+                        try {
+                            const targetChannel = message.guild.channels.cache.get(bumpCfg.channel_id);
+                            if (targetChannel) {
+                                const pingText = bumpCfg.ping_role_id ? `<@&${bumpCfg.ping_role_id}> ` : '';
+                                const title = `<:mono:${MONO_EMOJIS.timer || '1537767794551296061'}> Sunucuyu Patlatma (Bump) Zamanı Geldi!`;
+                                const desc = `${pingText}Disboard bekleme süresi doldu! Sunucumuzu üst sıralara taşımak için şimdi </bump:947088344167366698> yazabilirsiniz.`;
+                                const reminderMsg = createContainerMessage(title, desc, '#5865F2', [], [], false);
+                                await targetChannel.send(reminderMsg).catch(() => {});
+                            }
+                        } catch (e) {}
+                    }, 2 * 60 * 60 * 1000);
+                }
+            }
+        }
+
         if (message.author.bot || !message.guild) return;
 
         if (!systemNode.checkGuildNode(message.guild.id)) return;
+
+        // 1. Sadece Medya Kanalı Denetimi (Media-Only Channels)
+        const mediaChannels = await db.getMediaChannels(message.guild.id).catch(() => []);
+        if (mediaChannels.includes(message.channel.id)) {
+            const hasMedia = (message.attachments && message.attachments.size > 0) ||
+                             (message.embeds && message.embeds.length > 0) ||
+                             (message.content && /(https?:\/\/[^\s]+)/gi.test(message.content));
+            if (!hasMedia) {
+                await message.delete().catch(() => {});
+                const warnMsg = await message.channel.send({
+                    content: `<@${message.author.id}>, bu kanal **Sadece Medya** kanalıdır. Düz metin mesajları yazamazsınız!`
+                }).catch(() => null);
+                if (warnMsg) setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
+                return;
+            }
+        }
+
+        // 2. Otomatik Emoji Tepkisi (Auto-React Channels)
+        const autoReactChannels = await db.getAutoReactChannels(message.guild.id).catch(() => []);
+        const reactSetting = autoReactChannels.find(r => r.channel_id === message.channel.id);
+        if (reactSetting && reactSetting.emojis) {
+            const emojisToReact = reactSetting.emojis.split(/[\s,]+/).filter(Boolean);
+            for (const em of emojisToReact) {
+                await message.react(em).catch(() => {});
+            }
+        }
 
         // DİNAMİK SUNUCUYA ÖZEL PREFIX KOMUTLARI
         const { handleMessageCommand } = require('../utils/messageCommandAdapter');
