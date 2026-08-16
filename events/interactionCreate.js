@@ -131,6 +131,28 @@ module.exports = {
             return;
         }
 
+        // Yardım Sistemi Yönlendirmesi
+        if (interaction.customId.startsWith('yardim:') || interaction.customId === 'yardim' || interaction.customId.includes('help_category_select')) {
+            try {
+                await interaction.deferUpdate().catch(() => {});
+                const { helpEmbedHome, createHelpComponents, getCategoryHelpPayload } = require('../commands/moderation/yardim.js');
+                
+                const val = interaction.values ? interaction.values[0] : null;
+                if (!val || val === 'help_home') {
+                    const payload = helpEmbedHome(interaction.guild, interaction.user, [createHelpComponents('home')]);
+                    return await interaction.editReply(payload).catch(err => console.error('[Yardım] editReply hatası:', err.message));
+                }
+                
+                const payload = getCategoryHelpPayload(val);
+                if (payload) {
+                    return await interaction.editReply(payload).catch(err => console.error('[Yardım] editReply hatası:', err.message));
+                }
+            } catch (err) {
+                console.error('[Yardım] Etkileşim hatası:', err);
+            }
+            return;
+        }
+
         // Geçiş dönemi için (henüz tam namespace'e geçmemiş eskiler için fallback)
         let namespace, action, targetId;
         if (interaction.customId.includes(':')) {
@@ -523,21 +545,7 @@ module.exports = {
             }
         }
 
-        // YARDIM
-        if (action === 'help_category_select') {
-            try { await interaction.deferUpdate(); } catch (e) { return; }
-            const { helpEmbedHome, createHelpComponents, getCategoryHelpPayload } = require('../commands/moderation/yardim.js');
-            
-            const val = interaction.values[0];
-            if (val === 'help_home') {
-                return interaction.editReply(helpEmbedHome(interaction.guild, interaction.user, [createHelpComponents('home')]));
-            }
-            
-            const payload = getCategoryHelpPayload(val);
-            if (payload) {
-                return interaction.editReply(payload);
-            }
-        }
+
 
         // PING YENİLEME
         if (interaction.customId === 'ping_refresh') {

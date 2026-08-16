@@ -77,8 +77,10 @@ function buildNowPlayingPayload(player, track) {
         `<:mono:${MONO_EMOJIS.crown || '1530918952711094272'}> **İsteyen:** ${requester}`,
         `<:white_info:${APP_EMOJIS.white_info}> **Süre:** \`${durationStr}\`${barText}`,
         '',
-        `<:mono:${MONO_EMOJIS.speaker || '1537769826636927006'}> **Ses:** \`%${volumeVal}\`   <:mono:${MONO_EMOJIS.sliders_horizontal || '1537769889840889956'}> **Filtre:** \`${filterVal}\``,
-        `<:mono:${MONO_EMOJIS.infinity || '1537769920111190056'}> **Döngü:** \`${loopVal}\`   <:mono:${MONO_EMOJIS.antenna || '1537769784983162920'}> **7/24:** \`${rad247Val}\``
+        `<:mono:${MONO_EMOJIS.speaker || '1537769826636927006'}> **Ses Seviyesi:** \`%${volumeVal}\``,
+        `<:mono:${MONO_EMOJIS.sliders_horizontal || '1537769889840889956'}> **Ses Filtresi:** \`${filterVal}\``,
+        `<:mono:${MONO_EMOJIS.infinity || '1537769920111190056'}> **Döngü Modu:** \`${loopVal}\``,
+        `<:mono:${MONO_EMOJIS.antenna || '1537769784983162920'}> **7/24 Kesintisiz:** \`${rad247Val}\``
     ];
 
     // 1. Ana Bilgi Kartı
