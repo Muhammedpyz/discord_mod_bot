@@ -11,10 +11,15 @@ const db = require('../db');
 
 // Developer Portal Bot App Emojileri
 const APP_EMOJIS = {
+    play: '1538519714924462111',
+    pause: '1538519707110612992',
+    stop: '1538519763850887168',
+    skip_next: '1538519742397284525',
+    skip_prev: '1538519753583362178',
+    repeat: '1538519722549579847',
+    shuffle: '1538519733136130120',
     music_note: '1538517605902716960',
     white_musicnote: '1538517890737774622',
-    next: '1538517615410946159',
-    previous: '1538517715264999516',
     heart4: '1538517512340119664',
     white_cross: '1538517856797331528',
     white_tick: '1538517908815347762',
@@ -99,17 +104,17 @@ function buildNowPlayingPayload(player, track) {
             .setCustomId('music_pause_resume')
             .setLabel(isPaused ? 'Devam Et' : 'Duraklat')
             .setStyle(isPaused ? ButtonStyle.Success : ButtonStyle.Secondary)
-            .setEmoji(APP_EMOJIS.music_note),
+            .setEmoji(isPaused ? APP_EMOJIS.play : APP_EMOJIS.pause),
         new ButtonBuilder()
             .setCustomId('music_skip')
             .setLabel('Geç')
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji(APP_EMOJIS.next),
+            .setEmoji(APP_EMOJIS.skip_next),
         new ButtonBuilder()
             .setCustomId('music_loop')
             .setLabel(player.loop === 'track' ? 'Şarkı Döngüsü' : player.loop === 'queue' ? 'Sıra Döngüsü' : 'Döngü')
             .setStyle(player.loop !== 'none' ? ButtonStyle.Primary : ButtonStyle.Secondary)
-            .setEmoji(APP_EMOJIS.previous),
+            .setEmoji(APP_EMOJIS.repeat),
         new ButtonBuilder()
             .setCustomId('music_like')
             .setLabel('Beğen')
@@ -119,7 +124,7 @@ function buildNowPlayingPayload(player, track) {
             .setCustomId('music_stop')
             .setLabel('Durdur & Çık')
             .setStyle(ButtonStyle.Danger)
-            .setEmoji(APP_EMOJIS.white_cross)
+            .setEmoji(APP_EMOJIS.stop)
     );
     buttonContainer.addActionRowComponents(row);
 

@@ -521,6 +521,13 @@ const MONO_EMOJIS = {
     "white_musicnote": "1538517890737774622",
     "white_next": "1538517901567459380",
     "white_tick_2": "1538517908815347762",
+    "music_pause": "1538519707110612992",
+    "music_play": "1538519714924462111",
+    "music_repeat": "1538519722549579847",
+    "music_shuffle": "1538519733136130120",
+    "music_skip_next": "1538519742397284525",
+    "music_skip_prev": "1538519753583362178",
+    "music_stop": "1538519763850887168",
 };
 
 const EMOJIS = {};
