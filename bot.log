@@ -238,3 +238,1982 @@ Database tables initialized.
 Database tables initialized.
 [Müzik] Lavalink Düğümü Hazır: Groove-Main
 [2026-08-16T20:42:29.396Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912949396}
+[2026-08-16T20:42:39.390Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912959390}
+[2026-08-16T20:42:49.392Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912969392}
+[2026-08-16T20:42:59.394Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912979394}
+[2026-08-16T20:43:06.201Z] [GIVEAWAY] list_open {"guildId":"1062369725067304990","userId":"651790387198820425"}
+[2026-08-16T20:43:09.396Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786912989396}
+[2026-08-16T20:43:09.834Z] [GIVEAWAY] manage_select {"messageId":"1538642981530108094","userId":"651790387198820425"}
+[2026-08-16T20:43:18.355Z] [GIVEAWAY] forceend_start {"messageId":"1538642981530108094","userId":"651790387198820425"}
+[2026-08-16T20:43:18.357Z] [GIVEAWAY] end_start {"messageId":"1538642981530108094","isReroll":false,"customWinnerCount":null}
+[2026-08-16T20:43:18.362Z] [GIVEAWAY] end_winners_selected {"messageId":"1538642981530108094","totalParticipants":1,"winners":["651790387198820425"]}
+[2026-08-16T20:43:19.882Z] [GIVEAWAY] end_msg_updated {"messageId":"1538642981530108094"}
+[2026-08-16T20:43:20.492Z] [GIVEAWAY] end_announce_send_failed {"messageId":"1538642981530108094","error":"Invalid Form Body\ncontent[MESSAGE_CANNOT_USE_LEGACY_FIELDS_WITH_COMPONENTS_V2]: The 'content' field cannot be used when using MessageFlags.IS_COMPONENTS_V2"}
+[2026-08-16T20:43:20.493Z] [GIVEAWAY] end_announce_sent {"messageId":"1538642981530108094"}
+[2026-08-16T20:43:21.619Z] [GIVEAWAY] end_dm_sent {"messageId":"1538642981530108094","winner":"651790387198820425"}
+[2026-08-16T20:43:21.621Z] [GIVEAWAY] end_complete {"messageId":"1538642981530108094","winnerCount":1}
+[2026-08-16T20:43:22.074Z] [GIVEAWAY] forceend_start {"messageId":"1538642981530108094","userId":"651790387198820425"}
+[2026-08-16T20:43:22.076Z] [GIVEAWAY] end_start {"messageId":"1538642981530108094","isReroll":false,"customWinnerCount":null}
+[2026-08-16T20:43:22.081Z] [GIVEAWAY] end_already_ended {"messageId":"1538642981530108094"}
+[2026-08-16T20:43:42.231Z] [GIVEAWAY] home_back {"guildId":"1062369725067304990","userId":"651790387198820425"}
+[2026-08-16T20:44:01.351Z] [GIVEAWAY] start_modal {"userId":"651790387198820425","prize":"Dildo","durationStr":"1m","winnerCount":1,"channelInputStr":"1176648341015248906"}
+[2026-08-16T20:44:02.377Z] [GIVEAWAY] start_complete {"messageId":"1538649557716435115","prize":"Dildo","channelId":"1176648341015248906","endsAt":1786913101353}
+[2026-08-16T20:44:06.400Z] [GIVEAWAY] join_toggled {"messageId":"1538649557716435115","userId":"651790387198820425","joined":true,"count":1}
+[2026-08-16T20:44:09.401Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786913049401}
+[2026-08-16T20:44:12.494Z] [GIVEAWAY] list_open {"guildId":"1062369725067304990","userId":"651790387198820425"}
+[2026-08-16T20:44:15.485Z] [GIVEAWAY] manage_select {"messageId":"1538649557716435115","userId":"651790387198820425"}
+[2026-08-16T20:44:19.404Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786913059404}
+[2026-08-16T20:44:22.118Z] [GIVEAWAY] parts_toggle {"messageId":"1538649557716435115","userId":"651790387198820425","from":1,"to":false}
+[2026-08-16T20:44:29.405Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786913069405}
+[2026-08-16T20:44:32.586Z] [GIVEAWAY] home_back {"guildId":"1062369725067304990","userId":"651790387198820425"}
+[2026-08-16T20:44:35.248Z] [GIVEAWAY] settings_modal_open {"userId":"651790387198820425"}
+[2026-08-16T20:44:39.406Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786913079406}
+[2026-08-16T20:44:49.405Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786913089405}
+[2026-08-16T20:44:52.059Z] [GIVEAWAY] settings_saved {"guildId":"1062369725067304990","data":{"manager_roles":["1063134633610461194"],"log_channel_id":"1063135394260078673","ping_role_id":"1064098867659931700","ignored_roles":[],"dm_winner":true,"show_parts":true}}
+[2026-08-16T20:44:59.409Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786913099409}
+[2026-08-16T20:45:09.408Z] [GIVEAWAY] scheduler_ending [serialize-error]
+[2026-08-16T20:45:09.410Z] [GIVEAWAY] end_start {"messageId":"1538649557716435115","isReroll":false,"customWinnerCount":null}
+[2026-08-16T20:45:09.413Z] [GIVEAWAY] end_winners_selected {"messageId":"1538649557716435115","totalParticipants":1,"winners":["651790387198820425"]}
+[2026-08-16T20:45:11.435Z] [GIVEAWAY] end_msg_updated {"messageId":"1538649557716435115"}
+[2026-08-16T20:45:12.291Z] [GIVEAWAY] end_announce_send_failed {"messageId":"1538649557716435115","error":"Invalid Form Body\ncontent[MESSAGE_CANNOT_USE_LEGACY_FIELDS_WITH_COMPONENTS_V2]: The 'content' field cannot be used when using MessageFlags.IS_COMPONENTS_V2"}
+[2026-08-16T20:45:12.293Z] [GIVEAWAY] end_announce_sent {"messageId":"1538649557716435115"}
+[2026-08-16T20:45:12.828Z] [GIVEAWAY] end_dm_sent {"messageId":"1538649557716435115","winner":"651790387198820425"}
+[2026-08-16T20:45:12.829Z] [GIVEAWAY] end_complete {"messageId":"1538649557716435115","winnerCount":1}
+[2026-08-16T20:45:12.830Z] [GIVEAWAY] scheduler_tick {"activeCount":1,"now":1786913109408}
+[2026-08-16T20:46:00.542Z] [GIVEAWAY] list_open {"guildId":"1062369725067304990","userId":"651790387198820425"}
+[2026-08-16T20:46:03.930Z] [GIVEAWAY] home_back {"guildId":"1062369725067304990","userId":"651790387198820425"}
+[00:00:48] Bot çıktı! Exit kodu: 143
+[00:00:53] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+/root/discord_mod_bot/db.js:1892
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1892:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:00:55] Bot çıktı! Exit kodu: 1
+[00:01:01] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ enable debugging { debug: true }
+/root/discord_mod_bot/db.js:1892
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1892:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:01:03] Bot çıktı! Exit kodu: 1
+[00:01:08] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+/root/discord_mod_bot/db.js:1892
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1892:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:01:11] Bot çıktı! Exit kodu: 1
+[00:01:16] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+/root/discord_mod_bot/db.js:1892
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1892:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:01:19] Bot çıktı! Exit kodu: 1
+[00:01:24] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+/root/discord_mod_bot/db.js:1892
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1892:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:01:27] Bot çıktı! Exit kodu: 1
+[00:01:32] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ enable debugging { debug: true }
+/root/discord_mod_bot/db.js:1892
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1892:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:01:35] Bot çıktı! Exit kodu: 1
+[00:01:40] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+/root/discord_mod_bot/db.js:1892
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1892:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:01:43] Bot çıktı! Exit kodu: 1
+[00:01:48] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+/root/discord_mod_bot/db.js:1892
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1892:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:01:51] Bot çıktı! Exit kodu: 1
+[00:01:56] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ override existing { override: true }
+/root/discord_mod_bot/db.js:1892
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1892:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:01:59] Bot çıktı! Exit kodu: 1
+[00:02:04] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+/root/discord_mod_bot/db.js:1892
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1892:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:02:07] Bot çıktı! Exit kodu: 1
+[00:02:12] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ override existing { override: true }
+/root/discord_mod_bot/db.js:1892
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1892:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:02:15] Bot çıktı! Exit kodu: 1
+[00:02:20] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ enable debugging { debug: true }
+/root/discord_mod_bot/db.js:1892
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1892:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:02:23] Bot çıktı! Exit kodu: 1
+[00:02:28] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ override existing { override: true }
+/root/discord_mod_bot/db.js:1892
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1892:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:02:31] Bot çıktı! Exit kodu: 1
+[00:02:36] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:02:39] Bot çıktı! Exit kodu: 1
+[00:02:44] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:02:47] Bot çıktı! Exit kodu: 1
+[00:02:52] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:02:55] Bot çıktı! Exit kodu: 1
+[00:03:00] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:03:03] Bot çıktı! Exit kodu: 1
+[00:03:08] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:03:11] Bot çıktı! Exit kodu: 1
+[00:03:16] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:03:19] Bot çıktı! Exit kodu: 1
+[00:03:24] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:03:27] Bot çıktı! Exit kodu: 1
+[00:03:32] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ override existing { override: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:03:35] Bot çıktı! Exit kodu: 1
+[00:03:40] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:03:43] Bot çıktı! Exit kodu: 1
+[00:03:48] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:03:51] Bot çıktı! Exit kodu: 1
+[00:03:56] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:03:59] Bot çıktı! Exit kodu: 1
+[00:04:04] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:04:07] Bot çıktı! Exit kodu: 1
+[00:04:12] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:04:16] Bot çıktı! Exit kodu: 1
+[00:04:21] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:04:24] Bot çıktı! Exit kodu: 1
+[00:04:29] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:04:32] Bot çıktı! Exit kodu: 1
+[00:04:37] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:04:40] Bot çıktı! Exit kodu: 1
+[00:04:45] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ enable debugging { debug: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:04:48] Bot çıktı! Exit kodu: 1
+[00:04:53] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:04:56] Bot çıktı! Exit kodu: 1
+[00:05:01] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:05:04] Bot çıktı! Exit kodu: 1
+[00:05:09] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:05:12] Bot çıktı! Exit kodu: 1
+[00:05:17] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:05:20] Bot çıktı! Exit kodu: 1
+[00:05:25] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:05:28] Bot çıktı! Exit kodu: 1
+[00:05:33] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:05:36] Bot çıktı! Exit kodu: 1
+[00:05:41] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:05:44] Bot çıktı! Exit kodu: 1
+[00:05:49] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:05:52] Bot çıktı! Exit kodu: 1
+[00:05:58] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:06:01] Bot çıktı! Exit kodu: 1
+[00:06:06] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ override existing { override: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:06:09] Bot çıktı! Exit kodu: 1
+[00:06:14] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ enable debugging { debug: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:06:17] Bot çıktı! Exit kodu: 1
+[00:06:22] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:06:25] Bot çıktı! Exit kodu: 1
+[00:06:30] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:06:33] Bot çıktı! Exit kodu: 1
+[00:06:38] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:06:41] Bot çıktı! Exit kodu: 1
+[00:06:46] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:06:50] Bot çıktı! Exit kodu: 1
+[00:06:55] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:06:57] Bot çıktı! Exit kodu: 1
+[00:07:02] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:07:05] Bot çıktı! Exit kodu: 1
+[00:07:11] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:07:13] Bot çıktı! Exit kodu: 1
+[00:07:19] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:07:21] Bot çıktı! Exit kodu: 1
+[00:07:26] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ enable debugging { debug: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:07:29] Bot çıktı! Exit kodu: 1
+[00:07:34] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:07:37] Bot çıktı! Exit kodu: 1
+[00:07:42] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:07:45] Bot çıktı! Exit kodu: 1
+[00:07:50] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:07:53] Bot çıktı! Exit kodu: 1
+[00:07:58] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:08:01] Bot çıktı! Exit kodu: 1
+[00:08:07] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:08:10] Bot çıktı! Exit kodu: 1
+[00:08:15] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:08:17] Bot çıktı! Exit kodu: 1
+[00:08:23] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:08:26] Bot çıktı! Exit kodu: 1
+[00:08:31] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:08:34] Bot çıktı! Exit kodu: 1
+[00:08:39] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:08:42] Bot çıktı! Exit kodu: 1
+[00:08:47] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:08:50] Bot çıktı! Exit kodu: 1
+[00:08:55] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ enable debugging { debug: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:08:58] Bot çıktı! Exit kodu: 1
+[00:09:03] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:09:06] Bot çıktı! Exit kodu: 1
+[00:09:11] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:09:14] Bot çıktı! Exit kodu: 1
+[00:09:19] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:09:22] Bot çıktı! Exit kodu: 1
+[00:09:27] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:09:30] Bot çıktı! Exit kodu: 1
+[00:09:35] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:09:38] Bot çıktı! Exit kodu: 1
+[00:09:43] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ override existing { override: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:09:46] Bot çıktı! Exit kodu: 1
+[00:09:51] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:09:54] Bot çıktı! Exit kodu: 1
+[00:09:59] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:10:02] Bot çıktı! Exit kodu: 1
+[00:10:07] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ enable debugging { debug: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:10:10] Bot çıktı! Exit kodu: 1
+[00:10:15] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:10:18] Bot çıktı! Exit kodu: 1
+[00:10:23] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:10:26] Bot çıktı! Exit kodu: 1
+[00:10:31] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:10:34] Bot çıktı! Exit kodu: 1
+[00:10:39] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ enable debugging { debug: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:10:42] Bot çıktı! Exit kodu: 1
+[00:10:48] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ enable debugging { debug: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:10:51] Bot çıktı! Exit kodu: 1
+[00:10:56] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:10:59] Bot çıktı! Exit kodu: 1
+[00:11:04] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ enable debugging { debug: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:11:07] Bot çıktı! Exit kodu: 1
+[00:11:12] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:11:14] Bot çıktı! Exit kodu: 1
+[00:11:19] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:11:22] Bot çıktı! Exit kodu: 1
+[00:11:28] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:11:31] Bot çıktı! Exit kodu: 1
+[00:11:36] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:11:39] Bot çıktı! Exit kodu: 1
+[00:11:44] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:11:47] Bot çıktı! Exit kodu: 1
+[00:11:52] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:11:55] Bot çıktı! Exit kodu: 1
+[00:12:00] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ enable debugging { debug: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:12:03] Bot çıktı! Exit kodu: 1
+[00:12:08] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ enable debugging { debug: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:12:11] Bot çıktı! Exit kodu: 1
+[00:12:16] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:12:19] Bot çıktı! Exit kodu: 1
+[00:12:24] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:12:27] Bot çıktı! Exit kodu: 1
+[00:12:32] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:12:35] Bot çıktı! Exit kodu: 1
+[00:12:40] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ suppress logs { quiet: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:12:43] Bot çıktı! Exit kodu: 1
+[00:12:48] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ enable debugging { debug: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:12:51] Bot çıktı! Exit kodu: 1
+[00:12:56] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ override existing { override: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:12:59] Bot çıktı! Exit kodu: 1
+[00:13:04] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:13:07] Bot çıktı! Exit kodu: 1
+[00:13:12] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ override existing { override: true }
+/root/discord_mod_bot/db.js:1891
+    setGiveawayExemptRoles,
+    ^
+
+ReferenceError: setGiveawayExemptRoles is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/db.js:1891:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/index.js:2:20)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+
+Node.js v24.18.0
+[00:13:15] Bot çıktı! Exit kodu: 1
+[00:13:20] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+[Uncaught Exception Yakalandı (Çökme engellendi)]: ReferenceError: createGiveaway is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/utils/giveawayManager.js:730:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/commands/giveaway/giveaway.js:2:35)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+[Uncaught Exception] ReferenceError: createGiveaway is not defined
+    at Object.<anonymous> (/root/discord_mod_bot/utils/giveawayManager.js:730:5)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16)
+    at Object.<anonymous> (/root/discord_mod_bot/commands/giveaway/giveaway.js:2:35)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+[00:14:31] Bot çıktı! Exit kodu: 143
+[00:14:36] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ⌘ override existing { override: true }
+◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+[Bot] Nyx#0026 olarak giriş yapıldı!
+[Bot] Moderasyon sistemleri aktif.
+Database tables initialized.
+[Müzik] Lavalink Düğümü Hazır: Groove-Main
+[Vanity Role] Hata: TypeError: db.getVanityConfig is not a function
+    at Object.execute (/root/discord_mod_bot/events/presenceUpdate.js:15:37)
+    at Client.<anonymous> (/root/discord_mod_bot/index.js:83:54)
+    at Client.emit (node:events:509:28)
+    at PresenceUpdateAction.handle (/root/discord_mod_bot/node_modules/discord.js/src/client/actions/PresenceUpdate.js:40:19)
+    at module.exports [as PRESENCE_UPDATE] (/root/discord_mod_bot/node_modules/discord.js/src/client/websocket/handlers/PRESENCE_UPDATE.js:4:33)
+    at WebSocketManager.handlePacket (/root/discord_mod_bot/node_modules/discord.js/src/client/websocket/WebSocketManager.js:352:31)
+    at WebSocketManager.<anonymous> (/root/discord_mod_bot/node_modules/discord.js/src/client/websocket/WebSocketManager.js:236:12)
+    at WebSocketManager.emit (/root/discord_mod_bot/node_modules/@vladfrangu/async_event_emitter/dist/index.cjs:2504:31)
+    at WebSocketShard.<anonymous> (/root/discord_mod_bot/node_modules/@discordjs/ws/dist/index.js:1190:51)
+    at WebSocketShard.emit (/root/discord_mod_bot/node_modules/@vladfrangu/async_event_emitter/dist/index.cjs:2504:31)
+[Vanity Role] Hata: TypeError: db.getVanityConfig is not a function
+    at Object.execute (/root/discord_mod_bot/events/presenceUpdate.js:15:37)
+    at Client.<anonymous> (/root/discord_mod_bot/index.js:83:54)
+    at Client.emit (node:events:509:28)
+    at PresenceUpdateAction.handle (/root/discord_mod_bot/node_modules/discord.js/src/client/actions/PresenceUpdate.js:40:19)
+    at module.exports [as PRESENCE_UPDATE] (/root/discord_mod_bot/node_modules/discord.js/src/client/websocket/handlers/PRESENCE_UPDATE.js:4:33)
+    at WebSocketManager.handlePacket (/root/discord_mod_bot/node_modules/discord.js/src/client/websocket/WebSocketManager.js:352:31)
+    at WebSocketManager.<anonymous> (/root/discord_mod_bot/node_modules/discord.js/src/client/websocket/WebSocketManager.js:236:12)
+    at WebSocketManager.emit (/root/discord_mod_bot/node_modules/@vladfrangu/async_event_emitter/dist/index.cjs:2504:31)
+    at WebSocketShard.<anonymous> (/root/discord_mod_bot/node_modules/@discordjs/ws/dist/index.js:1190:51)
+    at WebSocketShard.emit (/root/discord_mod_bot/node_modules/@vladfrangu/async_event_emitter/dist/index.cjs:2504:31)
+[00:15:18] Bot çıktı! Exit kodu: 143
+[00:15:23] Bot başlatılıyor...
+◇ injected env (6) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+[Bot] Nyx#0026 olarak giriş yapıldı!
+[Bot] Moderasyon sistemleri aktif.
+Database tables initialized.
+[Müzik] Lavalink Düğümü Hazır: Groove-Main
+[Vanity Role] Hata: TypeError: db.getVanityConfig is not a function
+    at Object.execute (/root/discord_mod_bot/events/presenceUpdate.js:15:37)
+    at Client.<anonymous> (/root/discord_mod_bot/index.js:83:54)
+    at Client.emit (node:events:509:28)
+    at PresenceUpdateAction.handle (/root/discord_mod_bot/node_modules/discord.js/src/client/actions/PresenceUpdate.js:40:19)
+    at module.exports [as PRESENCE_UPDATE] (/root/discord_mod_bot/node_modules/discord.js/src/client/websocket/handlers/PRESENCE_UPDATE.js:4:33)
+    at WebSocketManager.handlePacket (/root/discord_mod_bot/node_modules/discord.js/src/client/websocket/WebSocketManager.js:352:31)
+    at WebSocketManager.<anonymous> (/root/discord_mod_bot/node_modules/discord.js/src/client/websocket/WebSocketManager.js:236:12)
+    at WebSocketManager.emit (/root/discord_mod_bot/node_modules/@vladfrangu/async_event_emitter/dist/index.cjs:2504:31)
+    at WebSocketShard.<anonymous> (/root/discord_mod_bot/node_modules/@discordjs/ws/dist/index.js:1190:51)
+    at WebSocketShard.emit (/root/discord_mod_bot/node_modules/@vladfrangu/async_event_emitter/dist/index.cjs:2504:31)

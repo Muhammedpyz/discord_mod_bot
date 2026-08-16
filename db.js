@@ -1851,16 +1851,28 @@ async function removeMarriage(userId) {
     }
 }
 
+async function updateGiveawayExemptRoles(messageId, exempt_roles) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query('UPDATE guild_giveaways SET exempt_roles = ? WHERE message_id = ?', [JSON.stringify(exempt_roles), messageId]);
+    } catch (e) {
+        console.error('[DB] updateGiveawayExemptRoles error:', e.message);
+        throw e;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
 module.exports = {
     pool,
     initDB,
     getGuildConfig,
     updateConfigCache,
-    updateGuildConfigCache,
     getGuildSetup,
     updateGuildSetupCache, 
     getFilteredWords, 
-    updateFilteredWordsCache, 
+    updateFilteredWordsCache,
     clearFilteredWordsCache,
     getAutoModConfig,
     updateAutoModConfigCache,
@@ -1876,35 +1888,8 @@ module.exports = {
     addGuildLogIgnored,
     removeGuildLogIgnored,
     setGuildLogSettings,
+    setGiveawayExemptRoles: updateGiveawayExemptRoles,
     resetGuildLogs,
-    getLikedSongs,
-    addLikedSong,
-    removeLikedSong,
-    getMusicConfig,
-    updateMusicConfig,
-    addMusicHistory,
-    getMusicHistory,
-    getAntiNukeConfig,
-    setAntiNukeConfig,
-    getAntiNukeWhitelist,
-    addAntiNukeWhitelist,
-    removeAntiNukeWhitelist,
-    addAntiNukeLog,
-    getVanityConfig,
-    setVanityConfig,
-    getMediaChannels,
-    addMediaChannel,
-    removeMediaChannel,
-    getAutoReactChannels,
-    addAutoReactChannel,
-    removeAutoReactChannel,
-    getAutoBumpConfig,
-    setAutoBumpConfig,
-    updateAutoBumpTime,
-    getAutoPostConfigs,
-    addAutoPostConfig,
-    removeAutoPostConfig,
-    updateAutoPostTime,
     getGiveawaySettings,
     setGiveawaySettings,
     createGiveaway,

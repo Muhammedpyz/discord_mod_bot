@@ -75,7 +75,7 @@ function buildManageGiveawayPayload(gw) {
 
     const row1 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`gw_forceend:${gw.message_id}`).setLabel('Şimdi Bitir').setStyle(ButtonStyle.Success).setEmoji(MONO_EMOJIS.trophy || '1537767825937010708').setDisabled(gw.status !== 'active'),
-        new ButtonBuilder().setCustomId(`gw_conditions:${gw.message_id}`).setLabel('Koşullar').setStyle(ButtonStyle.Primary).setEmoji(MONO_EMOJIS.shield || '1530917506867400775').setDisabled(true) // SS2'de koşullar var
+        new ButtonBuilder().setCustomId(`gw_conditions:${gw.message_id}`).setLabel('Muafiyetler').setStyle(ButtonStyle.Primary).setEmoji(MONO_EMOJIS.shield || '1530917506867400775')
     );
     const row2 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`gw_parts_toggle:${gw.message_id}`).setLabel(gw.show_parts === false ? 'Katılanları Göster' : 'Katılanları Gizle').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.user || '1537768132062486558'),
@@ -236,7 +236,7 @@ async function endGiveaway(messageId, client, isReroll = false, customWinnerCoun
         
         const announceContainer = new ContainerBuilder();
         
-        const descText = `<:mono:${MONO_EMOJIS.gift || '1530917482435579974'}> **${gw.prize}**\n\nÇEKİLİŞ SONUCU\n\n${winnerPings} kazandı!\n<:mono:${MONO_EMOJIS.user || '1537768132062486558'}> **Düzenleyen ›** <@${gw.host_id}>`;
+        const descText =         `<:mono:${MONO_EMOJIS.gift}> **${gw.prize}**\n\nÇEKİLİŞ SONUCU\n\n${winnerPings} kazandı!\n<:mono:${MONO_EMOJIS.user}> **Düzenleyen ›** <@${gw.host_id}>`;
         announceContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(descText));
 
         const row = new ActionRowBuilder().addComponents(
@@ -263,10 +263,10 @@ async function endGiveaway(messageId, client, isReroll = false, customWinnerCoun
                 try {
                     const wmember = await guild.members.fetch(wid);
                     if (wmember) {
-                        const dmMsg = createContainerMessage(
-                            `<:mono:${MONO_EMOJIS.gift || '1530917482435579974'}> Çekilişi Kazandınız!`,
-                            `Tebrikler! **${guild.name}** sunucusundaki **${gw.prize}** çekilişini kazandınız.\nÖdülünüz için <@${gw.host_id}> ile iletişime geçebilirsiniz.`,
-                            '#57F287', [], [], false
+                            const dmMsg = createContainerMessage(
+                                `<:mono:${MONO_EMOJIS.gift}> Çekilişi Kazandınız!`,
+                                `Tebrikler! **${guild.name}** sunucusundaki **${gw.prize}** çekilişini kazandınız.\nÖdülünüz için <@${gw.host_id}> ile iletişime geçebilirsiniz.`,
+                                '#57F287', [], [], false
                         );
                         dmMsg.components[0].addActionRowComponents(
                             new ActionRowBuilder().addComponents(
@@ -326,18 +326,48 @@ async function handleGiveawayButton(interaction) {
     // --- MODAL SUBMITS ---
     if (interaction.isModalSubmit()) {
         const { MessageFlags } = require('discord.js');
+        if (customId === 'gw_cond_modal') {
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            const gw = await db.getGiveaway(messageId);
+            if (!gw) return interaction.editReply(createContainerMessage(`<:mono:${MONO_EMOJIS.error || '1530917536806469783'}> İşlem Başarısız`, 'Çekiliş bulunamadı.', '#ED4245', [], [], false));
+
+            const requiredRoleCollection = interaction.fields.getSelectedRoles('gw_cond_required', false);
+            const required_role_id = requiredRoleCollection?.first()?.id || null;
+            const exemptRolesCollection = interaction.fields.getSelectedRoles('gw_cond_exempt', false);
+            const exempt_roles = exemptRolesCollection ? [...exemptRolesCollection.keys()] : [];
+
+            // exempt_roles kolonunu DB'de yok, DB'de eklemeliyiz
+            try {
+                await db.updateGiveawayExemptRoles(messageId, exempt_roles);
+            } catch (e) {
+                logGiveaway('cond_update_failed', { messageId, error: e.message });
+                return interaction.editReply(createContainerMessage(`<:mono:${MONO_EMOJIS.error || '1530917536806469783'}> Hata`, 'Kolon eklenirken hata oluştu: ' + e.message, '#ED4245', [], [], false));
+            }
+
+            logGiveaway('conditions_saved', { messageId, required_role_id, exempt_roles });
+            return interaction.editReply(createContainerMessage(
+                `<:mono:${MONO_EMOJIS.success || '1537769995512053862'}> Koşullar Kaydedildi`,
+                `Katılım koşulu: ${required_role_id ? `<@&${required_role_id}>` : 'herkes'}. Muaf roller: ${exempt_roles.length > 0 ? exempt_roles.map(r => `<@&${r}>`).join(', ') : 'yok'}.`,
+                '#57F287', [], [], false
+            ));
+        }
+
         if (customId === 'gw_modal_start') {
             await interaction.deferReply({ flags: MessageFlags.Ephemeral });
             const prize = interaction.fields.getTextInputValue('prize');
             const durationStr = interaction.fields.getTextInputValue('duration').toLowerCase().trim();
             const winnerCountStr = interaction.fields.getTextInputValue('winner_count') || '1';
-            let channelInputStr = '';
-            try { channelInputStr = interaction.fields.getTextInputValue('channel_id'); } catch(e){}
+            let channel_id = '';
+            try {
+                channel_id = interaction.fields.getSelectedChannels('channel_id', true)[0]?.id || interaction.channel.id;
+            } catch(e) {
+                channel_id = interaction.channel.id;
+            }
             let description = '';
             try { description = interaction.fields.getTextInputValue('description'); } catch(e){}
 
             const winnerCount = parseInt(winnerCountStr, 10) || 1;
-            logGiveaway('start_modal', { userId: interaction.user.id, prize, durationStr, winnerCount, channelInputStr });
+            logGiveaway('start_modal', { userId: interaction.user.id, prize, durationStr, winnerCount, channel_id });
 
             let durationMs = 0;
             const regex = /(\d+)\s*(g|d|sa|s|dk|m|h|w)/g;
@@ -360,13 +390,10 @@ async function handleGiveawayButton(interaction) {
             }
 
             // Çekiliş kanalını bul
-            let targetChannel = interaction.channel;
-            if (channelInputStr) {
-                const chIdMatch = channelInputStr.match(/\d+/);
-                if (chIdMatch) {
-                    const ch = interaction.guild.channels.cache.get(chIdMatch[0]);
-                    if (ch) targetChannel = ch;
-                }
+            const targetChannelId = channel_id;
+            if (targetChannelId) {
+                const ch = interaction.guild.channels.cache.get(targetChannelId);
+                if (ch) interaction.channel = ch;
             }
 
             const endsAt = Date.now() + durationMs;
@@ -384,8 +411,8 @@ async function handleGiveawayButton(interaction) {
 
             const settings = await db.getGiveawaySettings(interaction.guild.id);
             const payload = buildGiveawayPayload(dummyGw, false, [], settings.show_parts);
-            const sentMsg = await targetChannel.send(payload).catch((e) => {
-                logGiveaway('start_send_failed', { prize, channelId: targetChannel.id, error: e.message, errorStack: e.stack ? e.stack.split('\n')[1] : null });
+            const sentMsg = await interaction.channel.send(payload).catch((e) => {
+                logGiveaway('start_send_failed', { prize, channelId: interaction.channel.id, error: e.message, errorStack: e.stack ? e.stack.split('\n')[1] : null });
                 console.error('[Giveaway send hatasi]:', e);
                 return null;
             });
@@ -400,7 +427,7 @@ async function handleGiveawayButton(interaction) {
 
             await db.createGiveaway({
                 message_id: sentMsg.id,
-                channel_id: targetChannel.id,
+                channel_id: interaction.channel.id,
                 guild_id: interaction.guild.id,
                 prize,
                 description: description || '',
@@ -445,19 +472,29 @@ async function handleGiveawayButton(interaction) {
 
         if (customId === 'gw_modal_settings') {
             await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-            const toIds = (arr) => (arr || []).map(x => String(x && x.id !== undefined ? x.id : x)).filter(Boolean);
-            const data = {
-                manager_roles: toIds(interaction.fields.getSelectedRoles('gw_set_manager', false)),
-                log_channel_id: toIds(interaction.fields.getSelectedChannels('gw_set_log', false))[0] || null,
-                ping_role_id: toIds(interaction.fields.getSelectedRoles('gw_set_ping', false))[0] || null,
-                ignored_roles: toIds(interaction.fields.getSelectedRoles('gw_set_ignore', false)),
-                dm_winner: (interaction.fields.getCheckboxGroup('gw_set_options') || []).includes('dm'),
-                show_parts: (interaction.fields.getCheckboxGroup('gw_set_options') || []).includes('katilanlar')
-            };
-            await db.setGiveawaySettings(interaction.guild.id, data);
-            logGiveaway('settings_saved', { guildId: interaction.guild.id, data });
+            const managerRolesCollection = interaction.fields.getSelectedRoles('gw_set_manager', false);
+            const manager_roles = managerRolesCollection ? [...managerRolesCollection.keys()] : [];
+            const logChannelsCollection = interaction.fields.getSelectedChannels('gw_set_log', false);
+            const log_channel_id = logChannelsCollection?.first()?.id || null;
+            const pingRoleCollection = interaction.fields.getSelectedRoles('gw_set_ping', false);
+            const ping_role_id = pingRoleCollection?.first()?.id || null;
+            const ignoredRolesCollection = interaction.fields.getSelectedRoles('gw_set_ignore', false);
+            const ignored_roles = ignoredRolesCollection ? [...ignoredRolesCollection.keys()] : [];
+            const sections = interaction.fields.getCheckboxGroup('gw_set_options') || [];
+            const dm_winner = sections.includes('dm');
+            const show_parts = sections.includes('katilanlar');
+
+            await db.setGiveawaySettings(interaction.guild.id, {
+                manager_roles,
+                log_channel_id,
+                ping_role_id,
+                ignored_roles,
+                dm_winner,
+                show_parts
+            });
+            logGiveaway('settings_saved', { guildId: interaction.guild.id, manager_roles, log_channel_id, ping_role_id, ignored_roles, dm_winner, show_parts });
             return interaction.editReply(createContainerMessage(
-                `<:mono:${MONO_EMOJIS.success || '1530917482435579974'}> Ayarlar Kaydedildi`,
+                `<:mono:${MONO_EMOJIS.success || '1537769995512053862'}> Ayarlar Kaydedildi`,
                 `Çekiliş ayarları güncellendi. Yeni çekilişlerde geçerli olacak.`,
                 '#57F287', [], [], false
             ));
@@ -490,20 +527,26 @@ async function handleGiveawayButton(interaction) {
     const userId = interaction.user.id;
 
     if (action === 'gw_new') {
+        logGiveaway('start_modal_open', { userId });
         const modal = new ModalBuilder().setCustomId('gw_modal_start').setTitle('Yeni Çekiliş');
-        
-        const prizeInput = new TextInputBuilder().setCustomId('prize').setLabel('Ödül *').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ne çekiliyor? Kartın başlığında bu yazacak.');
-        const durationInput = new TextInputBuilder().setCustomId('duration').setLabel('Süre *').setStyle(TextInputStyle.Short).setRequired(true).setValue('1d').setPlaceholder('Örnek: 1g, 6sa, 30dk, 1sa30dk');
-        const countInput = new TextInputBuilder().setCustomId('winner_count').setLabel('Kazanan sayısı *').setStyle(TextInputStyle.Short).setRequired(true).setValue('1').setPlaceholder('1 ile 20 arası.');
-        const channelInput = new TextInputBuilder().setCustomId('channel_id').setLabel('Çekiliş kanalı *').setStyle(TextInputStyle.Short).setRequired(true).setValue(interaction.channel.id).setPlaceholder('Kanal ID veya etiket');
-        const descInput = new TextInputBuilder().setCustomId('description').setLabel('Açıklama').setStyle(TextInputStyle.Paragraph).setRequired(false).setPlaceholder('İsteğe bağlı. Ödülün detayı, kurallar vb.');
-        
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(prizeInput),
-            new ActionRowBuilder().addComponents(durationInput),
-            new ActionRowBuilder().addComponents(countInput),
-            new ActionRowBuilder().addComponents(channelInput),
-            new ActionRowBuilder().addComponents(descInput)
+        modal.addLabelComponents(
+            new LabelBuilder().setLabel('Ödül').setDescription('Çekiliş ödülü (Kartın başlığında bu yazacak)').setTextInputComponent(new TextInputBuilder().setCustomId('prize').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ne çekiliyor?')),
+            new LabelBuilder().setLabel('Süre').setDescription('Örnek: 1g, 6sa, 30dk').setTextInputComponent(new TextInputBuilder().setCustomId('duration').setStyle(TextInputStyle.Short).setRequired(true).setValue('1d').setPlaceholder('1d')),
+            new LabelBuilder().setLabel('Kazanan Sayısı').setDescription('1 ile 20 arası').setTextInputComponent(new TextInputBuilder().setCustomId('winner_count').setStyle(TextInputStyle.Short).setRequired(true).setValue('1').setPlaceholder('1')),
+            new LabelBuilder().setLabel('Çekiliş Kanalı').setDescription('Çekilişin yapılacağı kanal').setChannelSelectMenuComponent(new ChannelSelectMenuBuilder().setCustomId('channel_id').setChannelTypes(ChannelType.GuildText).setRequired(true).setValue(interaction.channel.id)),
+            new LabelBuilder().setLabel('Açıklama').setDescription('Kurallar, özellikler vb.').setTextInputComponent(new TextInputBuilder().setCustomId('description').setStyle(TextInputStyle.Paragraph).setRequired(false))
+        );
+        await interaction.showModal(modal);
+        return true;
+    }
+
+    if (action === 'gw_conditions') {
+        await interaction.deferUpdate();
+        logGiveaway('conditions_modal_open', { messageId, userId });
+        const modal = new ModalBuilder().setCustomId('gw_cond_modal').setTitle('Çekiliş Koşulları');
+        modal.addLabelComponents(
+            new LabelBuilder().setLabel('Katılım Koşulu').setDescription('Kullanıcıların katılabilmek için sahip olması gereken rol (boş = herkes katılabilir).').setRoleSelectMenuComponent(new RoleSelectMenuBuilder().setCustomId('gw_cond_required').setMinValues(0).setMaxValues(1).setRequired(false)),
+            new LabelBuilder().setLabel('Muaf Roller').setDescription('Bu rollere sahip kullanıcılar katılım koşuluna uymadan da katılabilir.').setRoleSelectMenuComponent(new RoleSelectMenuBuilder().setCustomId('gw_cond_exempt').setMinValues(0).setMaxValues(10).setRequired(false))
         );
         await interaction.showModal(modal);
         return true;
