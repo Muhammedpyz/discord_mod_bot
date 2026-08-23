@@ -195,7 +195,7 @@ const DEFAULT_LIMITS = {
 };
 
 const PUNISHMENT_LABELS = {
-    'strip_roles': 'Yönetici Rollerini Al',
+    'strip_roles': 'Rolleri Al + Otorol Ver (Güvenli)',
     'kick': 'Sunucudan At (Kick)',
     'ban': 'Sunucudan Yasakla (Ban)'
 };
@@ -221,6 +221,11 @@ async function buildAntiNukePanel(guildId) {
         ? `<:mono:${MONO_EMOJIS.check || '1530917534885478600'}> \`Aktif\``
         : `<:mono:${MONO_EMOJIS.cross || '1530917536806469783'}> \`Kapalı\``;
 
+    const antiBotStatus = anConfig.anti_bot_add !== false ? '`açık`' : '`kapalı`';
+    const antiWebhookStatus = anConfig.anti_webhook !== false ? '`açık`' : '`kapalı`';
+    const antiIntegrationStatus = anConfig.anti_integration !== false ? '`açık`' : '`kapalı`';
+    const antiUnbanStatus = anConfig.anti_unban !== false ? '`açık`' : '`kapalı`';
+
     const container = new ContainerBuilder();
 
     container.addTextDisplayComponents(
@@ -230,22 +235,25 @@ async function buildAntiNukePanel(guildId) {
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
             "Sunucunu baskınlardan ve yetkili saldırılarından korur.\n" +
-            "Seri kanal/rol silme, toplu ban/kick ve izinsiz bot eklemeleri otomatik engellenir."
+            "Ultra Hızlı HTTP/2 REST Motoru ile seri kanal/rol silme, izinsiz bot, webhook, entegrasyon ve unban işlemleri anında engellenir."
         )
     );
 
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
     const statusText =
-        `- **Kalkan durumu** › ${activeStatus}\n` +
+        `- **Kalkan durumu** › ${activeStatus} *(Tepki: HTTP/2 <15ms)*\n` +
         `- **Yaptırım türü** › \`${punishment}\`\n` +
         `- **Log kanalı** › ${logChannel ? `<#${logChannel}>` : '`ayarlanmadı`'}\n\n` +
-        `- **Kanal silme** › \`${limits.channel_delete_limit}/10sn\`\n` +
-        `- **Kanal açma** › \`${limits.channel_create_limit}/10sn\`\n` +
-        `- **Rol silme** › \`${limits.role_delete_limit}/10sn\`\n` +
-        `- **Rol açma** › \`${limits.role_create_limit}/10sn\`\n` +
-        `- **Toplu ban** › \`${limits.ban_limit}/10sn\`\n` +
-        `- **Toplu kick** › \`${limits.kick_limit}/10sn\`\n\n` +
+        `**Özel Güvenlik Korumaları:**\n` +
+        `- **Anti-Bot Add** › ${antiBotStatus}\n` +
+        `- **Anti-Webhook** › ${antiWebhookStatus}\n` +
+        `- **Anti-Integration** › ${antiIntegrationStatus}\n` +
+        `- **Anti-Unban (Re-Ban)** › ${antiUnbanStatus}\n\n` +
+        `**Eşik Limitleri:**\n` +
+        `- **Kanal silme/açma** › \`${limits.channel_delete_limit}\` / \`${limits.channel_create_limit}/10sn\`\n` +
+        `- **Rol silme/açma** › \`${limits.role_delete_limit}\` / \`${limits.role_create_limit}/10sn\`\n` +
+        `- **Toplu ban/kick** › \`${limits.ban_limit}\` / \`${limits.kick_limit}/10sn\`\n\n` +
         `- **Güvenli liste** › \`${whitelist.length}\` muaf`;
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(statusText));
@@ -264,18 +272,23 @@ async function buildAntiNukePanel(guildId) {
             .setStyle(ButtonStyle.Secondary)
             .setEmoji(MONO_EMOJIS.hammer || '1537770036301668352'),
         new ButtonBuilder()
+            .setCustomId('automod_antinuke_adv_btn')
+            .setLabel('Gelişmiş Korumalar')
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji(MONO_EMOJIS.shield || '1530917506867400775'),
+        new ButtonBuilder()
             .setCustomId('automod_antinuke_limits_btn')
             .setLabel('Limitler')
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji(MONO_EMOJIS.sliders_horizontal || '1537769889840889956'),
+            .setEmoji(MONO_EMOJIS.sliders_horizontal || '1537769889840889956')
+    );
+
+    const row2 = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('automod_antinuke_log_btn')
             .setLabel('Log Kanalı')
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji(MONO_EMOJIS.bell || '1537768114555453561')
-    );
-
-    const row2 = new ActionRowBuilder().addComponents(
+            .setEmoji(MONO_EMOJIS.bell || '1537768114555453561'),
         new ButtonBuilder()
             .setCustomId('automod_antinuke_whitelist_btn')
             .setLabel('Güvenli Liste')

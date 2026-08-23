@@ -1,4 +1,4 @@
-const { Events, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ChannelType, PermissionFlagsBits, ButtonBuilder, ButtonStyle, escapeMarkdown } = require('discord.js');
+const { Events, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ChannelType, PermissionFlagsBits, ButtonBuilder, ButtonStyle, MessageFlags, escapeMarkdown } = require('discord.js');
 const { pool } = require('../db');
 const { createRoomPanel } = require('./roomPanel');
 const config = require('../config.json');
@@ -147,7 +147,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
                 .setRequired(false);
 
             modal.addComponents(new ActionRowBuilder().addComponents(roomNameInput));
-            await interaction.showModal(modal);
+            await interaction.showModal(modal).catch(() => {});
             return;
         }
 
@@ -155,7 +155,9 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
         if (interaction.isModalSubmit() && interaction.customId === 'create_room_modal') {
             const rawName = interaction.fields.getTextInputValue('room_name_input');
             const roomName = (rawName && rawName.trim()) ? rawName.trim() : `${interaction.user.username} Odasi`;
-            try { await interaction.deferReply({ ephemeral: true }); } catch(e) { return; }
+            if (!interaction.deferred && !interaction.replied) {
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
+            }
 
             let conn;
             try {
@@ -602,7 +604,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
                 .setRequired(true);
 
             modal.addComponents(new ActionRowBuilder().addComponents(roomNameInput));
-            await interaction.showModal(modal);
+            await interaction.showModal(modal).catch(() => {});
             return;
         }
 
@@ -654,7 +656,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
                 .setRequired(true);
 
             modal.addComponents(new ActionRowBuilder().addComponents(limitInput));
-            await interaction.showModal(modal);
+            await interaction.showModal(modal).catch(() => {});
             return;
         }
 

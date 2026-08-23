@@ -104,7 +104,7 @@ if (fs.existsSync(foldersPath)) {
 
 client.once(Events.ClientReady, async c => {
     console.log(`[Bot] ${c.user.tag} olarak giriş yapıldı!`);
-    initDB();
+    await initDB();
     const { startMuteChecker } = require('./utils/muteChecker');
     startMuteChecker(client, 30000);
 
@@ -115,6 +115,14 @@ client.once(Events.ClientReady, async c => {
     // Çekiliş (Giveaway) Zamanlayıcısını Başlat
     const { initGiveawayScheduler } = require('./utils/giveawayManager');
     initGiveawayScheduler(client);
+
+    // Canlı Sesli, Kamera ve Yayın XP Motorunu Başlat
+    const { initVoiceXpEngine } = require('./utils/levelManager');
+    initVoiceXpEngine(client);
+
+    // Sistem Durumunu Geri Yükleme (Ses XP sayaçları, Özel odalar vb.)
+    const { restoreSystemState } = require('./utils/systemRestore');
+    await restoreSystemState(client).catch(err => console.error('[Sistem Kurtarma Hatası]:', err));
 
     // Snipe hafıza temizliği (1 saate bir eski snipeleri sil)
     setInterval(() => {
@@ -130,6 +138,27 @@ client.once(Events.ClientReady, async c => {
         }
     }, 300000);
 
+    // Vanity periyodik tarama (10 dakikada bir: yazı varsa rol ver, yazı silindiyse rolü al)
+    const { runVanityScan } = require('./utils/securityPanelHandler');
+    let vanityScanRunning = false;
+    setInterval(async () => {
+        if (vanityScanRunning) return;
+        vanityScanRunning = true;
+        try {
+            const db = require('./db');
+            for (const guild of client.guilds.cache.values()) {
+                const cfg = await db.getVanityConfig(guild.id).catch(() => null);
+                if (cfg && cfg.is_enabled && cfg.vanity_string && cfg.role_id) {
+                    await runVanityScan(guild).catch(() => {});
+                }
+            }
+        } catch (e) {
+            console.error('[Vanity] Periyodik tarama hatası:', e.message);
+        } finally {
+            vanityScanRunning = false;
+        }
+    }, 600000);
+
     console.log(`[Bot] Moderasyon sistemleri aktif.`);
 
     const statuses = [
@@ -144,11 +173,13 @@ client.once(Events.ClientReady, async c => {
     client.invites = new Map();
     for (const [guildId, guild] of client.guilds.cache) {
         try {
-            const firstInvites = await guild.invites.fetch();
-            client.invites.set(guildId, new Map(firstInvites.map(invite => [invite.code, invite.uses])));
-        } catch (e) {
-            console.error(`Davetler çekilemedi: ${guild.name}`);
-        }
+            if (guild.members?.me?.permissions?.has('ManageGuild')) {
+                const firstInvites = await guild.invites.fetch().catch(() => null);
+                if (firstInvites) {
+                    client.invites.set(guildId, new Map(firstInvites.map(invite => [invite.code, invite.uses])));
+                }
+            }
+        } catch (e) {}
     }
     
     let statusIndex = 0;

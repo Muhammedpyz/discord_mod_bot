@@ -1,39 +1,70 @@
+'use strict';
+
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { createContainerMessage, MONO_EMOJIS } = require('../../utils/uiBuilder');
+const { createContainerMessage, MONO_EMOJIS, COLORS } = require('../../utils/uiBuilder');
 const { pool } = require('../../db');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('mod-stat')
-        .setDescription('Sunucudaki yetkililerin moderasyon işlemlerini sıralar (Liderlik Tablosu).')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+        .setDescription('Sunucudaki yetkililerin moderasyon işlemlerini ve performansını sıralar.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+        .addStringOption(opt =>
+            opt.setName('zaman')
+               .setDescription('Filtrelenecek zaman aralığı')
+               .setRequired(false)
+               .addChoices(
+                   { name: 'Tüm Zamanlar (Varsayılan)', value: 'all' },
+                   { name: 'Son 24 Saat', value: '24h' },
+                   { name: 'Son 7 Gün (Bu Hafta)', value: '7d' },
+                   { name: 'Son 30 Gün (Bu Ay)', value: '30d' }
+               )
+        ),
 
     async execute(interaction) {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        const timeFilter = interaction.options.getString('zaman') || 'all';
+
+        let dateClause = '';
+        let timeTitle = 'Tüm Zamanlar';
+        if (timeFilter === '24h') {
+            dateClause = 'AND created_at >= NOW() - INTERVAL 1 DAY';
+            timeTitle = 'Son 24 Saat';
+        } else if (timeFilter === '7d') {
+            dateClause = 'AND created_at >= NOW() - INTERVAL 7 DAY';
+            timeTitle = 'Son 7 Gün (Bu Hafta)';
+        } else if (timeFilter === '30d') {
+            dateClause = 'AND created_at >= NOW() - INTERVAL 30 DAY';
+            timeTitle = 'Son 30 Gün (Bu Ay)';
+        }
 
         let conn;
         try {
             conn = await pool.getConnection();
             
-            // Get all mod actions from warnings, mutes, tickets
+            // 1. Uyarılar (Warnings)
             const warnRows = await conn.query(`
                 SELECT moderator_id as user_id, COUNT(*) as count 
                 FROM warnings 
-                WHERE guild_id = ? AND moderator_id IS NOT NULL AND moderator_id != ''
+                WHERE guild_id = ? AND moderator_id IS NOT NULL AND moderator_id != '' ${dateClause}
                 GROUP BY moderator_id
             `, [interaction.guild.id]);
 
+            // 2. Cezalar & Susturmalar (Mutes, Bans, Kicks)
             const muteRows = await conn.query(`
                 SELECT moderator_id as user_id, action_type, COUNT(*) as count 
                 FROM mutes 
-                WHERE guild_id = ? AND moderator_id IS NOT NULL AND moderator_id != ''
+                WHERE guild_id = ? AND moderator_id IS NOT NULL AND moderator_id != '' ${dateClause}
                 GROUP BY moderator_id, action_type
             `, [interaction.guild.id]);
 
+            // 3. Kapatılan Destek Biletleri (Tickets)
+            const ticketDateClause = dateClause.replace(/created_at/g, 'closed_at');
             const ticketRows = await conn.query(`
                 SELECT closed_by as user_id, COUNT(*) as count 
                 FROM tickets 
-                WHERE guild_id = ? AND closed_by IS NOT NULL AND closed_by != ''
+                WHERE guild_id = ? AND closed_by IS NOT NULL AND closed_by != '' ${ticketDateClause}
                 GROUP BY closed_by
             `, [interaction.guild.id]);
 
@@ -57,32 +88,57 @@ module.exports = {
             const sortedMods = Object.entries(stats).sort((a, b) => b[1].total - a[1].total).slice(0, 10);
 
             if (sortedMods.length === 0) {
-                return interaction.editReply({ content: 'Henüz kaydedilmiş bir moderasyon işlemi bulunmuyor.' });
+                const emptyMsg = createContainerMessage(
+                    `Yetkili Performans Tablosu (${timeTitle})`,
+                    `Belirtilen zaman aralığında (${timeTitle}) kaydedilmiş herhangi bir moderasyon işlemi bulunamadı.`,
+                    COLORS.PRIMARY || '#5865F2'
+                );
+                emptyMsg.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+                return interaction.editReply(emptyMsg);
             }
 
-            let description = '';
             let rank = 1;
-            for (const [userId, data] of sortedMods) {
-                let badge = `**[${rank}]**`;
-                if (rank === 1) badge = `<:mono:${MONO_EMOJIS.trophy}>`;
-                if (rank === 2) badge = `<:mono:${MONO_EMOJIS.medal}>`;
-                if (rank === 3) badge = `<:mono:${MONO_EMOJIS.award}>`;
+            const rankBadges = [
+                `<:mono:${MONO_EMOJIS.trophy || '1537767825937010708'}>`,
+                `<:mono:${MONO_EMOJIS.medal || '1537767798472704032'}>`,
+                `<:mono:${MONO_EMOJIS.award || '1537767883608957048'}>`
+            ];
 
-                description += `${badge} <@${userId}> - Toplam İşlem: **${data.total}**\n`;
-                description += `└ *Uyarı: ${data.warns} | Susturma: ${data.mutes} | Ban: ${data.bans} | Bilet: ${data.tickets}*\n\n`;
+            const lines = [];
+            for (const [userId, data] of sortedMods) {
+                const badge = rankBadges[rank - 1] || `**[#${rank}]**`;
+                lines.push([
+                    `${badge} <@${userId}> — Toplam İşlem: **${data.total}**`,
+                    `> • Uyarı: \`${data.warns}\` | Susturma: \`${data.mutes}\` | Ban: \`${data.bans}\` | Bilet: \`${data.tickets}\``
+                ].join('\n'));
                 rank++;
             }
 
+            const desc = [
+                `**Zaman Filtresi:** \`${timeTitle}\``,
+                ``,
+                lines.join('\n\n'),
+                ``,
+                `*Detaylı moderasyon işlemleri sunucu denetim kayıtları ve log sisteminden anlık hesaplanmaktadır.*`
+            ].join('\n');
+
             const payload = createContainerMessage(
-                'Yetkili Liderlik Tablosu',
-                `Sunucuda en çok moderasyon işlemi yapan ilk 10 yetkili aşağıda listelenmiştir.\n\n${description}`,
-                '#2B2D31'
+                `Yetkili Liderlik Tablosu (${timeTitle})`,
+                desc,
+                COLORS.PRIMARY || '#5865F2'
             );
+            payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
 
             await interaction.editReply(payload);
         } catch (error) {
-            console.error("Mod-stat hatası:", error);
-            await interaction.editReply({ content: 'Sorgu sırasında bir veritabanı hatası oluştu.' });
+            console.error('[Mod-stat error]:', error);
+            const errPayload = createContainerMessage(
+                'Hata',
+                'Sorgu sırasında bir veritabanı hatası oluştu.',
+                COLORS.ERROR || '#ED4245'
+            );
+            errPayload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+            await interaction.editReply(errPayload);
         } finally {
             if (conn) conn.release();
         }

@@ -16,7 +16,7 @@ function buildSorguPanel({ title, description, fields = [], navRow, showSocials 
 }
 const { pool } = require('../db');
 
-function createSorguMenu(targetId, current = 'sorgu_overview', isStaff = false) {
+async function createSorguMenu(targetId, current = 'sorgu_overview', isStaff = false, guildId = null) {
     const options = [
         { label: 'Genel Bilgi & Ozeti', value: 'sorgu_overview', default: current === 'sorgu_overview' },
         { label: 'Sunucu Profil Geçmişi', value: 'sorgu_profile_server', default: current === 'sorgu_profile_server' },
@@ -34,6 +34,18 @@ function createSorguMenu(targetId, current = 'sorgu_overview', isStaff = false) 
         options.push({ label: 'Yetkili: Atılan Mute/Ban', value: 'sorgu_staff_mutes', default: current === 'sorgu_staff_mutes' });
         options.push({ label: 'Yetkili: Silinen Mesajlar', value: 'sorgu_staff_dels', default: current === 'sorgu_staff_dels' });
         options.push({ label: 'Yetkili: Kapatılan Biletler', value: 'sorgu_staff_tickets', default: current === 'sorgu_staff_tickets' });
+    }
+
+    let hasCreatorApps = false;
+    if (guildId) {
+        try {
+            const rows = await pool.query('SELECT COUNT(*) as cnt FROM creator_pending_apps WHERE guild_id = ? AND user_id = ?', [guildId, targetId]);
+            hasCreatorApps = (rows && rows[0] && Number(rows[0].cnt) > 0) || current === 'sorgu_creator_apps';
+        } catch(e) {}
+    }
+
+    if (hasCreatorApps) {
+        options.push({ label: 'İçerik Üretici Başvuruları', value: 'sorgu_creator_apps', default: current === 'sorgu_creator_apps' });
     }
 
     const menu = new StringSelectMenuBuilder()
@@ -107,7 +119,7 @@ async function handleSorguSelect(interaction, value, targetId) {
             const payload = buildSorguPanel({
                 title: `Sunucu İçi Profil & İsim Geçmişi - ${userName}`,
                 description: `Sistemde kayıtlı toplam **${historyRows.length}** değişiklik bulundu (Son 10 gösteriliyor).`,
-                fields, navRow: createSorguMenu(targetId, 'sorgu_profile_server', isStaff), images
+                fields, navRow: await createSorguMenu(targetId, 'sorgu_profile_server', isStaff, interaction.guild.id), images
             });
             return interaction.editReply(payload);
         }
@@ -144,7 +156,7 @@ async function handleSorguSelect(interaction, value, targetId) {
             const payload = buildSorguPanel({
                 title: `Global Profil & İsim Geçmişi - ${userName}`,
                 description: `Sistemde kayıtlı toplam **${historyRows.length}** değişiklik bulundu (Son 10 gösteriliyor).`,
-                fields, navRow: createSorguMenu(targetId, 'sorgu_profile_global', isStaff), images
+                fields, navRow: await createSorguMenu(targetId, 'sorgu_profile_global', isStaff, interaction.guild.id), images
             });
             return interaction.editReply(payload);
         }
@@ -224,7 +236,7 @@ async function handleSorguSelect(interaction, value, targetId) {
                 title: `Genel İşlem Akışı - ${userName}`,
                 description: `Son ${allActions.length > 10 ? '10' : allActions.length} işlem gosteriliyor. Toplam kaydedilmis işlem: **${allActions.length}**`,
                 fields,
-                navRow: createSorguMenu(targetId, 'sorgu_staff', isStaff),
+                navRow: await createSorguMenu(targetId, 'sorgu_staff', isStaff, interaction.guild.id),
                 actionRows,
                 showSocials: false
             });
@@ -249,7 +261,7 @@ async function handleSorguSelect(interaction, value, targetId) {
             const payload = buildSorguPanel({
                 title: `Yetkili: Verilen Uyarılar - ${userName}`,
                 description: `Toplam **${rows.length}** uyarı verdi (Son 10 gösteriliyor).`,
-                fields, navRow: createSorguMenu(targetId, 'sorgu_staff_warns', isStaff), actionRows
+                fields, navRow: await createSorguMenu(targetId, 'sorgu_staff_warns', isStaff, interaction.guild.id), actionRows
             });
             return interaction.editReply(payload);
         }
@@ -272,7 +284,7 @@ async function handleSorguSelect(interaction, value, targetId) {
             const payload = buildSorguPanel({
                 title: `Yetkili: Atılan Mute/Ban/Kick - ${userName}`,
                 description: `Toplam **${rows.length}** ceza attı (Son 10 gösteriliyor).`,
-                fields, navRow: createSorguMenu(targetId, 'sorgu_staff_mutes', isStaff), actionRows
+                fields, navRow: await createSorguMenu(targetId, 'sorgu_staff_mutes', isStaff, interaction.guild.id), actionRows
             });
             return interaction.editReply(payload);
         }
@@ -295,7 +307,7 @@ async function handleSorguSelect(interaction, value, targetId) {
             const payload = buildSorguPanel({
                 title: `Yetkili: Silinen Mesajlar - ${userName}`,
                 description: `Toplam **${rows.length}** mesaj sildi (Son 10 gösteriliyor).`,
-                fields, navRow: createSorguMenu(targetId, 'sorgu_staff_dels', isStaff), actionRows
+                fields, navRow: await createSorguMenu(targetId, 'sorgu_staff_dels', isStaff, interaction.guild.id), actionRows
             });
             return interaction.editReply(payload);
         }
@@ -318,7 +330,102 @@ async function handleSorguSelect(interaction, value, targetId) {
             const payload = buildSorguPanel({
                 title: `Yetkili: Kapatılan Biletler - ${userName}`,
                 description: `Toplam **${rows.length}** ticket kapattı (Son 10 gösteriliyor).`,
-                fields, navRow: createSorguMenu(targetId, 'sorgu_staff_tickets', isStaff), actionRows
+                fields, navRow: await createSorguMenu(targetId, 'sorgu_staff_tickets', isStaff, interaction.guild.id), actionRows
+            });
+            return interaction.editReply(payload);
+        }
+
+        if (value === 'sorgu_creator_apps') {
+            const rows = await conn.query('SELECT * FROM creator_pending_apps WHERE guild_id = ? AND user_id = ? ORDER BY created_at DESC', [interaction.guild.id, targetId]);
+            const historyRows = Array.isArray(rows) ? rows : [];
+            const statusMap = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi' };
+            const eInfo = `<:mono:${MONO_EMOJIS.info}>`;
+            const eCheck = `<:mono:${MONO_EMOJIS.check}>`;
+            const eCross = `<:mono:${MONO_EMOJIS.cross}>`;
+            const statusEmoji = { pending: eInfo, approved: eCheck, rejected: eCross };
+
+            const fields = historyRows.map((m) => {
+                const st = statusMap[m.status] || m.status || 'Bilinmiyor';
+                const stE = statusEmoji[m.status] || eInfo;
+                const created = m.created_at ? `<t:${Math.floor(Number(m.created_at) / 1000)}:f>` : 'Bilinmiyor';
+                const reviewer = m.reviewer_id ? `<@${m.reviewer_id}>` : 'İncelenmedi';
+                const note = m.review_note ? String(m.review_note).slice(0, 200) : 'Yok';
+                return {
+                    name: `Başvuru #${m.id} - ${stE} ${st}`,
+                    value: `**Gönderim:** ${created}\n**İnceleyen:** ${reviewer}\n**Not:** ${note}`
+                };
+            });
+
+            if (fields.length === 0) fields.push({ name: 'Kayıt Yok', value: 'Bu kullanıcıya ait başvuru kaydı bulunamadı.' });
+
+            const actionRows = [];
+            if (historyRows.length > 0) {
+                const pickMenu = new StringSelectMenuBuilder()
+                    .setCustomId(`sorgu:creator_pick:${targetId}`)
+                    .setPlaceholder('Başvuru seçin, soru ve cevaplarını görüntüleyin...')
+                    .addOptions(historyRows.slice(0, 25).map((m) => ({
+                        label: `Başvuru #${m.id} (${statusMap[m.status] || m.status || 'Bilinmiyor'})`,
+                        description: `Gönderim: ${m.created_at ? new Date(Number(m.created_at)).toLocaleDateString('tr-TR') : 'Bilinmiyor'}`,
+                        value: `creator_pick_${m.id}`
+                    })));
+                actionRows.push(new ActionRowBuilder().addComponents(pickMenu));
+            }
+
+            const payload = buildSorguPanel({
+                title: `İçerik Üretici Başvuruları - ${userName}`,
+                description: `Toplam **${historyRows.length}** başvuru bulundu. Başvuru seçerek soru ve cevaplarını görüntüleyebilirsiniz.`,
+                fields, navRow: await createSorguMenu(targetId, 'sorgu_creator_apps', isStaff, interaction.guild.id), actionRows, showSocials: false
+            });
+            return interaction.editReply(payload);
+        }
+
+        if (value.startsWith('creator_pick_')) {
+            const appId = value.replace('creator_pick_', '');
+            const rows = await conn.query('SELECT * FROM creator_pending_apps WHERE id = ? AND guild_id = ?', [appId, interaction.guild.id]);
+            const app = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+            if (!app) {
+                return interaction.editReply({ content: 'Başvuru kaydı bulunamadı.' }).catch(()=>{});
+            }
+
+            const statusMap = { pending: 'İnceleniyor', approved: 'Onaylandı', rejected: 'Reddedildi' };
+            const statusEmoji = { pending: MONO_EMOJIS.info, approved: MONO_EMOJIS.check, rejected: MONO_EMOJIS.cross };
+            const st = statusMap[app.status] || app.status || 'Bilinmiyor';
+
+            const fields = [];
+            let answersArr = [];
+            if (app.answers) {
+                try { answersArr = JSON.parse(app.answers); } catch(e) { answersArr = []; }
+            }
+            if (answersArr.length > 0) {
+                answersArr.forEach((qa, i) => {
+                    fields.push({
+                        name: `${i + 1}. ${qa.q}`,
+                        value: qa.a.length > 1000 ? qa.a.substring(0, 997) + '...' : qa.a
+                    });
+                });
+            } else {
+                fields.push({ name: 'Cevap Yok', value: 'Bu başvuruda kayıtlı cevap bulunamadı.' });
+            }
+
+            const desc = `**Durum:** <:mono:${statusEmoji[app.status] || MONO_EMOJIS.info}> ${st}\n` +
+                `**Gönderim:** ${app.created_at ? `<t:${Math.floor(Number(app.created_at) / 1000)}:f>` : 'Bilinmiyor'}\n` +
+                `**İnceleyen:** ${app.reviewer_id ? `<@${app.reviewer_id}>` : 'İncelenmedi'}\n` +
+                `**Not:** ${app.review_note ? String(app.review_note).slice(0, 300) : 'Yok'}`;
+
+            const backBtn = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`sorgu:creator_back:${targetId}`)
+                    .setLabel('Başvuru Listesine Dön')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+            const payload = buildSorguPanel({
+                title: `Başvuru #${app.id} Detayı - ${userName}`,
+                description: desc,
+                fields,
+                navRow: await createSorguMenu(targetId, 'sorgu_creator_apps', isStaff, interaction.guild.id),
+                actionRows: [backBtn],
+                showSocials: false
             });
             return interaction.editReply(payload);
         }
@@ -437,7 +544,7 @@ async function handleSorguSelect(interaction, value, targetId) {
                 'Kullanıcı Sorgu Paneli',
                 `Aşağıda <@${targetId}> adlı kullanıcının detaylı sicil bilgilerine ulaşabilirsiniz.\n\n**Kayıt Tarihi:** ${createDate}\n**Sunucuya Katılım:** ${joinDate}`,
                 '#2B2D31',
-                [createSorguMenu(targetId, 'sorgu_overview', isStaff)],
+                [await createSorguMenu(targetId, 'sorgu_overview', isStaff, interaction.guild.id)],
                 fieldsArr
             );
             return interaction.editReply(payload);
@@ -450,7 +557,7 @@ async function handleSorguSelect(interaction, value, targetId) {
                 const payload = buildSorguPanel({
                     title: `Uyarı Geçmişi - ${userName}`,
                     description: 'Bu kullanıcıya ait kayitli hicbir uyarı bulunmamaktadır. (Temiz)',
-                    navRow: createSorguMenu(targetId, 'sorgu_warns', isStaff),
+                    navRow: await createSorguMenu(targetId, 'sorgu_warns', isStaff, interaction.guild.id),
                     showSocials: false
                 });
                 return interaction.editReply(payload);
@@ -481,7 +588,7 @@ async function handleSorguSelect(interaction, value, targetId) {
                 title: `Uyarı Geçmişi - ${userName}`,
                 description: `Aktif Uyarı: **${activeWarns}** | Toplam Uyarı Kaydi: **${totalWarns}**`,
                 fields,
-                navRow: createSorguMenu(targetId, 'sorgu_warns', isStaff),
+                navRow: await createSorguMenu(targetId, 'sorgu_warns', isStaff, interaction.guild.id),
                 actionRows,
                 showSocials: false
             });
@@ -494,7 +601,7 @@ async function handleSorguSelect(interaction, value, targetId) {
                 const payload = buildSorguPanel({
                     title: `Susturma Geçmişi - ${userName}`,
                     description: 'Bu kullanıcıya ait kayitli susturma bulunamadı.',
-                    navRow: createSorguMenu(targetId, 'sorgu_mutes', isStaff),
+                    navRow: await createSorguMenu(targetId, 'sorgu_mutes', isStaff, interaction.guild.id),
                     showSocials: false
                 });
                 return interaction.editReply(payload);
@@ -518,7 +625,7 @@ async function handleSorguSelect(interaction, value, targetId) {
                 title: `Susturma Geçmişi - ${userName}`,
                 description: `Toplam Susturma Kaydi: **${rows.length}**`,
                 fields,
-                navRow: createSorguMenu(targetId, 'sorgu_mutes', isStaff),
+                navRow: await createSorguMenu(targetId, 'sorgu_mutes', isStaff, interaction.guild.id),
                 actionRows,
                 showSocials: false
             });
@@ -559,7 +666,7 @@ async function handleSorguSelect(interaction, value, targetId) {
                 title: `Ceza Geçmişi - ${userName}`,
                 description: `Toplam Ceza / İşlem Sayısı: **${totalPenalties}**`,
                 fields,
-                navRow: createSorguMenu(targetId, 'sorgu_penalties', isStaff),
+                navRow: await createSorguMenu(targetId, 'sorgu_penalties', isStaff, interaction.guild.id),
                 actionRows,
                 showSocials: false
             });
@@ -572,7 +679,7 @@ async function handleSorguSelect(interaction, value, targetId) {
                 const payload = buildSorguPanel({
                     title: `Ticket Geçmişi - ${userName}`,
                     description: 'Bu kullanıcıya ait ticket kaydi bulunamadı.',
-                    navRow: createSorguMenu(targetId, 'sorgu_tickets', isStaff),
+                    navRow: await createSorguMenu(targetId, 'sorgu_tickets', isStaff, interaction.guild.id),
                     showSocials: false
                 });
                 return interaction.editReply(payload);
@@ -614,7 +721,7 @@ async function handleSorguSelect(interaction, value, targetId) {
                 title: `Ticket Geçmişi - ${userName}`,
                 description: `Toplam Ticket Sayısı: **${rows.length}**`,
                 fields,
-                navRow: createSorguMenu(targetId, 'sorgu_tickets', isStaff),
+                navRow: await createSorguMenu(targetId, 'sorgu_tickets', isStaff, interaction.guild.id),
                 actionRows,
                 showSocials: false
             });
@@ -627,7 +734,7 @@ async function handleSorguSelect(interaction, value, targetId) {
                 const payload = buildSorguPanel({
                     title: `Silinen Mesajlar - ${userName}`,
                     description: 'Bu kullanıcıya ait veritabaninda silinmis mesaj kaydi bulunamadı.',
-                    navRow: createSorguMenu(targetId, 'sorgu_deleted', isStaff),
+                    navRow: await createSorguMenu(targetId, 'sorgu_deleted', isStaff, interaction.guild.id),
                     showSocials: false
                 });
                 return interaction.editReply(payload);
@@ -657,7 +764,7 @@ async function handleSorguSelect(interaction, value, targetId) {
                 title: `Silinen Mesajlar - ${userName}`,
                 description: `Toplam Silinen Mesaj Kaydi: **${rows.length}**`,
                 fields,
-                navRow: createSorguMenu(targetId, 'sorgu_deleted', isStaff),
+                navRow: await createSorguMenu(targetId, 'sorgu_deleted', isStaff, interaction.guild.id),
                 actionRows,
                 showSocials: false
             });

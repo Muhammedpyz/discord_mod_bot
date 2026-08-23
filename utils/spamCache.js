@@ -12,11 +12,20 @@ class SpamCache {
         this.loadSync();
         
         setInterval(() => {
+            const now = Date.now();
+            let cleaned = false;
+            for (const [key, val] of this.cache.entries()) {
+                if (val && val.lastMessage && (now - val.lastMessage > 60000)) {
+                    this.cache.delete(key);
+                    cleaned = true;
+                }
+            }
+            if (cleaned) this.dirty = true;
             if (this.dirty && !this.saving) {
                 this.save();
                 this.dirty = false;
             }
-        }, 10000);
+        }, 30000);
     }
 
     loadSync() {

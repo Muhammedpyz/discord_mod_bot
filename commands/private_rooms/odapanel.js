@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { pool } = require('../../db');
 const { createRoomPanel } = require('../../utils/roomPanel');
 
@@ -7,12 +7,13 @@ module.exports = {
         .setName('odapanel')
         .setDescription('Özel odanızın yönetim panelini sohbet kanalına yeniden gönderir.'),
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        }
 
         let conn;
         try {
-            const config = require('../config.json');
-            conn = await pool().getConnection();
+            conn = await pool.getConnection();
             
             // Kullanıcının bulunduğu ses kanalını al
             const voiceChannel = interaction.member.voice.channel;

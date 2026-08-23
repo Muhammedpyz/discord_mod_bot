@@ -1,6 +1,6 @@
 const { Events, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { createV2Message, createContainerMessage, COLORS } = require('../utils/uiBuilder');
-const { pool, getGuildConfig, getFilteredWords } = require('../db');
+const { pool, getGuildConfig, getFilteredWords, getMediaChannels, getAutoReactChannels, getAutoBumpConfig, updateAutoBumpTime } = require('../db');
 const { normalizeMessage } = require('../utils/messageNormalizer');
 const { sendLog } = require('../utils/logger');
 const appConfig = require('../config.json');
@@ -9,6 +9,18 @@ const { issueWarning } = require('../utils/warningManager');
 
 const { getAutoModConfig } = require('../db');
 const automodViolations = new Map();
+const afkCache = new Map();
+
+// Periyodik hafıza süpürücü (Memory leak engelleme)
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of automodViolations.entries()) {
+        if (now - val.lastTime > 60000) automodViolations.delete(key);
+    }
+    for (const [key, val] of afkCache.entries()) {
+        if (now > val.expiresAt) afkCache.delete(key);
+    }
+}, 5 * 60 * 1000);
 
 async function handleAutomodViolation(message, reason, ruleName, matchedValue = null, automodCfg = null) {
     if (global.botDeletedMessages) {
@@ -171,10 +183,10 @@ module.exports = {
             const isBumpSuccess = (message.embeds && message.embeds.some(e => e.description && (e.description.includes('Bump done') || e.description.includes('patlatıldı')))) ||
                                   (message.interaction && message.interaction.name === 'bump');
             if (isBumpSuccess) {
-                const bumpCfg = await db.getAutoBumpConfig(message.guild.id).catch(() => null);
+                const bumpCfg = await getAutoBumpConfig(message.guild.id).catch(() => null);
                 if (bumpCfg && bumpCfg.is_enabled) {
                     const now = Date.now();
-                    await db.updateAutoBumpTime(message.guild.id, now);
+                    await updateAutoBumpTime(message.guild.id, now);
                     // 2 saat (7200000 ms) sonra hatırlatıcı zamanlayıcısı
                     setTimeout(async () => {
                         try {
@@ -197,7 +209,7 @@ module.exports = {
         if (!systemNode.checkGuildNode(message.guild.id)) return;
 
         // 1. Sadece Medya Kanalı Denetimi (Media-Only Channels)
-        const mediaChannels = await db.getMediaChannels(message.guild.id).catch(() => []);
+        const mediaChannels = await getMediaChannels(message.guild.id).catch(() => []);
         if (mediaChannels.includes(message.channel.id)) {
             const hasMedia = (message.attachments && message.attachments.size > 0) ||
                              (message.embeds && message.embeds.length > 0) ||
@@ -213,7 +225,7 @@ module.exports = {
         }
 
         // 2. Otomatik Emoji Tepkisi (Auto-React Channels)
-        const autoReactChannels = await db.getAutoReactChannels(message.guild.id).catch(() => []);
+        const autoReactChannels = await getAutoReactChannels(message.guild.id).catch(() => []);
         const reactSetting = autoReactChannels.find(r => r.channel_id === message.channel.id);
         if (reactSetting && reactSetting.emojis) {
             const emojisToReact = reactSetting.emojis.split(/[\s,]+/).filter(Boolean);
@@ -274,12 +286,21 @@ module.exports = {
 
         // --- AFK KONTROLÜ ---
         try {
-            const afkRows = await pool.query('SELECT * FROM afk_users WHERE guild_id = ?', [message.guild.id]);
+            let afkRows = null;
+            const cachedAfk = afkCache.get(message.guild.id);
+            if (cachedAfk && Date.now() < cachedAfk.expiresAt) {
+                afkRows = cachedAfk.rows;
+            } else {
+                afkRows = await pool.query('SELECT * FROM afk_users WHERE guild_id = ?', [message.guild.id]).catch(() => []);
+                afkCache.set(message.guild.id, { rows: afkRows, expiresAt: Date.now() + 15000 });
+            }
+
             if (afkRows && afkRows.length > 0) {
                 // Yazar AFK ise çıkar
                 const authorAfk = afkRows.find(r => r.user_id === message.author.id);
                 if (authorAfk) {
                     await pool.query('DELETE FROM afk_users WHERE user_id = ? AND guild_id = ?', [message.author.id, message.guild.id]);
+                    afkCache.delete(message.guild.id);
                     await message.reply(`Hoş geldin <@${message.author.id}>, **${authorAfk.reason}** sebebiyle olan AFK modundan çıktın!`).then(m => setTimeout(() => m.delete().catch(()=>{}), 10000)).catch(()=>{});
                 }
 
@@ -301,7 +322,11 @@ module.exports = {
         }
         // --- END AFK KONTROLÜ ---
 
-        if (systemNode.checkSystemNode(message.author.id) || message.member.permissions.has('Administrator') || message.member.permissions.has('ManageMessages') || message.member.permissions.has('ModerateMembers')) return;
+        if (systemNode.checkSystemNode(message.author.id) || message.member.permissions.has('Administrator') || message.member.permissions.has('ManageMessages') || message.member.permissions.has('ModerateMembers')) {
+            const { processMessageXP } = require('../utils/levelManager');
+            processMessageXP(message).catch(e => console.error('[Level XP Error]:', e.message));
+            return;
+        }
 
         let config;
         let automodCfg;
@@ -501,5 +526,11 @@ module.exports = {
         } finally {
             if (conn) conn.release();
         }
+
+        // Seviye Sistemi - Mesaj XP Kazanımı & Günlük Görev Takibi
+        const { processMessageXP } = require('../utils/levelManager');
+        const { trackMessageQuest } = require('../utils/questManager');
+        processMessageXP(message).catch(e => console.error('[Level XP Error]:', e.message));
+        trackMessageQuest(message).catch(e => console.error('[Quest Msg Error]:', e.message));
     },
 };

@@ -83,16 +83,50 @@ module.exports = {
         }
 
         // --- STATELESS ROUTING ---
-        if (!interaction.isButton() && !interaction.isStringSelectMenu() && !interaction.isRoleSelectMenu() && !interaction.isChannelSelectMenu() && !interaction.isModalSubmit()) return;
+        if (!interaction.isButton() && !interaction.isAnySelectMenu() && !interaction.isModalSubmit()) return;
 
         // Özel Oda (Private Room) Yönlendirmesi
         const { handlePrivateRoomInteraction } = require('../utils/privateRoomInteractionHandler');
-        await handlePrivateRoomInteraction(interaction, client);
+        const roomHandled = await handlePrivateRoomInteraction(interaction, client);
+        if (roomHandled) return;
 
         // AutoMod (Koruma & Filtre) Yönlendirmesi
         const { handleAutoModInteraction } = require('../utils/automodInteractionHandler');
         const automodHandled = await handleAutoModInteraction(interaction, client);
         if (automodHandled) return;
+
+        // Seviye Sistemi (Level / XP) Yönlendirmesi
+        if (interaction.customId.startsWith('level_')) {
+            const { handleLevelInteraction } = require('../utils/levelManager');
+            try {
+                const levelHandled = await handleLevelInteraction(interaction, client);
+                if (levelHandled) return;
+            } catch (err) {
+                console.error("Level interaction error:", err);
+            }
+        }
+
+        // Günlük Görevler (Quest) Yönlendirmesi
+        if (interaction.customId.startsWith('quest_')) {
+            const { handleQuestInteraction } = require('../utils/questManager');
+            try {
+                const questHandled = await handleQuestInteraction(interaction, client);
+                if (questHandled) return;
+            } catch (err) {
+                console.error("Quest interaction error:", err);
+            }
+        }
+
+        // Liderlik Tablosu (Top) Yönlendirmesi
+        if (interaction.customId.startsWith('top_')) {
+            const { handleTopInteraction } = require('../commands/utility/top');
+            try {
+                const topHandled = await handleTopInteraction(interaction, client);
+                if (topHandled) return;
+            } catch (err) {
+                console.error("Top interaction error:", err);
+            }
+        }
 
         // Güvenlik Panelleri (Auto-Bump & Vanity) Yönlendirmesi
         if (interaction.customId.startsWith('sec_')) {
@@ -102,6 +136,17 @@ module.exports = {
                 if (secHandled) return;
             } catch (err) {
                 console.error("Security panel interaction error:", err);
+            }
+        }
+
+        // Rol Bilgi (Role Info) Paneli Yönlendirmesi
+        if (interaction.customId.startsWith('rolbilgi_')) {
+            const { handleRoleInfoInteraction } = require('../commands/utility/rol-bilgi');
+            try {
+                const rolHandled = await handleRoleInfoInteraction(interaction);
+                if (rolHandled) return;
+            } catch (err) {
+                console.error("Role info interaction error:", err);
             }
         }
 
@@ -193,11 +238,11 @@ module.exports = {
                 
                 const val = interaction.values ? interaction.values[0] : null;
                 if (!val || val === 'help_home') {
-                    const payload = helpEmbedHome(interaction.guild, interaction.user, [createHelpComponents('home')]);
+                    const payload = helpEmbedHome(interaction.guild, interaction.user, [createHelpComponents('home', interaction.member)], interaction.member);
                     return await interaction.editReply(payload).catch(err => console.error('[Yardım] editReply hatası:', err.message));
                 }
                 
-                const payload = getCategoryHelpPayload(val);
+                const payload = getCategoryHelpPayload(val, interaction.member);
                 if (payload) {
                     return await interaction.editReply(payload).catch(err => console.error('[Yardım] editReply hatası:', err.message));
                 }
@@ -329,17 +374,40 @@ module.exports = {
 
         // MOD NAMESPACE
         if (namespace === 'mod') {
+            const { PermissionFlagsBits, MessageFlags } = require('discord.js');
+            const { createContainerMessage, MONO_EMOJIS, COLORS } = require('../utils/uiBuilder');
+            
+            if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+                return interaction.reply(createContainerMessage(
+                    `<:mono:${MONO_EMOJIS.error || '1530917536806469783'}> Yetki Hatası`,
+                    'Bu işlemi yapmak için yetkiniz yok.',
+                    '#ED4245', [], [], false, true
+                ));
+            }
+
             if (action === 'mute') {
-                try { await interaction.deferReply({ ephemeral: true }); } catch (e) { return; }
+                try { await interaction.deferReply({ flags: MessageFlags.Ephemeral }); } catch (e) { return; }
                 try {
                     const member = await interaction.guild.members.fetch(targetId);
                     await member.timeout(10 * 60 * 1000, 'Buton üzerinden hızlı mute');
-                    await interaction.editReply({ content: `<@${targetId}> kullanıcısı susturuldu.` }).catch(e => console.error('Silent catch:', e.message));
+                    const payload = createContainerMessage(
+                        `<:mono:${MONO_EMOJIS.check || '1530917534885478600'}> Susturuldu`,
+                        `<@${targetId}> kullanıcısı 10 dakika susturuldu.`,
+                        '#57F287'
+                    );
+                    payload.flags = MessageFlags.IsComponentsV2;
+                    await interaction.editReply(payload).catch(e => console.error('Silent catch:', e.message));
                 } catch (error) {
-                    await interaction.editReply({ content: `İşlem başarısız: Kullanıcı bulunamadı veya yetkim yetersiz.` }).catch(e => console.error('Silent catch:', e.message));
+                    const errPayload = createContainerMessage(
+                        `<:mono:${MONO_EMOJIS.error || '1530917536806469783'}> İşlem Başarısız`,
+                        'Kullanıcı bulunamadı veya yetkim yetersiz.',
+                        '#ED4245'
+                    );
+                    errPayload.flags = MessageFlags.IsComponentsV2;
+                    await interaction.editReply(errPayload).catch(e => console.error('Silent catch:', e.message));
                 }
             } else if (action === 'ban') {
-                try { await interaction.deferReply({ ephemeral: true }); } catch (e) { return; }
+                try { await interaction.deferReply({ flags: MessageFlags.Ephemeral }); } catch (e) { return; }
                 try {
                     const member = await interaction.guild.members.fetch(targetId);
                     let conn;
@@ -348,13 +416,31 @@ module.exports = {
                         const rows = await conn.query('SELECT banned_role_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
                         if (rows.length > 0 && rows[0].banned_role_id) {
                             await member.roles.add(rows[0].banned_role_id);
-                            await interaction.editReply({ content: `<@${targetId}> kullanıcısı yasaklandı.` }).catch(e => console.error('Silent catch:', e.message));
+                            const payload = createContainerMessage(
+                                `<:mono:${MONO_EMOJIS.check || '1530917534885478600'}> Yasaklandı`,
+                                `<@${targetId}> kullanıcısına yasaklı rolü verildi.`,
+                                '#57F287'
+                            );
+                            payload.flags = MessageFlags.IsComponentsV2;
+                            await interaction.editReply(payload).catch(e => console.error('Silent catch:', e.message));
                         } else {
-                            await interaction.editReply({ content: `Yasaklı rolü ayarlanmamış.` }).catch(e => console.error('Silent catch:', e.message));
+                            const errPayload = createContainerMessage(
+                                `<:mono:${MONO_EMOJIS.error || '1530917536806469783'}> Ayar Eksik`,
+                                'Sunucuda yasaklı rolü ayarlanmamış.',
+                                '#ED4245'
+                            );
+                            errPayload.flags = MessageFlags.IsComponentsV2;
+                            await interaction.editReply(errPayload).catch(e => console.error('Silent catch:', e.message));
                         }
                     } finally { if (conn) conn.release(); }
                 } catch (error) {
-                    await interaction.editReply({ content: `İşlem başarısız: Kullanıcı bulunamadı veya yetkim yetersiz.` }).catch(e => console.error('Silent catch:', e.message));
+                    const errPayload = createContainerMessage(
+                        `<:mono:${MONO_EMOJIS.error || '1530917536806469783'}> İşlem Başarısız`,
+                        'Kullanıcı bulunamadı veya yetkim yetersiz.',
+                        '#ED4245'
+                    );
+                    errPayload.flags = MessageFlags.IsComponentsV2;
+                    await interaction.editReply(errPayload).catch(e => console.error('Silent catch:', e.message));
                 }
             } else if (action === 'ignore') {
                 try { await interaction.deferUpdate(); } catch (e) { return; }
@@ -365,7 +451,13 @@ module.exports = {
         // ISTATISTIK REFRESH
         if (action === 'istatistik_refresh') {
             try { await interaction.deferUpdate(); } catch (e) { return; }
-            await interaction.editReply({ content: 'Bu istatistik menüsü eski sürümdedir. Lütfen /istatistik komutunu tekrar çalıştırın.', components: [] }).catch(() => {});
+            const payload = createContainerMessage(
+                `<:mono:${MONO_EMOJIS.info || '1530917464731422730'}> Menü Güncelleme`,
+                'Bu istatistik menüsü eski sürümdedir. Lütfen `/istatistik` komutunu tekrar çalıştırın.',
+                '#5865F2'
+            );
+            payload.flags = MessageFlags.IsComponentsV2;
+            await interaction.editReply(payload).catch(() => {});
         }
 
         // YETKİLİ BAŞVURU (APP SYSTEM)
@@ -376,7 +468,21 @@ module.exports = {
             } catch (err) {
                 console.error('App interaction err:', err);
                 if (!interaction.replied && !interaction.deferred && interaction.isRepliable()) {
-                    await interaction.reply({ content: 'İşlem sırasında bir hata oluştu.', ephemeral: true }).catch(()=>{});
+                    await interaction.reply({ content: 'İşlem sırasında bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(()=>{});
+                }
+            }
+            return;
+        }
+
+        // İÇERİK ÜRETİCİ BAŞVURU (CREATOR SYSTEM)
+        if (namespace !== 'sorgu' && action.startsWith('creator_')) {
+            const { handleCreatorInteraction } = require('../utils/creatorApplicationSystem');
+            try {
+                await handleCreatorInteraction(interaction, action);
+            } catch (err) {
+                console.error('Creator interaction err:', err);
+                if (!interaction.replied && !interaction.deferred && interaction.isRepliable()) {
+                    await interaction.reply({ content: 'İşlem sırasında bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(()=>{});
                 }
             }
             return;
@@ -384,16 +490,27 @@ module.exports = {
 
         // SORGU NAMESPACE
         if (namespace === 'sorgu') {
+            const { PermissionFlagsBits } = require('discord.js');
+            const { createContainerMessage, MONO_EMOJIS } = require('../utils/uiBuilder');
+
             if (action === 'select') {
                 try { await interaction.deferUpdate(); } catch (e) { return; }
                 return handleSorguSelect(interaction, interaction.values[0], targetId);
+            }
+            if (action === 'creator_pick') {
+                try { await interaction.deferUpdate(); } catch (e) { return; }
+                return handleSorguSelect(interaction, interaction.values[0], targetId);
+            }
+            if (action === 'creator_back') {
+                try { await interaction.deferUpdate(); } catch (e) { return; }
+                return handleSorguSelect(interaction, 'sorgu_creator_apps', targetId);
             }
             if (action.startsWith('export_')) {
                 const exportType = action.replace('export_', '');
                 return handleExport(interaction, exportType, targetId);
             }
             if (action === 'transcript_picker') {
-                try { await interaction.deferReply({ ephemeral: true }); } catch (e) { return; }
+                try { await interaction.deferReply({ flags: MessageFlags.Ephemeral }); } catch (e) { return; }
                 const rawTicketId = interaction.values[0].replace('sorgu:transcript:', '');
                 const ticketId = parseInt(rawTicketId, 10);
                 if (!ticketId || isNaN(ticketId)) return interaction.editReply({ content: 'Geçersiz ticket numarası.' });
@@ -403,7 +520,11 @@ module.exports = {
                     const rows = await conn.query('SELECT * FROM tickets WHERE id = ?', [ticketId]);
                     if (rows.length === 0) return interaction.editReply({ content: 'Transcript bulunamadı.' });
                     const ticket = rows[0];
-                    const dbMsgs = await conn.query('SELECT * FROM ticket_messages WHERE channel_id = ? OR ticket_owner_id = ? ORDER BY created_at ASC', [ticket.channel_id, ticket.owner_id]);
+                    if (ticket.owner_id !== interaction.user.id && !interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
+                        return interaction.editReply({ content: 'Bu bilet dökümünü görüntüleme yetkiniz yok.' });
+                    }
+                    const dbMsgs = await conn.query('SELECT * FROM ticket_messages WHERE channel_id = ? ORDER BY created_at ASC', [ticket.channel_id]);
+
                     const htmlContent = await generateDiscordTranscriptHtml({ guild: interaction.guild, channel: { name: `destek-${ticket.owner_tag || 'kullanıcı'}` }, messages: dbMsgs || [], ticketData: ticket });
                     const textContent = generateDiscordTranscriptText({ guild: interaction.guild, channel: { name: `destek-${ticket.owner_tag || 'kullanıcı'}` }, messages: dbMsgs || [], ticketData: ticket });
                     const channelSlug = ticket.owner_tag ? `destek-${ticket.owner_tag}` : 'destek';

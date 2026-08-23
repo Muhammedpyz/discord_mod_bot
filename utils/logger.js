@@ -330,4 +330,130 @@ async function logGlobalAction(guildId, userId, actionType, actionDetail) {
     }
 }
 
-module.exports = { sendErrorLog, sendActionLog, sendVoiceLog, sendLog, shouldLogEvent, logGlobalAction };
+const PERMISSION_NAMES_TR = {
+    Administrator: 'Yönetici',
+    ViewAuditLog: 'Denetim Kaydını Görüntüle',
+    ManageGuild: 'Sunucuyu Yönet',
+    ManageRoles: 'Rolleri Yönet',
+    ManageChannels: 'Kanalları Yönet',
+    KickMembers: 'Üyeleri At (Kick)',
+    BanMembers: 'Üyeleri Yasakla (Ban)',
+    CreateInstantInvite: 'Davet Oluştur',
+    ChangeNickname: 'Kullanıcı Adı Değiştir',
+    ManageNicknames: 'Kullanıcı Adlarını Yönet',
+    ManageEmojisAndStickers: 'Emojileri ve Çıkartmaları Yönet',
+    ManageGuildExpressions: 'İfadeleri Yönet',
+    ManageWebhooks: 'Webhook\'ları Yönet',
+    ViewChannel: 'Kanalı Görüntüle',
+    SendMessages: 'Mesaj Gönder',
+    SendMessagesInThreads: 'Alt Başlıklarda Mesaj Gönder',
+    CreatePublicThreads: 'Genel Alt Başlık Oluştur',
+    CreatePrivateThreads: 'Özel Alt Başlık Oluştur',
+    EmbedLinks: 'Bağlantı Yerleştir',
+    AttachFiles: 'Dosya Ekle',
+    AddReactions: 'Tepki Ekle',
+    UseExternalEmojis: 'Harici Emoji Kullan',
+    UseExternalStickers: 'Harici Çıkartma Kullan',
+    MentionEveryone: '@everyone, @here ve Rolleri Etiketle',
+    ManageMessages: 'Mesajları Yönet',
+    ManageThreads: 'Alt Başlıkları Yönet',
+    ReadMessageHistory: 'Mesaj Geçmişini Oku',
+    SendTTSMessages: 'Metin Okuma (TTS) Gönder',
+    UseApplicationCommands: 'Uygulama Komutlarını Kullan',
+    SendVoiceMessages: 'Sesli Mesaj Gönder',
+    Connect: 'Bağlan',
+    Speak: 'Konuş',
+    MuteMembers: 'Üyeleri Sustur',
+    DeafenMembers: 'Üyeleri Sağırlaştır',
+    MoveMembers: 'Üyeleri Taşı',
+    UseVAD: 'Ses Eylemini Kullan',
+    PrioritySpeaker: 'Öncelikli Konuşmacı',
+    Stream: 'Video / Yayın Aç',
+    UseSoundboard: 'Ses Panelini Kullan',
+    UseExternalSounds: 'Harici Sesleri Kullan',
+    UseEmbeddedActivities: 'Aktiviteleri Başlat',
+    RequestToSpeak: 'Konuşma Talebi İste'
+};
+
+/**
+ * Akıllı ve Güvenilir Denetim Kaydı (Audit Log) Yetkili Çözücü
+ * @param {Guild} guild 
+ * @param {number|number[]} actionTypes 
+ * @param {string} targetId 
+ * @param {number} maxAgeMs 
+ * @returns {Promise<{ executor: User|null, executorText: string, reason: string|null, entry: GuildAuditLogsEntry|null }>}
+ */
+async function resolveAuditExecutor(guild, actionTypes, targetId = null, maxAgeMs = 15000) {
+    if (!guild) return { executor: null, executorText: 'Bilinmiyor', reason: null, entry: null };
+
+    const types = Array.isArray(actionTypes) ? actionTypes : [actionTypes];
+    
+    // 1. İlk Deneme
+    for (const type of types) {
+        try {
+            const logs = await guild.fetchAuditLogs({ limit: 6, type }).catch(() => null);
+            if (logs && logs.entries && logs.entries.size > 0) {
+                const now = Date.now();
+                const matched = logs.entries.find(entry => {
+                    const isRecent = (now - entry.createdTimestamp) <= maxAgeMs;
+                    if (!isRecent) return false;
+                    if (targetId) {
+                        return entry.targetId === targetId || entry.target?.id === targetId || entry.extra?.channel?.id === targetId;
+                    }
+                    return true;
+                });
+
+                if (matched && matched.executor) {
+                    return {
+                        executor: matched.executor,
+                        executorText: `<@${matched.executor.id}> (\`${matched.executor.tag}\`)`,
+                        reason: matched.reason || null,
+                        entry: matched
+                    };
+                }
+            }
+        } catch (e) {}
+    }
+
+    // 2. Kısa gecikme (350ms) ile ikinci deneme (Audit log ağ gecikmesi durumunda)
+    await new Promise(r => setTimeout(r, 350));
+
+    for (const type of types) {
+        try {
+            const logs = await guild.fetchAuditLogs({ limit: 6, type }).catch(() => null);
+            if (logs && logs.entries && logs.entries.size > 0) {
+                const now = Date.now();
+                const matched = logs.entries.find(entry => {
+                    const isRecent = (now - entry.createdTimestamp) <= (maxAgeMs + 1000);
+                    if (!isRecent) return false;
+                    if (targetId) {
+                        return entry.targetId === targetId || entry.target?.id === targetId || entry.extra?.channel?.id === targetId;
+                    }
+                    return true;
+                });
+
+                if (matched && matched.executor) {
+                    return {
+                        executor: matched.executor,
+                        executorText: `<@${matched.executor.id}> (\`${matched.executor.tag}\`)`,
+                        reason: matched.reason || null,
+                        entry: matched
+                    };
+                }
+            }
+        } catch (e) {}
+    }
+
+    return { executor: null, executorText: 'Bilinmiyor / Discord', reason: null, entry: null };
+}
+
+module.exports = {
+    sendErrorLog,
+    sendActionLog,
+    sendVoiceLog,
+    sendLog,
+    shouldLogEvent,
+    logGlobalAction,
+    resolveAuditExecutor,
+    PERMISSION_NAMES_TR
+};

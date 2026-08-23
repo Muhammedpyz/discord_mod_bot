@@ -6,9 +6,9 @@ const pool = mariadb.createPool({
     user: process.env.DB_USER || 'root', 
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'discord_mod',
-    connectionLimit: 10,
+    connectionLimit: 30,
     idleTimeout: 30000,
-    acquireTimeout: 10000,
+    acquireTimeout: 15000,
     connectTimeout: 10000,
     minDelayValidation: 5000
 });
@@ -21,6 +21,51 @@ async function initDB() {
     let conn;
     try {
         conn = await pool.getConnection();
+        
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_log_channels (
+                guild_id VARCHAR(25) NOT NULL,
+                category VARCHAR(50) NOT NULL,
+                channel_id VARCHAR(25) NOT NULL,
+                PRIMARY KEY (guild_id, category)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        `);
+        
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_log_events (
+                guild_id VARCHAR(25) NOT NULL,
+                event_type VARCHAR(50) NOT NULL,
+                is_active BOOLEAN DEFAULT true,
+                PRIMARY KEY (guild_id, event_type)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        `);
+        
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_log_ignored (
+                guild_id VARCHAR(25) NOT NULL,
+                target_id VARCHAR(25) NOT NULL,
+                target_type ENUM('user', 'channel', 'role') NOT NULL,
+                PRIMARY KEY (guild_id, target_id, target_type)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        `);
+        
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_log_settings (
+                guild_id VARCHAR(25) PRIMARY KEY,
+                embed_color VARCHAR(10) DEFAULT '#2B2D31',
+                log_level VARCHAR(20) DEFAULT 'all'
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        `);
+
+        // Check if show_parts column exists
+        try {
+            await conn.query('SELECT show_parts FROM guild_giveaways LIMIT 1');
+        } catch(e) {
+            if(e.code === 'ER_BAD_FIELD_ERROR') {
+                await conn.query('ALTER TABLE guild_giveaways ADD COLUMN show_parts BOOLEAN DEFAULT true');
+            }
+        }
+
         
         // 1. Guild Config
         await conn.query(`
@@ -607,9 +652,18 @@ async function initDB() {
                 kick_limit INT DEFAULT 4,
                 bot_add_action VARCHAR(20) DEFAULT 'kick',
                 webhook_action VARCHAR(20) DEFAULT 'delete',
+                anti_bot_add BOOLEAN DEFAULT TRUE,
+                anti_webhook BOOLEAN DEFAULT TRUE,
+                anti_integration BOOLEAN DEFAULT TRUE,
+                anti_unban BOOLEAN DEFAULT TRUE,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
         `);
+
+        try { await conn.query('ALTER TABLE guild_antinuke_config ADD COLUMN IF NOT EXISTS anti_bot_add BOOLEAN DEFAULT TRUE'); } catch(e){}
+        try { await conn.query('ALTER TABLE guild_antinuke_config ADD COLUMN IF NOT EXISTS anti_webhook BOOLEAN DEFAULT TRUE'); } catch(e){}
+        try { await conn.query('ALTER TABLE guild_antinuke_config ADD COLUMN IF NOT EXISTS anti_integration BOOLEAN DEFAULT TRUE'); } catch(e){}
+        try { await conn.query('ALTER TABLE guild_antinuke_config ADD COLUMN IF NOT EXISTS anti_unban BOOLEAN DEFAULT TRUE'); } catch(e){}
 
         await conn.query(`
             CREATE TABLE IF NOT EXISTS guild_antinuke_whitelist (
@@ -640,11 +694,26 @@ async function initDB() {
         await conn.query(`
             CREATE TABLE IF NOT EXISTS guild_vanity_config (
                 guild_id VARCHAR(32) PRIMARY KEY,
-                vanity_string VARCHAR(100) NOT NULL,
-                role_id VARCHAR(32) NOT NULL,
-                log_channel_id VARCHAR(32) DEFAULT NULL,
+                vanity_string VARCHAR(100) DEFAULT NULL,
+                role_id VARCHAR(32) DEFAULT NULL,
+                roles JSON DEFAULT NULL,
+                channel_id VARCHAR(32) DEFAULT NULL,
+                message TEXT DEFAULT NULL,
                 is_enabled BOOLEAN DEFAULT FALSE,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        `);
+        await conn.query(`ALTER TABLE guild_vanity_config ADD COLUMN IF NOT EXISTS roles JSON DEFAULT NULL`).catch(() => {});
+        await conn.query(`ALTER TABLE guild_vanity_config ADD COLUMN IF NOT EXISTS channel_id VARCHAR(32) DEFAULT NULL`).catch(() => {});
+        await conn.query(`ALTER TABLE guild_vanity_config ADD COLUMN IF NOT EXISTS message TEXT DEFAULT NULL`).catch(() => {});
+
+        // 2.1 Vanity Users (Durumunda yazı taşıyan üyelerin geçmişi ve anlık takibi)
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_vanity_users (
+                guild_id VARCHAR(32) NOT NULL,
+                user_id VARCHAR(32) NOT NULL,
+                adopted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (guild_id, user_id)
             )
         `);
 
@@ -712,10 +781,24 @@ async function initDB() {
                 status VARCHAR(20) DEFAULT 'active',
                 participants LONGTEXT DEFAULT '[]',
                 winners LONGTEXT DEFAULT '[]',
+                exempt_roles TEXT DEFAULT NULL,
+                min_account_age_days INT DEFAULT NULL,
+                min_membership_days INT DEFAULT NULL,
+                min_boost_tier INT DEFAULT NULL,
+                entries_closed TINYINT DEFAULT 0,
+                image_url VARCHAR(500) DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_guild_status (guild_id, status)
             )
         `);
+
+        // --- Geriye dönük ALTER'lar: eski (sütun yok) DB'ler için idempotency kontrollü ---
+        try { await conn.query('ALTER TABLE guild_giveaways ADD COLUMN IF NOT EXISTS exempt_roles TEXT DEFAULT NULL'); } catch (e) {}
+        try { await conn.query('ALTER TABLE guild_giveaways ADD COLUMN IF NOT EXISTS min_account_age_days INT DEFAULT NULL'); } catch (e) {}
+        try { await conn.query('ALTER TABLE guild_giveaways ADD COLUMN IF NOT EXISTS min_membership_days INT DEFAULT NULL'); } catch (e) {}
+        try { await conn.query('ALTER TABLE guild_giveaways ADD COLUMN IF NOT EXISTS min_boost_tier INT DEFAULT NULL'); } catch (e) {}
+        try { await conn.query('ALTER TABLE guild_giveaways ADD COLUMN IF NOT EXISTS entries_closed TINYINT DEFAULT 0'); } catch (e) {}
+        try { await conn.query('ALTER TABLE guild_giveaways ADD COLUMN IF NOT EXISTS image_url VARCHAR(500) DEFAULT NULL'); } catch (e) {}
 
         await conn.query(`
             CREATE TABLE IF NOT EXISTS guild_giveaway_settings (
@@ -748,6 +831,44 @@ async function initDB() {
                 panel_channel_id VARCHAR(25),
                 panel_message_id VARCHAR(25),
                 result_channel_id VARCHAR(25)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS creator_applications (
+                guild_id VARCHAR(25) PRIMARY KEY,
+                publish_channel_id VARCHAR(25),
+                review_channel_id VARCHAR(25),
+                reviewer_roles TEXT,
+                approve_role_id VARCHAR(25),
+                panel_text TEXT,
+                q1 TEXT, q2 TEXT, q3 TEXT, q4 TEXT, q5 TEXT,
+                is_active BOOLEAN DEFAULT FALSE,
+                published_message_id VARCHAR(25)
+            )
+        `);
+
+        // --- MINECRAFT HESAP EŞLEME TABLOLARI ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS mc_linked_accounts (
+                discord_id VARCHAR(32) PRIMARY KEY,
+                mc_uuid VARCHAR(64) NOT NULL,
+                mc_username VARCHAR(32) NOT NULL,
+                linked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_sync TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_mc_uuid (mc_uuid),
+                INDEX idx_mc_username (mc_username)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS mc_link_requests (
+                verify_code VARCHAR(16) PRIMARY KEY,
+                discord_id VARCHAR(32) NOT NULL,
+                mc_username VARCHAR(32) DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL,
+                INDEX idx_discord_req (discord_id)
             )
         `);
 
@@ -803,6 +924,70 @@ async function initDB() {
         try { await conn.query('ALTER TABLE guild_config ADD COLUMN ghost_ping_enabled BOOLEAN DEFAULT FALSE'); } catch (e) {}
         try { await conn.query('ALTER TABLE guild_config ADD COLUMN counting_channel_id VARCHAR(25)'); } catch (e) {}
         try { await conn.query('ALTER TABLE guild_config ADD COLUMN suggestion_channel_id VARCHAR(25)'); } catch (e) {}
+
+        // --- LEVEL (SEVİYE) SİSTEMİ TABLOLARI ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_level_config (
+                guild_id VARCHAR(32) PRIMARY KEY,
+                enabled BOOLEAN DEFAULT TRUE,
+                announcement_channel_id VARCHAR(32) DEFAULT NULL,
+                announcement_type VARCHAR(20) DEFAULT 'channel',
+                msg_xp INT DEFAULT 15,
+                voice_xp INT DEFAULT 10,
+                xp_per_level INT DEFAULT 100,
+                cooldown_secs INT DEFAULT 60,
+                invite_xp INT DEFAULT 200,
+                reward_mode VARCHAR(20) DEFAULT 'stack',
+                exempt_channels JSON DEFAULT NULL,
+                exempt_roles JSON DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_level_users (
+                guild_id VARCHAR(32) NOT NULL,
+                user_id VARCHAR(32) NOT NULL,
+                xp BIGINT DEFAULT 0,
+                level INT DEFAULT 0,
+                messages INT DEFAULT 0,
+                voice_secs INT DEFAULT 0,
+                invites INT DEFAULT 0,
+                last_xp_at BIGINT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (guild_id, user_id),
+                INDEX idx_guild_xp (guild_id, xp DESC)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS guild_level_rewards (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                level INT NOT NULL,
+                role_id VARCHAR(32) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_guild_level_role (guild_id, level, role_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS user_daily_quests (
+                guild_id VARCHAR(32) NOT NULL,
+                user_id VARCHAR(32) NOT NULL,
+                quest_date VARCHAR(10) NOT NULL,
+                messages_count INT DEFAULT 0,
+                voice_minutes INT DEFAULT 0,
+                suggestions_count INT DEFAULT 0,
+                claimed_msg INT DEFAULT 0,
+                claimed_voice INT DEFAULT 0,
+                claimed_sug INT DEFAULT 0,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (guild_id, user_id, quest_date),
+                INDEX idx_user_date (user_id, quest_date)
+            )
+        `);
         // ---------------------------------------
 
         // İlk açılışta config'i cache'le
@@ -1249,9 +1434,10 @@ async function getMusicConfig(guildId) {
 async function updateMusicConfig(guildId, updates = {}) {
     let conn;
     try {
-        conn = await pool.getConnection();
         const current = await getMusicConfig(guildId);
         const merged = { ...current, ...updates };
+        conn = await pool.getConnection();
+
         await conn.query(`
             INSERT INTO guild_music_config (guild_id, default_volume, is_247_enabled, voice_channel_id, text_channel_id, autoplay_enabled)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -1320,8 +1506,9 @@ async function setAntiNukeConfig(guildId, data) {
             INSERT INTO guild_antinuke_config (
                 guild_id, is_enabled, punishment, log_channel_id,
                 channel_delete_limit, channel_create_limit, role_delete_limit,
-                role_create_limit, ban_limit, kick_limit, bot_add_action, webhook_action
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                role_create_limit, ban_limit, kick_limit, bot_add_action, webhook_action,
+                anti_bot_add, anti_webhook, anti_integration, anti_unban
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 is_enabled = VALUES(is_enabled),
                 punishment = VALUES(punishment),
@@ -1333,12 +1520,17 @@ async function setAntiNukeConfig(guildId, data) {
                 ban_limit = VALUES(ban_limit),
                 kick_limit = VALUES(kick_limit),
                 bot_add_action = VALUES(bot_add_action),
-                webhook_action = VALUES(webhook_action)
+                webhook_action = VALUES(webhook_action),
+                anti_bot_add = VALUES(anti_bot_add),
+                anti_webhook = VALUES(anti_webhook),
+                anti_integration = VALUES(anti_integration),
+                anti_unban = VALUES(anti_unban)
         `, [
             guildId, data.is_enabled ?? true, data.punishment || 'strip_roles', data.log_channel_id || null,
             data.channel_delete_limit || 3, data.channel_create_limit || 3, data.role_delete_limit || 3,
             data.role_create_limit || 3, data.ban_limit || 4, data.kick_limit || 4,
-            data.bot_add_action || 'kick', data.webhook_action || 'delete'
+            data.bot_add_action || 'kick', data.webhook_action || 'delete',
+            data.anti_bot_add ?? true, data.anti_webhook ?? true, data.anti_integration ?? true, data.anti_unban ?? true
         ]);
         return true;
     } finally {
@@ -1395,42 +1587,134 @@ async function addAntiNukeLog(guildId, executorId, actionType, details, punishme
     }
 }
 
+const vanityConfigCache = new Map();
+const mediaChannelsCache = new Map();
+const autoReactChannelsCache = new Map();
+
 async function getVanityConfig(guildId) {
+    const cached = vanityConfigCache.get(guildId);
+    if (cached && Date.now() < cached.expiresAt) {
+        return cached.data;
+    }
+
     let conn;
     try {
         conn = await pool.getConnection();
         const rows = await conn.query('SELECT * FROM guild_vanity_config WHERE guild_id = ?', [guildId]);
-        return rows[0] || null;
+        let data = rows[0] || null;
+        if (data) {
+            // Parse roles JSON
+            if (typeof data.roles === 'string') {
+                try { data.roles = JSON.parse(data.roles); } catch (e) { data.roles = []; }
+            } else if (!data.roles) {
+                data.roles = data.role_id ? [data.role_id] : [];
+            }
+            if (!Array.isArray(data.roles)) {
+                data.roles = data.role_id ? [data.role_id] : [];
+            }
+        }
+        vanityConfigCache.set(guildId, { data, expiresAt: Date.now() + 60000 }); // 60s TTL
+        return data;
     } finally {
         if (conn) conn.release();
     }
 }
 
-async function setVanityConfig(guildId, vanityString, roleId, logChannelId = null, isEnabled = true) {
+async function setVanityConfig(guildId, vanityString, roleIdOrRoles, channelId = null, isEnabled = true, message = null) {
     let conn;
     try {
         conn = await pool.getConnection();
+        let rolesArr = [];
+        let primaryRoleId = null;
+
+        if (Array.isArray(roleIdOrRoles)) {
+            rolesArr = roleIdOrRoles.filter(Boolean);
+            primaryRoleId = rolesArr[0] || null;
+        } else if (roleIdOrRoles) {
+            rolesArr = [roleIdOrRoles];
+            primaryRoleId = roleIdOrRoles;
+        }
+
+        const rolesJson = JSON.stringify(rolesArr);
+
         await conn.query(`
-            INSERT INTO guild_vanity_config (guild_id, vanity_string, role_id, log_channel_id, is_enabled)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO guild_vanity_config (guild_id, vanity_string, role_id, roles, channel_id, is_enabled, message)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 vanity_string = VALUES(vanity_string),
                 role_id = VALUES(role_id),
-                log_channel_id = VALUES(log_channel_id),
-                is_enabled = VALUES(is_enabled)
-        `, [guildId, vanityString, roleId, logChannelId, isEnabled]);
+                roles = VALUES(roles),
+                channel_id = VALUES(channel_id),
+                is_enabled = VALUES(is_enabled),
+                message = VALUES(message)
+        `, [guildId, vanityString, primaryRoleId, rolesJson, channelId, isEnabled, message]);
+        
+        vanityConfigCache.delete(guildId);
         return true;
     } finally {
         if (conn) conn.release();
     }
 }
 
+async function addVanityUser(guildId, userId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const res = await conn.query(`
+            INSERT IGNORE INTO guild_vanity_users (guild_id, user_id)
+            VALUES (?, ?)
+        `, [guildId, userId]);
+        return res.affectedRows > 0;
+    } catch (e) {
+        return false;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function removeVanityUser(guildId, userId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query(`DELETE FROM guild_vanity_users WHERE guild_id = ? AND user_id = ?`, [guildId, userId]);
+        return true;
+    } catch (e) {
+        return false;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getVanityUsers(guildId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query(`
+            SELECT user_id, adopted_at FROM guild_vanity_users 
+            WHERE guild_id = ? 
+            ORDER BY adopted_at DESC
+        `, [guildId]);
+        return rows || [];
+    } catch (e) {
+        return [];
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
 async function getMediaChannels(guildId) {
+    const cached = mediaChannelsCache.get(guildId);
+    if (cached && Date.now() < cached.expiresAt) {
+        return cached.data;
+    }
+
     let conn;
     try {
         conn = await pool.getConnection();
         const rows = await conn.query('SELECT channel_id FROM guild_media_channels WHERE guild_id = ?', [guildId]);
-        return rows.map(r => r.channel_id);
+        const data = rows.map(r => r.channel_id);
+        mediaChannelsCache.set(guildId, { data, expiresAt: Date.now() + 60000 }); // 60s TTL
+        return data;
     } finally {
         if (conn) conn.release();
     }
@@ -1441,6 +1725,7 @@ async function addMediaChannel(guildId, channelId) {
     try {
         conn = await pool.getConnection();
         await conn.query('INSERT IGNORE INTO guild_media_channels (guild_id, channel_id) VALUES (?, ?)', [guildId, channelId]);
+        mediaChannelsCache.delete(guildId);
         return true;
     } finally {
         if (conn) conn.release();
@@ -1452,6 +1737,7 @@ async function removeMediaChannel(guildId, channelId) {
     try {
         conn = await pool.getConnection();
         const res = await conn.query('DELETE FROM guild_media_channels WHERE guild_id = ? AND channel_id = ?', [guildId, channelId]);
+        mediaChannelsCache.delete(guildId);
         return res.affectedRows > 0;
     } finally {
         if (conn) conn.release();
@@ -1459,10 +1745,17 @@ async function removeMediaChannel(guildId, channelId) {
 }
 
 async function getAutoReactChannels(guildId) {
+    const cached = autoReactChannelsCache.get(guildId);
+    if (cached && Date.now() < cached.expiresAt) {
+        return cached.data;
+    }
+
     let conn;
     try {
         conn = await pool.getConnection();
-        return await conn.query('SELECT channel_id, emojis FROM guild_autoreact_channels WHERE guild_id = ?', [guildId]);
+        const data = await conn.query('SELECT channel_id, emojis FROM guild_autoreact_channels WHERE guild_id = ?', [guildId]);
+        autoReactChannelsCache.set(guildId, { data, expiresAt: Date.now() + 60000 }); // 60s TTL
+        return data;
     } finally {
         if (conn) conn.release();
     }
@@ -1477,6 +1770,7 @@ async function addAutoReactChannel(guildId, channelId, emojis) {
             VALUES (?, ?, ?)
             ON DUPLICATE KEY UPDATE emojis = VALUES(emojis)
         `, [guildId, channelId, emojis]);
+        autoReactChannelsCache.delete(guildId);
         return true;
     } finally {
         if (conn) conn.release();
@@ -1488,6 +1782,7 @@ async function removeAutoReactChannel(guildId, channelId) {
     try {
         conn = await pool.getConnection();
         const res = await conn.query('DELETE FROM guild_autoreact_channels WHERE guild_id = ? AND channel_id = ?', [guildId, channelId]);
+        autoReactChannelsCache.delete(guildId);
         return res.affectedRows > 0;
     } finally {
         if (conn) conn.release();
@@ -1634,11 +1929,12 @@ async function createGiveaway(data) {
         await conn.query(`
             INSERT INTO guild_giveaways (
                 message_id, channel_id, guild_id, prize, description,
-                winner_count, required_role_id, host_id, ends_at, status, participants, winners, show_parts
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', '[]', '[]', ?)
+                winner_count, required_role_id, host_id, ends_at, status, participants, winners, show_parts, image_url
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', '[]', '[]', ?, ?)
         `, [
             data.message_id, data.channel_id, data.guild_id, data.prize, data.description || null,
-            data.winner_count || 1, data.required_role_id || null, data.host_id, data.ends_at, data.show_parts !== false
+            data.winner_count || 1, data.required_role_id || null, data.host_id, data.ends_at, data.show_parts !== false,
+            data.image_url || null
         ]);
         return true;
     } finally {
@@ -1655,6 +1951,8 @@ async function getGiveaway(messageId) {
         const gw = rows[0];
         try { gw.participants = JSON.parse(gw.participants || '[]'); } catch (e) { gw.participants = []; }
         try { gw.winners = JSON.parse(gw.winners || '[]'); } catch (e) { gw.winners = []; }
+        try { gw.exempt_roles = JSON.parse(gw.exempt_roles || '[]'); } catch (e) { gw.exempt_roles = []; }
+        gw.entries_closed = !!gw.entries_closed;
         return gw;
     } finally {
         if (conn) conn.release();
@@ -1706,28 +2004,35 @@ async function toggleGiveawayParticipant(messageId, userId) {
     let conn;
     try {
         conn = await pool.getConnection();
-        const rows = await conn.query('SELECT participants, status FROM guild_giveaways WHERE message_id = ?', [messageId]);
+        const rows = await conn.query('SELECT status, participants FROM guild_giveaways WHERE message_id = ? FOR UPDATE', [messageId]);
         if (rows.length === 0 || rows[0].status !== 'active') return null;
 
         let parts = [];
-        try { parts = JSON.parse(rows[0].participants || '[]'); } catch (e) { parts = []; }
+        try {
+            parts = typeof rows[0].participants === 'string' ? JSON.parse(rows[0].participants || '[]') : (rows[0].participants || []);
+        } catch (e) {
+            parts = [];
+        }
 
-        const idx = parts.indexOf(userId);
+        const uid = String(userId);
+        const index = parts.indexOf(uid);
         let joined = false;
-        if (idx === -1) {
-            parts.push(userId);
-            joined = true;
-        } else {
-            parts.splice(idx, 1);
+
+        if (index > -1) {
+            parts.splice(index, 1);
             joined = false;
+        } else {
+            parts.push(uid);
+            joined = true;
         }
 
         await conn.query('UPDATE guild_giveaways SET participants = ? WHERE message_id = ?', [JSON.stringify(parts), messageId]);
-        return { joined, count: parts.length };
+        return { joined, count: parts.length, participants: parts };
     } finally {
         if (conn) conn.release();
     }
 }
+
 
 async function setGiveawayWinners(messageId, winnersArray) {
     let conn;
@@ -1864,11 +2169,619 @@ async function updateGiveawayExemptRoles(messageId, exempt_roles) {
     }
 }
 
+async function setGiveawayConditions(messageId, data) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query(`
+            UPDATE guild_giveaways
+            SET
+                required_role_id = ?,
+                exempt_roles = ?,
+                min_account_age_days = ?,
+                min_membership_days = ?,
+                min_boost_tier = ?
+            WHERE message_id = ?
+        `, [
+            data.required_role_id ?? null,
+            data.exempt_roles ? JSON.stringify(data.exempt_roles) : null,
+            data.min_account_age_days ?? null,
+            data.min_membership_days ?? null,
+            data.min_boost_tier ?? null,
+            messageId
+        ]);
+        return true;
+    } catch (e) {
+        console.error('[DB] setGiveawayConditions error:', e.message);
+        throw e;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function setGiveawayEntriesClosed(messageId, closed) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query('UPDATE guild_giveaways SET entries_closed = ? WHERE message_id = ?', [closed ? 1 : 0, messageId]);
+        return true;
+    } catch (e) {
+        console.error('[DB] setGiveawayEntriesClosed error:', e.message);
+        throw e;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function setGiveawayImage(messageId, imageUrl) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query('UPDATE guild_giveaways SET image_url = ? WHERE message_id = ?', [imageUrl, messageId]);
+        return true;
+    } catch (e) {
+        console.error('[DB] setGiveawayImage error:', e.message);
+        throw e;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+// --- LEVEL / SEVİYE SİSTEMİ VERİTABANI METOTLARI ---
+
+async function getLevelConfig(guildId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM guild_level_config WHERE guild_id = ?', [guildId]);
+        if (rows.length > 0) {
+            const row = rows[0];
+            return {
+                ...row,
+                enabled: row.enabled === 1 || row.enabled === true,
+                exempt_channels: typeof row.exempt_channels === 'string' ? JSON.parse(row.exempt_channels || '[]') : (row.exempt_channels || []),
+                exempt_roles: typeof row.exempt_roles === 'string' ? JSON.parse(row.exempt_roles || '[]') : (row.exempt_roles || [])
+            };
+        }
+        // Varsayılan ayarlar: Sistem yönetici tarafından açılana ve kanal seçilene kadar kapalıdır
+        return {
+            guild_id: guildId,
+            enabled: false,
+            announcement_channel_id: null,
+            announcement_type: 'channel',
+            msg_xp: 15,
+            voice_xp: 10,
+            xp_per_level: 100,
+            cooldown_secs: 60,
+            invite_xp: 200,
+            reward_mode: 'stack',
+            exempt_channels: [],
+            exempt_roles: []
+        };
+    } catch (e) {
+        console.error('[DB] getLevelConfig error:', e.message);
+        return {
+            guild_id: guildId,
+            enabled: false,
+            announcement_channel_id: null,
+            announcement_type: 'channel',
+            msg_xp: 15,
+            voice_xp: 10,
+            xp_per_level: 100,
+            cooldown_secs: 60,
+            invite_xp: 200,
+            reward_mode: 'stack',
+            exempt_channels: [],
+            exempt_roles: []
+        };
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function updateLevelConfig(guildId, updates) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const existing = await conn.query('SELECT * FROM guild_level_config WHERE guild_id = ?', [guildId]);
+        
+        const exemptChans = updates.exempt_channels !== undefined ? JSON.stringify(updates.exempt_channels) : (existing[0]?.exempt_channels || '[]');
+        const exemptRoles = updates.exempt_roles !== undefined ? JSON.stringify(updates.exempt_roles) : (existing[0]?.exempt_roles || '[]');
+        
+        if (existing.length === 0) {
+            await conn.query(`
+                INSERT INTO guild_level_config (
+                    guild_id, enabled, announcement_channel_id, announcement_type,
+                    msg_xp, voice_xp, xp_per_level, cooldown_secs, invite_xp,
+                    reward_mode, exempt_channels, exempt_roles
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [
+                guildId,
+                updates.enabled !== undefined ? updates.enabled : true,
+                updates.announcement_channel_id !== undefined ? updates.announcement_channel_id : null,
+                updates.announcement_type !== undefined ? updates.announcement_type : 'channel',
+                updates.msg_xp !== undefined ? updates.msg_xp : 15,
+                updates.voice_xp !== undefined ? updates.voice_xp : 10,
+                updates.xp_per_level !== undefined ? updates.xp_per_level : 100,
+                updates.cooldown_secs !== undefined ? updates.cooldown_secs : 60,
+                updates.invite_xp !== undefined ? updates.invite_xp : 200,
+                updates.reward_mode !== undefined ? updates.reward_mode : 'stack',
+                exemptChans,
+                exemptRoles
+            ]);
+        } else {
+            const fields = [];
+            const values = [];
+            for (const [key, val] of Object.entries(updates)) {
+                if (key === 'exempt_channels' || key === 'exempt_roles') {
+                    fields.push(`${key} = ?`);
+                    values.push(JSON.stringify(val));
+                } else {
+                    fields.push(`${key} = ?`);
+                    values.push(val);
+                }
+            }
+            if (fields.length > 0) {
+                values.push(guildId);
+                await conn.query(`UPDATE guild_level_config SET ${fields.join(', ')} WHERE guild_id = ?`, values);
+            }
+        }
+        return true;
+    } catch (e) {
+        console.error('[DB] updateLevelConfig error:', e.message);
+        throw e;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+function sanitizeLevelUser(row, guildId, userId) {
+    if (!row) {
+        return {
+            guild_id: guildId,
+            user_id: userId,
+            xp: 0,
+            level: 0,
+            messages: 0,
+            voice_secs: 0,
+            invites: 0,
+            last_xp_at: 0
+        };
+    }
+    return {
+        guild_id: row.guild_id || guildId,
+        user_id: row.user_id || userId,
+        xp: Number(row.xp || 0),
+        level: Number(row.level || 0),
+        messages: Number(row.messages || 0),
+        voice_secs: Number(row.voice_secs || 0),
+        invites: Number(row.invites || 0),
+        last_xp_at: Number(row.last_xp_at || 0)
+    };
+}
+
+async function getLevelUser(guildId, userId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM guild_level_users WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+        return sanitizeLevelUser(rows[0], guildId, userId);
+    } catch (e) {
+        console.error('[DB] getLevelUser error:', e.message);
+        return sanitizeLevelUser(null, guildId, userId);
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function addLevelUserXP(guildId, userId, xpToAdd, isMessage = false, voiceSecs = 0, lastXpAt = null) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const msgIncrement = isMessage ? 1 : 0;
+        const lastXp = lastXpAt || Date.now();
+        
+        await conn.query(`
+            INSERT INTO guild_level_users (guild_id, user_id, xp, level, messages, voice_secs, invites, last_xp_at)
+            VALUES (?, ?, ?, 0, ?, ?, 0, ?)
+            ON DUPLICATE KEY UPDATE
+                xp = xp + VALUES(xp),
+                messages = messages + VALUES(messages),
+                voice_secs = voice_secs + VALUES(voice_secs),
+                last_xp_at = CASE WHEN ? THEN VALUES(last_xp_at) ELSE last_xp_at END
+        `, [guildId, userId, xpToAdd, msgIncrement, voiceSecs, lastXp, isMessage]);
+
+        const rows = await conn.query('SELECT * FROM guild_level_users WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+        return sanitizeLevelUser(rows[0], guildId, userId);
+    } catch (e) {
+        console.error('[DB] addLevelUserXP error:', e.message);
+        throw e;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function addLevelUserInvites(guildId, userId, count = 1, xpToAdd = 0) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query(`
+            INSERT INTO guild_level_users (guild_id, user_id, xp, level, messages, voice_secs, invites, last_xp_at)
+            VALUES (?, ?, ?, 0, 0, 0, ?, 0)
+            ON DUPLICATE KEY UPDATE
+                xp = xp + VALUES(xp),
+                invites = invites + VALUES(invites)
+        `, [guildId, userId, xpToAdd, count]);
+
+        const rows = await conn.query('SELECT * FROM guild_level_users WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+        return sanitizeLevelUser(rows[0], guildId, userId);
+    } catch (e) {
+        console.error('[DB] addLevelUserInvites error:', e.message);
+        throw e;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function setLevelUser(guildId, userId, xp, level) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query(`
+            INSERT INTO guild_level_users (guild_id, user_id, xp, level, messages, voice_secs, invites, last_xp_at)
+            VALUES (?, ?, ?, ?, 0, 0, 0, 0)
+            ON DUPLICATE KEY UPDATE
+                xp = VALUES(xp),
+                level = VALUES(level)
+        `, [guildId, userId, xp, level]);
+        const rows = await conn.query('SELECT * FROM guild_level_users WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+        return sanitizeLevelUser(rows[0], guildId, userId);
+    } catch (e) {
+        console.error('[DB] setLevelUser error:', e.message);
+        throw e;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function resetLevelUser(guildId, userId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query('DELETE FROM guild_level_users WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+        return true;
+    } catch (e) {
+        console.error('[DB] resetLevelUser error:', e.message);
+        throw e;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function resetGuildLevels(guildId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query('DELETE FROM guild_level_users WHERE guild_id = ?', [guildId]);
+        return true;
+    } catch (e) {
+        console.error('[DB] resetGuildLevels error:', e.message);
+        throw e;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getLevelRewards(guildId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM guild_level_rewards WHERE guild_id = ? ORDER BY level ASC', [guildId]);
+        return rows;
+    } catch (e) {
+        console.error('[DB] getLevelRewards error:', e.message);
+        return [];
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function addLevelReward(guildId, level, roleId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query(`
+            INSERT INTO guild_level_rewards (guild_id, level, role_id)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE role_id = VALUES(role_id)
+        `, [guildId, level, roleId]);
+        return true;
+    } catch (e) {
+        console.error('[DB] addLevelReward error:', e.message);
+        throw e;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function removeLevelReward(guildId, rewardId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query('DELETE FROM guild_level_rewards WHERE guild_id = ? AND id = ?', [guildId, rewardId]);
+        return true;
+    } catch (e) {
+        console.error('[DB] removeLevelReward error:', e.message);
+        throw e;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getTopLevelUsers(guildId, limit = 10, category = 'xp') {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        let orderByClause = 'xp DESC';
+        if (category === 'messages') orderByClause = 'messages DESC';
+        else if (category === 'voice') orderByClause = 'voice_secs DESC';
+        else if (category === 'invites') orderByClause = 'invites DESC';
+
+        const rows = await conn.query(`SELECT * FROM guild_level_users WHERE guild_id = ? ORDER BY ${orderByClause} LIMIT ?`, [guildId, limit]);
+        return rows.map(r => sanitizeLevelUser(r, guildId, r.user_id));
+    } catch (e) {
+        console.error('[DB] getTopLevelUsers error:', e.message);
+        return [];
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getTopReputationUsers(guildId, limit = 10) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query(`
+            SELECT user_id, COUNT(*) AS rep_count, MAX(given_at) AS last_given_at
+            FROM reputation
+            WHERE guild_id = ?
+            GROUP BY user_id
+            ORDER BY rep_count DESC
+            LIMIT ?
+        `, [guildId, limit]);
+        return rows;
+    } catch (e) {
+        console.error('[DB] getTopReputationUsers error:', e.message);
+        return [];
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getUserDailyQuests(guildId, userId, dateStr) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query(
+            'SELECT * FROM user_daily_quests WHERE guild_id = ? AND user_id = ? AND quest_date = ?',
+            [guildId, userId, dateStr]
+        );
+        if (rows.length > 0) {
+            return rows[0];
+        }
+        return {
+            guild_id: guildId,
+            user_id: userId,
+            quest_date: dateStr,
+            messages_count: 0,
+            voice_minutes: 0,
+            suggestions_count: 0,
+            claimed_msg: 0,
+            claimed_voice: 0,
+            claimed_sug: 0
+        };
+    } catch (e) {
+        console.error('[DB] getUserDailyQuests error:', e.message);
+        return {
+            guild_id: guildId,
+            user_id: userId,
+            quest_date: dateStr,
+            messages_count: 0,
+            voice_minutes: 0,
+            suggestions_count: 0,
+            claimed_msg: 0,
+            claimed_voice: 0,
+            claimed_sug: 0
+        };
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function incrementDailyQuestProgress(guildId, userId, dateStr, type, amount = 1) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        let column = 'messages_count';
+        if (type === 'voice') column = 'voice_minutes';
+        else if (type === 'suggestion') column = 'suggestions_count';
+
+        await conn.query(`
+            INSERT INTO user_daily_quests (guild_id, user_id, quest_date, ${column})
+            VALUES (?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE ${column} = ${column} + ?
+        `, [guildId, userId, dateStr, amount, amount]);
+
+        const rows = await conn.query(
+            'SELECT * FROM user_daily_quests WHERE guild_id = ? AND user_id = ? AND quest_date = ?',
+            [guildId, userId, dateStr]
+        );
+        return rows[0];
+    } catch (e) {
+        console.error('[DB] incrementDailyQuestProgress error:', e.message);
+        return null;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function claimDailyQuest(guildId, userId, dateStr, type) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        let col = 'claimed_msg';
+        if (type === 'voice') col = 'claimed_voice';
+        else if (type === 'suggestion') col = 'claimed_sug';
+
+        await conn.query(`
+            UPDATE user_daily_quests
+            SET ${col} = 1
+            WHERE guild_id = ? AND user_id = ? AND quest_date = ?
+        `, [guildId, userId, dateStr]);
+
+        const rows = await conn.query(
+            'SELECT * FROM user_daily_quests WHERE guild_id = ? AND user_id = ? AND quest_date = ?',
+            [guildId, userId, dateStr]
+        );
+        return rows[0];
+    } catch (e) {
+        console.error('[DB] claimDailyQuest error:', e.message);
+        return null;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getLevelRank(guildId, userId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query(`
+            SELECT COUNT(*) + 1 AS rank_position
+            FROM guild_level_users
+            WHERE guild_id = ? AND xp > (
+                SELECT COALESCE(xp, 0) FROM guild_level_users WHERE guild_id = ? AND user_id = ?
+            )
+        `, [guildId, guildId, userId]);
+        return Number(rows[0]?.rank_position || 1);
+    } catch (e) {
+        console.error('[DB] getLevelRank error:', e.message);
+        return 1;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+// --- MINECRAFT HESAP EŞLEME YARDIMCILARI ---
+async function createMCLinkRequest(discordId, mcUsername = null) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query('DELETE FROM mc_link_requests WHERE discord_id = ?', [discordId]);
+        const num = Math.floor(100000 + Math.random() * 900000);
+        const code = `TL-${num}`;
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+        await conn.query(
+            'INSERT INTO mc_link_requests (verify_code, discord_id, mc_username, expires_at) VALUES (?, ?, ?, ?)',
+            [code, discordId, mcUsername, expiresAt]
+        );
+        return { code, expiresAt };
+    } catch (e) {
+        console.error('[DB] createMCLinkRequest error:', e.message);
+        return null;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getMCLinkRequestByCode(code) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query(
+            'SELECT * FROM mc_link_requests WHERE verify_code = ? AND expires_at > NOW()',
+            [code]
+        );
+        return rows[0] || null;
+    } catch (e) {
+        console.error('[DB] getMCLinkRequestByCode error:', e.message);
+        return null;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function completeMCLink(code, mcUsername, mcUuid) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const req = await getMCLinkRequestByCode(code);
+        if (!req) return { success: false, reason: 'KOD_GECERSIZ_VEYA_SURESI_DOLMUS' };
+        
+        await conn.query(`
+            INSERT INTO mc_linked_accounts (discord_id, mc_uuid, mc_username, linked_at)
+            VALUES (?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE mc_uuid = VALUES(mc_uuid), mc_username = VALUES(mc_username), last_sync = NOW()
+        `, [req.discord_id, mcUuid, mcUsername]);
+
+        await conn.query('DELETE FROM mc_link_requests WHERE verify_code = ?', [code]);
+        return { success: true, discord_id: req.discord_id, mc_username: mcUsername, mc_uuid: mcUuid };
+    } catch (e) {
+        console.error('[DB] completeMCLink error:', e.message);
+        return { success: false, reason: e.message };
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getMCLinkedAccount(discordId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM mc_linked_accounts WHERE discord_id = ?', [discordId]);
+        return rows[0] || null;
+    } catch (e) {
+        console.error('[DB] getMCLinkedAccount error:', e.message);
+        return null;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getMCLinkByUsername(mcUsername) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM mc_linked_accounts WHERE LOWER(mc_username) = LOWER(?)', [mcUsername]);
+        return rows[0] || null;
+    } catch (e) {
+        console.error('[DB] getMCLinkByUsername error:', e.message);
+        return null;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function unlinkMCAccount(discordId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const res = await conn.query('DELETE FROM mc_linked_accounts WHERE discord_id = ?', [discordId]);
+        return (res.affectedRows || 0) > 0;
+    } catch (e) {
+        console.error('[DB] unlinkMCAccount error:', e.message);
+        return false;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
 module.exports = {
     pool,
     initDB,
     getGuildConfig,
     updateConfigCache,
+    updateGuildConfigCache,
     getGuildSetup,
     updateGuildSetupCache, 
     getFilteredWords, 
@@ -1890,9 +2803,30 @@ module.exports = {
     setGuildLogSettings,
     setGiveawayExemptRoles: updateGiveawayExemptRoles,
     resetGuildLogs,
+    getVanityConfig,
+    setVanityConfig,
+    addVanityUser,
+    removeVanityUser,
+    getVanityUsers,
+    getAntiNukeConfig,
+    setAntiNukeConfig,
+    getAntiNukeWhitelist,
+    addAntiNukeWhitelist,
+    removeAntiNukeWhitelist,
+    getAutoPostConfigs,
+    addAutoPostConfig,
+    removeAutoPostConfig,
+    updateAutoPostTime,
+    getMediaChannels,
+    getAutoReactChannels,
+    getAutoBumpConfig,
+    updateAutoBumpTime,
     getGiveawaySettings,
     setGiveawaySettings,
     createGiveaway,
+    setGiveawayConditions,
+    setGiveawayEntriesClosed,
+    setGiveawayImage,
     getGiveaway,
     getActiveGiveaways,
     getGuildGiveaways,
@@ -1906,5 +2840,39 @@ module.exports = {
     getUserProfile,
     setUserBio,
     setMarriage,
-    removeMarriage
+    removeMarriage,
+    // Müzik Sistemi
+    getLikedSongs,
+    addLikedSong,
+    removeLikedSong,
+    getMusicConfig,
+    updateMusicConfig,
+    addMusicHistory,
+    getMusicHistory,
+    // Level Sistemi
+    getLevelConfig,
+    updateLevelConfig,
+    getLevelUser,
+    addLevelUserXP,
+    addLevelUserInvites,
+    setLevelUser,
+    resetLevelUser,
+    resetGuildLevels,
+    getLevelRewards,
+    addLevelReward,
+    removeLevelReward,
+    getTopLevelUsers,
+    getTopReputationUsers,
+    getUserDailyQuests,
+    incrementDailyQuestProgress,
+    claimDailyQuest,
+    getLevelRank,
+    // Minecraft Hesap Eşleme
+    createMCLinkRequest,
+    getMCLinkRequestByCode,
+    completeMCLink,
+    getMCLinkedAccount,
+    getMCLinkByUsername,
+    unlinkMCAccount
 };
+

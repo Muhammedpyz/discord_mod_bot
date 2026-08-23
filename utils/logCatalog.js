@@ -27,7 +27,8 @@ const LOG_CATEGORIES = {
             { id: 'member_role_remove', name: 'Rol Alınma', desc: 'Üyeden rol alınması (Yetkili bilgisi ile)' },
             { id: 'member_nick_change', name: 'Takma Ad Değişimi', desc: 'Sunucu içi takma ad (nickname) değişimi' },
             { id: 'user_name_change', name: 'Kullanıcı Adı Değişimi', desc: 'Genel Discord kullanıcı adı değişimi' },
-            { id: 'user_avatar_change', name: 'Avatar Değişimi', desc: 'Kullanıcı profil fotoğrafı değişimi' }
+            { id: 'user_avatar_change', name: 'Avatar Değişimi', desc: 'Kullanıcı profil fotoğrafı değişimi' },
+            { id: 'user_banner_change', name: 'Banner Değişimi', desc: 'Kullanıcının profil bannerı değişimi' }
         ]
     },
     ban: {

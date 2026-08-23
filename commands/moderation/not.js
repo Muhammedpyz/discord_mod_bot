@@ -1,31 +1,39 @@
+'use strict';
+
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const { pool } = require('../../db');
-const { createContainerMessage, MONO_EMOJIS } = require('../../utils/uiBuilder');
+const { createContainerMessage, MONO_EMOJIS, COLORS } = require('../../utils/uiBuilder');
 const { sendLog } = require('../../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('not')
-        .setDescription('Moderatör notu sistemi')
+        .setDescription('Moderatör kullanıcı notları sistemi')
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
         .addSubcommand(subcommand =>
             subcommand
                 .setName('ekle')
-                .setDescription('Bir kullanıcıya not ekler')
+                .setDescription('Bir kullanıcıya moderatör notu ekler')
                 .addUserOption(option => option.setName('kullanıcı').setDescription('Not eklenecek kullanıcı').setRequired(true))
-                .addStringOption(option => option.setName('not').setDescription('Eklenecek not').setRequired(true))
+                .addStringOption(option => option.setName('not').setDescription('Eklenecek not içeriği').setRequired(true))
         )
         .addSubcommand(subcommand =>
             subcommand
                 .setName('listele')
-                .setDescription('Kullanıcının notlarını listeler')
+                .setDescription('Kullanıcının geçmiş tüm notlarını listeler')
                 .addUserOption(option => option.setName('kullanıcı').setDescription('Notları listelenecek kullanıcı').setRequired(true))
         )
         .addSubcommand(subcommand =>
             subcommand
                 .setName('sil')
-                .setDescription('Bir notu siler')
+                .setDescription('Belirli bir ID numaralı notu siler')
                 .addIntegerOption(option => option.setName('id').setDescription('Silinecek notun IDsi').setRequired(true))
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('temizle')
+                .setDescription('Bir kullanıcının tüm moderatör notlarını sıfırlar (Yönetici)')
+                .addUserOption(option => option.setName('kullanıcı').setDescription('Tüm notları silinecek kullanıcı').setRequired(true))
         ),
 
     async execute(interaction) {
@@ -36,37 +44,33 @@ module.exports = {
         try {
             conn = await pool.getConnection();
 
+            // 1. NOT EKLE
             if (subCmd === 'ekle') {
                 const targetUser = interaction.options.getUser('kullanıcı');
                 const noteText = interaction.options.getString('not');
 
-                await conn.query(
+                const res = await conn.query(
                     'INSERT INTO mod_notes (guild_id, user_id, moderator_id, note) VALUES (?, ?, ?, ?)',
                     [interaction.guild.id, targetUser.id, interaction.user.id, noteText]
                 );
 
                 const payload = createContainerMessage(
-                    'Not Eklendi',
-                    `<@${targetUser.id}> kullanıcısına not eklendi.\n**Not:** ${noteText}`,
-                    '#2B2D31'
+                    'Moderatör Notu Eklendi',
+                    `<:mono:${MONO_EMOJIS.check || '1530917534885478600'}> <@${targetUser.id}> kullanıcısına not kaydedildi.\n\n> • **Not ID:** \`#${res.insertId}\`\n> • **İçerik:** ${noteText}`,
+                    COLORS.SUCCESS || '#57F287'
                 );
+                payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
                 await interaction.editReply(payload);
 
                 const logPayload = createContainerMessage(
                     'Moderatör Notu Eklendi',
-                    '',
-                    '#2B2D31',
-                    [],
-                    [
-                        { name: 'Kullanıcı', value: `<@${targetUser.id}> (${targetUser.tag || targetUser.username})`, inline: true },
-                        { name: 'Yetkili', value: `<@${interaction.user.id}>`, inline: true },
-                        { name: 'Not', value: noteText, inline: false }
-                    ]
+                    `**Hedef Kullanıcı:** <@${targetUser.id}> (\`${targetUser.tag || targetUser.username}\`)\n**Yetkili:** <@${interaction.user.id}>\n**Not:** ${noteText}`,
+                    COLORS.PRIMARY || '#5865F2'
                 );
-                if (typeof sendLog === 'function') {
-                    await sendLog(interaction.guild, logPayload).catch(() => {});
-                }
+                await sendLog(interaction.guild, logPayload, 'mod').catch(() => {});
             } 
+
+            // 2. NOT LİSTELE
             else if (subCmd === 'listele') {
                 const targetUser = interaction.options.getUser('kullanıcı');
                 const rows = await conn.query(
@@ -76,10 +80,11 @@ module.exports = {
 
                 if (rows.length === 0) {
                     const payload = createContainerMessage(
-                        'Notlar',
-                        `<@${targetUser.id}> kullanıcısı için hiçbir not bulunamadı.`,
-                        '#2B2D31'
+                        'Not Bulunamadı',
+                        `<@${targetUser.id}> kullanıcısı için kaydedilmiş hiçbir moderatör notu bulunmuyor.`,
+                        COLORS.PRIMARY || '#5865F2'
                     );
+                    payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
                     return interaction.editReply(payload);
                 }
 
@@ -92,10 +97,14 @@ module.exports = {
                     const end = start + itemsPerPage;
                     const pageRows = rows.slice(start, end);
 
-                    const fields = pageRows.map(r => ({
-                        name: `ID: ${r.id} | Ekleyen: <@${r.moderator_id}>`,
-                        value: `**Not:** ${r.note}\n**Tarih:** <t:${Math.floor(r.created_at.getTime() / 1000)}:f>`
-                    }));
+                    const lines = pageRows.map(r => {
+                        const timeSec = Math.floor(new Date(r.created_at).getTime() / 1000);
+                        const timeTag = isNaN(timeSec) ? '' : `<t:${timeSec}:f> (<t:${timeSec}:R>)`;
+                        return [
+                            `**[#${r.id}] Ekleyen:** <@${r.moderator_id}> • ${timeTag}`,
+                            `> ${r.note}`
+                        ].join('\n');
+                    });
 
                     const actionRows = [];
                     if (totalPages > 1) {
@@ -103,26 +112,27 @@ module.exports = {
                             new ButtonBuilder()
                                 .setCustomId('prev_page')
                                 .setLabel('Önceki')
-                                .setEmoji(MONO_EMOJIS.chevron_left)
+                                .setEmoji(MONO_EMOJIS.chevron_left || '1530918962890670161')
                                 .setStyle(ButtonStyle.Primary)
                                 .setDisabled(pageNum === 0),
                             new ButtonBuilder()
                                 .setCustomId('next_page')
                                 .setLabel('Sonraki')
-                                .setEmoji(MONO_EMOJIS.chevron_right)
+                                .setEmoji(MONO_EMOJIS.chevron_right || '1530918964593557554')
                                 .setStyle(ButtonStyle.Primary)
                                 .setDisabled(pageNum === totalPages - 1)
                         );
                         actionRows.push(row);
                     }
 
-                    return createContainerMessage(
-                        'Kullanıcı Notları',
-                        `<@${targetUser.id}> kullanıcısına ait notlar (Sayfa ${pageNum + 1}/${totalPages})`,
-                        '#2B2D31',
-                        actionRows,
-                        fields
+                    const container = createContainerMessage(
+                        `Kullanıcı Notları (${rows.length} Not | Sayfa ${pageNum + 1}/${totalPages})`,
+                        `<@${targetUser.id}> kullanıcısına ait kayıtlar:\n\n${lines.join('\n\n')}`,
+                        COLORS.PRIMARY || '#5865F2',
+                        actionRows
                     );
+                    container.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+                    return container;
                 };
 
                 const msg = await interaction.editReply(generatePayload(page));
@@ -131,7 +141,7 @@ module.exports = {
                     const collector = msg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 60000 });
                     collector.on('collect', async i => {
                         if (i.user.id !== interaction.user.id) {
-                            return i.reply({ content: 'Bu butonları sadece komutu kullanan kişi kullanabilir.', flags: MessageFlags.Ephemeral });
+                            return i.reply({ content: 'Bu butonları sadece komutu kullanan yetkili kullanabilir.', flags: MessageFlags.Ephemeral });
                         }
                         if (i.customId === 'prev_page') {
                             page--;
@@ -145,16 +155,19 @@ module.exports = {
                     });
                 }
             }
+
+            // 3. TEKİL NOT SİL
             else if (subCmd === 'sil') {
                 const noteId = interaction.options.getInteger('id');
-                const rows = await conn.query('SELECT moderator_id FROM mod_notes WHERE id = ? AND guild_id = ?', [noteId, interaction.guild.id]);
+                const rows = await conn.query('SELECT moderator_id, note, user_id FROM mod_notes WHERE id = ? AND guild_id = ?', [noteId, interaction.guild.id]);
 
                 if (rows.length === 0) {
                     const payload = createContainerMessage(
                         'Hata',
-                        `Belirtilen ID'ye (${noteId}) sahip bir not bulunamadı.`,
-                        '#2B2D31'
+                        `Belirtilen ID'ye (\`#${noteId}\`) sahip bir moderatör notu bulunamadı.`,
+                        COLORS.ERROR || '#ED4245'
                     );
+                    payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
                     return interaction.editReply(payload);
                 }
 
@@ -164,9 +177,10 @@ module.exports = {
                 if (note.moderator_id !== interaction.user.id && !isAdmin) {
                     const payload = createContainerMessage(
                         'Yetkisiz İşlem',
-                        'Sadece kendi eklediğiniz notları veya yöneticiyseniz diğer notları silebilirsiniz.',
-                        '#2B2D31'
+                        'Sadece kendi eklediğiniz notları silebilirsiniz. (Yöneticiler tüm notları silebilir)',
+                        COLORS.ERROR || '#ED4245'
                     );
+                    payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
                     return interaction.editReply(payload);
                 }
 
@@ -174,14 +188,61 @@ module.exports = {
 
                 const payload = createContainerMessage(
                     'Not Silindi',
-                    `ID'si ${noteId} olan not başarıyla silindi.`,
-                    '#2B2D31'
+                    `<:mono:${MONO_EMOJIS.check || '1530917534885478600'}> \`#${noteId}\` ID'li moderatör notu başarıyla silindi.`,
+                    COLORS.SUCCESS || '#57F287'
                 );
+                payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
                 await interaction.editReply(payload);
+
+                const logPayload = createContainerMessage(
+                    'Moderatör Notu Silindi',
+                    `**Silen Yetkili:** <@${interaction.user.id}>\n**Not Sahibi Üye:** <@${note.user_id}>\n**Silinen Not ID:** \`#${noteId}\``,
+                    COLORS.WARNING || '#FEE75C'
+                );
+                await sendLog(interaction.guild, logPayload, 'mod').catch(() => {});
             }
+
+            // 4. TÜM NOTLARI TEMİZLE (ADMIN ONLY)
+            else if (subCmd === 'temizle') {
+                if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                    const noPerm = createContainerMessage(
+                        'Yetkisiz İşlem',
+                        'Tüm notları temizlemek için **Yönetici** yetkisine sahip olmalısınız.',
+                        COLORS.ERROR || '#ED4245'
+                    );
+                    noPerm.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+                    return await interaction.editReply(noPerm);
+                }
+
+                const targetUser = interaction.options.getUser('kullanıcı');
+                const delRes = await conn.query('DELETE FROM mod_notes WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]);
+                const count = delRes.affectedRows || 0;
+
+                const payload = createContainerMessage(
+                    'Notlar Temizlendi',
+                    `<:mono:${MONO_EMOJIS.check || '1530917534885478600'}> <@${targetUser.id}> kullanıcısına ait toplam **${count}** moderatör notu kalıcı olarak silindi.`,
+                    COLORS.SUCCESS || '#57F287'
+                );
+                payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+                await interaction.editReply(payload);
+
+                const logPayload = createContainerMessage(
+                    'Kullanıcı Notları Sıfırlandı',
+                    `**Temizleyen Yönetici:** <@${interaction.user.id}>\n**Kullanıcı:** <@${targetUser.id}>\n**Silinen Not Sayısı:** \`${count} Adet\``,
+                    COLORS.WARNING || '#FEE75C'
+                );
+                await sendLog(interaction.guild, logPayload, 'mod').catch(() => {});
+            }
+
         } catch (error) {
-            console.error('Not komutu hatası:', error);
-            await interaction.editReply({ content: 'İşlem sırasında bir hata oluştu.' }).catch(() => {});
+            console.error('[Not Command Error]:', error);
+            const errPayload = createContainerMessage(
+                'Hata',
+                'İşlem sırasında bir hata oluştu.',
+                COLORS.ERROR || '#ED4245'
+            );
+            errPayload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+            await interaction.editReply(errPayload).catch(() => {});
         } finally {
             if (conn) conn.release();
         }

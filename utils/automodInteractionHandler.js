@@ -697,45 +697,158 @@ async function handleAutoModInteraction(interaction, client) {
     }
 
     // 7.2 YAPTIRIM TÜRÜ SEÇİMİ
-    if (customId === 'automod_antinuke_punish_btn') {
+    // 7.2 YAPTIRIM VE CEZA YÖNETİM SAYFASI
+    if (customId === 'automod_antinuke_punish_btn' || customId.startsWith('automod_an_set_punish_')) {
         if (!interaction.deferred && !interaction.replied) {
             await interaction.deferUpdate();
         }
-        const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
+        const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
         const cfg = await getAntiNukeConfig(guildId) || {};
 
-        const select = new StringSelectMenuBuilder()
-            .setCustomId('automod_antinuke_punish_select')
-            .setPlaceholder('Yaptırım türünü seç')
-            .addOptions(
-                { label: 'Yönetici Rollerini Al', value: 'strip_roles', default: (cfg.punishment || 'strip_roles') === 'strip_roles' },
-                { label: 'Sunucudan At (Kick)', value: 'kick', default: cfg.punishment === 'kick' },
-                { label: 'Sunucudan Yasakla (Ban)', value: 'ban', default: cfg.punishment === 'ban' }
-            );
+        if (customId === 'automod_an_set_punish_strip') {
+            await setAntiNukeConfig(guildId, { ...cfg, punishment: 'strip_roles' });
+            cfg.punishment = 'strip_roles';
+        } else if (customId === 'automod_an_set_punish_kick') {
+            await setAntiNukeConfig(guildId, { ...cfg, punishment: 'kick' });
+            cfg.punishment = 'kick';
+        } else if (customId === 'automod_an_set_punish_ban') {
+            await setAntiNukeConfig(guildId, { ...cfg, punishment: 'ban' });
+            cfg.punishment = 'ban';
+        }
+
+        const currentPunish = cfg.punishment || 'strip_roles';
+        const isStrip = currentPunish === 'strip_roles';
+        const isKick = currentPunish === 'kick';
+        const isBan = currentPunish === 'ban';
 
         const container = new ContainerBuilder();
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent('### Yaptırım Türü'));
-        container.addTextDisplayComponents(new TextDisplayBuilder().setContent('Kalkan tetiklendiğinde saldırgana uygulanacak yaptırımı seç.'));
+        container.addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(`### <:mono:${MONO_EMOJIS.hammer || '1537770036301668352'}> Koruma Kalkanı — Ceza & Yaptırım Yönetimi`)
+        );
+        container.addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+                "Kalkan veya güvenlik modülleri ihlal edildiğinde saldırgana uygulanacak yaptırımı aşağıdan seçebilirsiniz.\n\n" +
+                `- **1. Tüm Rolleri Al + Otorol Ver (Güvenli):** Saldırganın yetki rolleri alınır, standart üye otorolü verilir. Kullanıcı banlanmaz veya sunucudan atılmaz. ${isStrip ? '`<:mono:' + (MONO_EMOJIS.check || '1530917534885478600') + '> Seçili`' : ''}\n` +
+                `- **2. Sunucudan At (Kick):** Saldırgan derhal sunucudan atılır. ${isKick ? '`<:mono:' + (MONO_EMOJIS.check || '1530917534885478600') + '> Seçili`' : ''}\n` +
+                `- **3. Sunucudan Yasakla (Ban):** Saldırgan Ultra Hızlı HTTP/2 REST motoru ile sunucudan kalıcı olarak yasaklanır. ${isBan ? '`<:mono:' + (MONO_EMOJIS.check || '1530917534885478600') + '> Seçili`' : ''}`
+            )
+        );
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
-        container.addActionRowComponents(new ActionRowBuilder().addComponents(select));
+
+        const row1 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('automod_an_set_punish_strip')
+                .setLabel('Rolleri Al + Otorol Ver')
+                .setStyle(isStrip ? ButtonStyle.Success : ButtonStyle.Secondary)
+                .setEmoji(isStrip ? (MONO_EMOJIS.check || '1530917534885478600') : (MONO_EMOJIS.shield || '1530917506867400775')),
+            new ButtonBuilder()
+                .setCustomId('automod_an_set_punish_kick')
+                .setLabel('Sunucudan At (Kick)')
+                .setStyle(isKick ? ButtonStyle.Danger : ButtonStyle.Secondary)
+                .setEmoji(isKick ? (MONO_EMOJIS.check || '1530917534885478600') : (MONO_EMOJIS.cross || '1530917536806469783')),
+            new ButtonBuilder()
+                .setCustomId('automod_an_set_punish_ban')
+                .setLabel('Sunucudan Yasakla (Ban)')
+                .setStyle(isBan ? ButtonStyle.Danger : ButtonStyle.Secondary)
+                .setEmoji(isBan ? (MONO_EMOJIS.check || '1530917534885478600') : (MONO_EMOJIS.hammer || '1537770036301668352'))
+        );
+
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('automod_antinuke_btn')
+                .setLabel('Kalkan Paneline Dön')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji(MONO_EMOJIS.arrow_left || '1530918962890670161')
+        );
+
+        container.addActionRowComponents(row1);
+        container.addActionRowComponents(row2);
+
         await interaction.editReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2, components: [container] });
         return true;
     }
 
-    if (customId === 'automod_antinuke_punish_select') {
+    // 7.2.1 GELİŞMİŞ KORUMALAR MENÜSÜ
+    if (customId === 'automod_antinuke_adv_btn' || customId.startsWith('automod_an_toggle_')) {
         if (!interaction.deferred && !interaction.replied) {
             await interaction.deferUpdate();
         }
-        const value = interaction.values?.[0] || 'strip_roles';
-        try {
-            const cfg = await getAntiNukeConfig(guildId) || {};
-            await setAntiNukeConfig(guildId, { ...cfg, punishment: value });
-        } catch (e) {
-            console.error("Anti-Nuke yaptırım kaydetme hatası:", e);
+        const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+        const cfg = await getAntiNukeConfig(guildId) || {};
+
+        if (customId === 'automod_an_toggle_bot') {
+            const newState = !(cfg.anti_bot_add !== false);
+            await setAntiNukeConfig(guildId, { ...cfg, anti_bot_add: newState });
+            cfg.anti_bot_add = newState;
+        } else if (customId === 'automod_an_toggle_webhook') {
+            const newState = !(cfg.anti_webhook !== false);
+            await setAntiNukeConfig(guildId, { ...cfg, anti_webhook: newState });
+            cfg.anti_webhook = newState;
+        } else if (customId === 'automod_an_toggle_integration') {
+            const newState = !(cfg.anti_integration !== false);
+            await setAntiNukeConfig(guildId, { ...cfg, anti_integration: newState });
+            cfg.anti_integration = newState;
+        } else if (customId === 'automod_an_toggle_unban') {
+            const newState = !(cfg.anti_unban !== false);
+            await setAntiNukeConfig(guildId, { ...cfg, anti_unban: newState });
+            cfg.anti_unban = newState;
         }
-        const panel = await buildAntiNukePanel(guildId);
-        panel.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
-        await interaction.editReply(panel);
+
+        const botOn = cfg.anti_bot_add !== false;
+        const webOn = cfg.anti_webhook !== false;
+        const intOn = cfg.anti_integration !== false;
+        const unbOn = cfg.anti_unban !== false;
+
+        const container = new ContainerBuilder();
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:mono:${MONO_EMOJIS.shield || '1530917506867400775'}> Gelişmiş Koruma Modülleri`));
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+            "Ultra Hızlı HTTP/2 REST güvenlik motoru ile çalışan özel korumaları buradan açıp kapatabilirsiniz.\n\n" +
+            `- **Anti-Bot Add:** ${botOn ? '`Açık` (İzinsiz bot sokulamaz)' : '`Kapalı`'}\n` +
+            `- **Anti-Webhook:** ${webOn ? '`Açık` (Yetkisiz webhook silinir)' : '`Kapalı`'}\n` +
+            `- **Anti-Integration:** ${intOn ? '`Açık` (Yetkisiz uygulama engellenir)' : '`Kapalı`'}\n` +
+            `- **Anti-Unban (Re-Ban):** ${unbOn ? '`Açık` (İzinsiz ban kaldırılırsa otomatik Re-Ban)' : '`Kapalı`'}`
+        ));
+        container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+
+        const row1 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('automod_an_toggle_bot')
+                .setLabel(botOn ? 'Anti-Bot: Açık' : 'Anti-Bot: Kapalı')
+                .setStyle(botOn ? ButtonStyle.Success : ButtonStyle.Danger)
+                .setEmoji(botOn ? (MONO_EMOJIS.check || '1530917534885478600') : (MONO_EMOJIS.cross || '1530917536806469783')),
+            new ButtonBuilder()
+                .setCustomId('automod_an_toggle_webhook')
+                .setLabel(webOn ? 'Anti-Webhook: Açık' : 'Anti-Webhook: Kapalı')
+                .setStyle(webOn ? ButtonStyle.Success : ButtonStyle.Danger)
+                .setEmoji(webOn ? (MONO_EMOJIS.check || '1530917534885478600') : (MONO_EMOJIS.cross || '1530917536806469783'))
+        );
+
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('automod_an_toggle_integration')
+                .setLabel(intOn ? 'Anti-Integration: Açık' : 'Anti-Integration: Kapalı')
+                .setStyle(intOn ? ButtonStyle.Success : ButtonStyle.Danger)
+                .setEmoji(intOn ? (MONO_EMOJIS.check || '1530917534885478600') : (MONO_EMOJIS.cross || '1530917536806469783')),
+            new ButtonBuilder()
+                .setCustomId('automod_an_toggle_unban')
+                .setLabel(unbOn ? 'Anti-Unban: Açık' : 'Anti-Unban: Kapalı')
+                .setStyle(unbOn ? ButtonStyle.Success : ButtonStyle.Danger)
+                .setEmoji(unbOn ? (MONO_EMOJIS.check || '1530917534885478600') : (MONO_EMOJIS.cross || '1530917536806469783'))
+        );
+
+        const row3 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('automod_antinuke_btn')
+                .setLabel('Kalkan Paneline Dön')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji(MONO_EMOJIS.arrow_left || '1530918962890670161')
+        );
+
+        container.addActionRowComponents(row1);
+        container.addActionRowComponents(row2);
+        container.addActionRowComponents(row3);
+
+        await interaction.editReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2, components: [container] });
         return true;
     }
 

@@ -62,7 +62,7 @@ module.exports = {
                 conn.query('SELECT COUNT(*) as cnt FROM reputation WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]),
                 conn.query('SELECT COUNT(*) as cnt FROM mod_notes WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]),
                 conn.query('SELECT reason FROM afk_users WHERE guild_id = ? AND user_id = ? LIMIT 1', [interaction.guild.id, targetUser.id]),
-                conn.query('SELECT birth_date FROM birthdays WHERE user_id = ? LIMIT 1', [targetUser.id])
+                conn.query('SELECT birth_day, birth_month FROM birthdays WHERE user_id = ? LIMIT 1', [targetUser.id])
             ]);
 
             const activeWarns = Number(warnRows[0]?.cnt || 0);
@@ -72,7 +72,7 @@ module.exports = {
             const repScore = Number(repRows[0]?.cnt || 0);
             const totalNotes = Number(noteRowsQuery[0]?.cnt || 0);
             const isAfk = afkRows.length > 0;
-            const bday = bdayRows.length > 0 ? bdayRows[0].birth_date : null;
+            const bday = bdayRows.length > 0 ? `${String(bdayRows[0].birth_day).padStart(2, '0')}/${String(bdayRows[0].birth_month).padStart(2, '0')}` : null;
 
             // 2. Mod Notları Getirme
             let lastNotesText = totalNotes === 0 ? 'Not bulunmuyor.' : 'Notları görüntüleme yetkiniz yok.';
@@ -101,17 +101,17 @@ module.exports = {
                 bonusInvites,
                 invitedByRows
             ] = await Promise.all([
-                conn.query('SELECT COUNT(*) as cnt FROM invite_tracking WHERE guild_id = ? AND inviter_id = ? AND is_left = FALSE AND is_fake = FALSE', [interaction.guild.id, targetUser.id]),
-                conn.query('SELECT COUNT(*) as cnt FROM invite_tracking WHERE guild_id = ? AND inviter_id = ? AND is_left = TRUE', [interaction.guild.id, targetUser.id]),
+                conn.query('SELECT COUNT(*) as cnt FROM invite_tracking WHERE guild_id = ? AND inviter_id = ? AND has_left = FALSE AND is_fake = FALSE', [interaction.guild.id, targetUser.id]),
+                conn.query('SELECT COUNT(*) as cnt FROM invite_tracking WHERE guild_id = ? AND inviter_id = ? AND has_left = TRUE', [interaction.guild.id, targetUser.id]),
                 conn.query('SELECT COUNT(*) as cnt FROM invite_tracking WHERE guild_id = ? AND inviter_id = ? AND is_fake = TRUE', [interaction.guild.id, targetUser.id]),
-                conn.query('SELECT bonus_count FROM bonus_invites WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]),
+                conn.query('SELECT bonus_amount FROM bonus_invites WHERE guild_id = ? AND user_id = ?', [interaction.guild.id, targetUser.id]),
                 conn.query('SELECT inviter_id, invite_code FROM invite_tracking WHERE guild_id = ? AND user_id = ? LIMIT 1', [interaction.guild.id, targetUser.id])
             ]);
 
             const giren = Number(regularInvites[0]?.cnt || 0);
             const ayrilan = Number(leftInvites[0]?.cnt || 0);
             const sahte = Number(fakeInvites[0]?.cnt || 0);
-            const bonus = Number(bonusInvites[0]?.bonus_count || 0);
+            const bonus = Number(bonusInvites[0]?.bonus_amount || 0);
             const totalInvites = (giren + bonus) - ayrilan;
 
             let invitedByText = 'Bilinmiyor (Doğrudan veya Özel Link)';
@@ -205,7 +205,7 @@ module.exports = {
                 'Kullanıcı Profil ve İstatistik Sorgusu',
                 `<@${targetUser.id}> kullanıcısının sunucu kayıtları, istatistikleri ve ceza dökümü aşağıda listelenmiştir.`,
                 '#2B2D31',
-                [createSorguMenu(targetUser.id, 'sorgu_overview', isTargetStaff)],
+                [await createSorguMenu(targetUser.id, 'sorgu_overview', isTargetStaff, interaction.guild.id)],
                 rawFields
             );
 

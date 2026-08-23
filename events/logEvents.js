@@ -1,6 +1,8 @@
-const { Events, AuditLogEvent, ChannelType, escapeMarkdown } = require('discord.js');
-const { sendLog, sendVoiceLog } = require('../utils/logger');
-const { buildModBResponse } = require('../utils/uiBuilder');
+'use strict';
+
+const { Events, AuditLogEvent, ChannelType, escapeMarkdown, PermissionFlagsBits } = require('discord.js');
+const { sendLog, sendVoiceLog, resolveAuditExecutor, PERMISSION_NAMES_TR } = require('../utils/logger');
+const { buildModBResponse, createContainerMessage, MONO_EMOJIS } = require('../utils/uiBuilder');
 
 const memberRoleDebounce = new Map();
 const channelCreateDebounce = new Map();
@@ -25,10 +27,109 @@ function channelTypeToTurkish(type) {
     return map[type] || `Tür: ${type}`;
 }
 
+/**
+ * Kanal İzin Farklarını Detaylı Olarak Analiz Eder
+ */
+function getChannelPermissionDiff(oldChannel, newChannel) {
+    const oldOverwrites = oldChannel.permissionOverwrites.cache;
+    const newOverwrites = newChannel.permissionOverwrites.cache;
+    const diffs = [];
+
+    // 1. Eklenen veya Değiştirilen İzinler
+    for (const [id, newOw] of newOverwrites) {
+        const oldOw = oldOverwrites.get(id);
+        const targetName = newOw.type === 0 
+            ? (newChannel.guild.roles.cache.get(id)?.name === '@everyone' ? '@everyone' : `<@&${id}>`)
+            : `<@${id}>`;
+
+        if (!oldOw) {
+            // Yeni hedef izni eklendi
+            const allowed = newOw.allow.toArray().map(p => `✅ **${PERMISSION_NAMES_TR[p] || p}:** \`İzin Verildi\``);
+            const denied = newOw.deny.toArray().map(p => `❌ **${PERMISSION_NAMES_TR[p] || p}:** \`Engellendi\``);
+            const list = [...allowed, ...denied].join('\n');
+            diffs.push({
+                name: `Özel İzin Tanımlandı: ${targetName}`,
+                value: list.length > 0 ? (list.length > 900 ? list.slice(0, 897) + '...' : list) : 'Varsayılan İzinler'
+            });
+        } else {
+            // Var olan izinde değişiklik yapıldı
+            const oldAllowed = oldOw.allow.toArray();
+            const oldDenied = oldOw.deny.toArray();
+            const newAllowed = newOw.allow.toArray();
+            const newDenied = newOw.deny.toArray();
+
+            const changes = [];
+
+            // İzin Verilenler (Allow)
+            for (const p of newAllowed) {
+                if (!oldAllowed.includes(p)) {
+                    changes.push(`✅ **${PERMISSION_NAMES_TR[p] || p}:** \`İzin Verildi\``);
+                }
+            }
+            // İzin Kaldırılanlar (Deny)
+            for (const p of newDenied) {
+                if (!oldDenied.includes(p)) {
+                    changes.push(`❌ **${PERMISSION_NAMES_TR[p] || p}:** \`Engellendi / Kapatıldı\``);
+                }
+            }
+            // Nötre Çekilenler (Sıfırlananlar)
+            for (const p of oldAllowed) {
+                if (!newAllowed.includes(p) && !newDenied.includes(p)) {
+                    changes.push(`⚪ **${PERMISSION_NAMES_TR[p] || p}:** \`Varsayılana Sıfırlandı (Nötr)\``);
+                }
+            }
+            for (const p of oldDenied) {
+                if (!newAllowed.includes(p) && !newDenied.includes(p)) {
+                    changes.push(`⚪ **${PERMISSION_NAMES_TR[p] || p}:** \`Varsayılana Sıfırlandı (Nötr)\``);
+                }
+            }
+
+            if (changes.length > 0) {
+                const text = changes.join('\n');
+                diffs.push({
+                    name: `İzin Değişikliği: ${targetName}`,
+                    value: text.length > 900 ? text.slice(0, 897) + '...' : text
+                });
+            }
+        }
+    }
+
+    // 2. Silinen İzinler
+    for (const [id, oldOw] of oldOverwrites) {
+        if (!newOverwrites.has(id)) {
+            const targetName = oldOw.type === 0 
+                ? (oldChannel.guild.roles.cache.get(id)?.name === '@everyone' ? '@everyone' : `<@&${id}>`)
+                : `<@${id}>`;
+            diffs.push({
+                name: `Özel İzinler Silindi: ${targetName}`,
+                value: 'Kullanıcı/Role ait tüm özel yetkiler kaldırıldı ve sunucu varsayılanına döndürüldü.'
+            });
+        }
+    }
+
+    return diffs;
+}
+
+/**
+ * Rol İzin Farklarını Detaylı Olarak Analiz Eder
+ */
+function getRolePermissionDiff(oldRole, newRole) {
+    const oldPerms = oldRole.permissions.toArray();
+    const newPerms = newRole.permissions.toArray();
+
+    const added = newPerms.filter(p => !oldPerms.includes(p)).map(p => `✅ **${PERMISSION_NAMES_TR[p] || p}:** \`Yetki Verildi\``);
+    const removed = oldPerms.filter(p => !newPerms.includes(p)).map(p => `❌ **${PERMISSION_NAMES_TR[p] || p}:** \`Yetki Alındı\``);
+
+    const changes = [...added, ...removed];
+    if (changes.length === 0) return null;
+    const text = changes.join('\n');
+    return text.length > 900 ? text.slice(0, 897) + '...' : text;
+}
+
 const sysLogState = new Map();
 
 async function logSystemEvent(guild, title, fields, colorHex = '#2B2D31', category = 'guild', eventName = null, context = {}) {
-    let executorField = fields.find(f => f.name.includes('Yetkili') || f.name.includes('Kullanıcı') || f.name.includes('Değiştiren') || f.name.includes('Silen'));
+    let executorField = fields.find(f => f.name.includes('Yetkili') || f.name.includes('Kullanıcı') || f.name.includes('Değiştiren') || f.name.includes('Silen') || f.name.includes('Ekleyen'));
     let executorVal = executorField ? executorField.value : 'System';
 
     const stateKey = `${guild.id}_${category}_${title}_${executorVal}`;
@@ -74,7 +175,7 @@ module.exports = [
         if (!message.guild) return;
         if (message.author?.bot) return;
 
-        // Bot veya AutoMod tarafından silinen mesajları atla (Çift log oluşmasını engeller)
+        // Bot veya AutoMod tarafından silinen mesajları atla
         if (global.botDeletedMessages && global.botDeletedMessages.has(message.id)) {
             global.botDeletedMessages.delete(message.id);
             return;
@@ -93,27 +194,16 @@ module.exports = [
             });
         }
 
-        let deletedById = authorId || message.guild.id;
+        let deletedByText = `${authorName} (Kendi sildi)`;
+        let deletedById = authorId || '0';
         let deleteReason = 'Kullanıcı kendi sildi';
 
-        try {
-            const fetchedLogs = await message.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MessageDelete }).catch(() => null);
-            if (fetchedLogs) {
-                const deletionLog = fetchedLogs.entries.first();
-                if (deletionLog) {
-                    const { executor, target, extra, createdTimestamp, reason } = deletionLog;
-                    // Eğer silen kişi bot ise logEvents üzerinden tekrar loglama yapma (zaten AutoMod logladı)
-                    if (executor && executor.id === client.user.id) {
-                        return;
-                    }
-                    const isMatch = (authorId && target?.id === authorId) || (!authorId && extra?.channel?.id === message.channel.id);
-                    if (isMatch && (Date.now() - createdTimestamp < 10000)) {
-                        deletedById = executor.id;
-                        deleteReason = reason || 'Yetkili tarafından silindi';
-                    }
-                }
-            }
-        } catch (e) {}
+        const audit = await resolveAuditExecutor(message.guild, AuditLogEvent.MessageDelete, authorId, 6000);
+        if (audit.executor && audit.executor.id !== client.user.id) {
+            deletedById = audit.executor.id;
+            deletedByText = audit.executorText;
+            deleteReason = audit.reason || 'Yetkili tarafından silindi';
+        }
 
         const { pool } = require('../db');
         if (message.content?.trim()) {
@@ -122,8 +212,8 @@ module.exports = [
         }
 
         const fields = [
-            { name: 'Mesaj Sahibi', value: `<@${authorId || '0'}> (${authorName})` },
-            { name: 'Silen Kişi', value: deletedById !== authorId && deletedById !== '0' ? `<@${deletedById}>` : `${authorName} (Kendi sildi)` },
+            { name: 'Mesaj Sahibi', value: `<@${authorId || '0'}> (\`${authorName}\`)` },
+            { name: 'Silen Kişi', value: deletedByText },
             { name: 'Kanal', value: `<#${message.channel.id}>` },
             { name: 'Silme Sebebi', value: deleteReason },
             { name: 'Zaman', value: now },
@@ -165,7 +255,7 @@ module.exports = [
         if (newText.length > 900) newText = newText.slice(0, 897) + '...';
 
         const fields = [
-            { name: 'Mesaj Sahibi', value: `${authorMention} (${authorName})` },
+            { name: 'Mesaj Sahibi', value: `${authorMention} (\`${authorName}\`)` },
             { name: 'Kanal', value: `<#${oldMessage.channel.id}>` },
             { name: 'Zaman', value: now },
             { name: 'Eski İçerik', value: `\`\`\`\n${oldText}\n\`\`\`` },
@@ -181,35 +271,27 @@ module.exports = [
     async execute(oldMember, newMember, client) {
         if (!oldMember.guild) return;
 
+        // 1. İsim (Nickname) Değişimi
         if (oldMember.nickname !== newMember.nickname) {
-            let executorId = 'Bilinmiyor';
-            try {
-                const fetchedLogs = await newMember.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberUpdate });
-                const log = fetchedLogs.entries.first();
-                if (log && log.target.id === newMember.id && Date.now() - log.createdTimestamp < 10000) {
-                    executorId = `<@${log.executor.id}>`;
-                }
-            } catch (e) {}
-
+            const audit = await resolveAuditExecutor(newMember.guild, AuditLogEvent.MemberUpdate, newMember.id);
             const oldName = oldMember.nickname || oldMember.user.username;
             const newName = newMember.nickname || newMember.user.username;
-
             const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
             const fields = [
                 { name: 'Üye', value: `<@${newMember.id}> (\`${escapeMarkdown(newMember.user.tag)}\`)` },
                 { name: 'Eski İsim', value: `\`${escapeMarkdown(oldName)}\`` },
                 { name: 'Yeni İsim', value: `\`${escapeMarkdown(newName)}\`` },
-                { name: 'Değiştiren', value: executorId },
+                { name: 'Değiştiren', value: audit.executorText !== 'Bilinmiyor / Discord' ? audit.executorText : `<@${newMember.id}> (Kendisi)` },
                 { name: 'Zaman', value: now }
             ];
             logSystemEvent(newMember.guild, 'İsim (Nickname) Değiştirildi', fields, '#2B2D31', 'member', 'member_nick_change', { userId: newMember.id, isBot: newMember.user?.bot });
             
-            // DB kayıt
             const { pool } = require('../db');
             pool.query('INSERT INTO user_history (user_id, guild_id, change_type, old_value, new_value) VALUES (?, ?, ?, ?, ?)', [newMember.id, newMember.guild.id, 'nickname', oldName, newName]).catch(()=>{});
         }
         
-        // Sunucu Profili (Avatar) değişimi
+        // 2. Sunucu Profili (Avatar / PP) Değişimi
         if (oldMember.avatar !== newMember.avatar) {
             const oldAvatar = oldMember.avatarURL({ extension: 'png', size: 1024 }) || oldMember.user.displayAvatarURL({ extension: 'png', size: 1024 });
             const newAvatar = newMember.avatarURL({ extension: 'png', size: 1024 }) || newMember.user.displayAvatarURL({ extension: 'png', size: 1024 });
@@ -217,17 +299,37 @@ module.exports = [
             const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const fields = [
                 { name: 'Üye', value: `<@${newMember.id}> (\`${escapeMarkdown(newMember.user.tag)}\`)` },
-                { name: 'Değişiklik', value: 'Sunucu Profil Fotoğrafı (Server Avatar)' },
-                { name: 'Eski Fotoğraf', value: `[Tıkla ve Gör](${oldAvatar})` },
-                { name: 'Yeni Fotoğraf', value: `[Tıkla ve Gör](${newAvatar})` },
+                { name: 'Değişiklik', value: 'Sunucu Özel Profil Fotoğrafı (Server Avatar)' },
+                { name: 'Eski Fotoğraf', value: oldAvatar ? `[Görüntüle / İndir (1024px)](${oldAvatar})` : 'Varsayılan Avatar' },
+                { name: 'Yeni Fotoğraf', value: newAvatar ? `[Görüntüle / İndir (1024px)](${newAvatar})` : 'Varsayılan Avatar' },
                 { name: 'Zaman', value: now }
             ];
-            logSystemEvent(newMember.guild, 'Sunucu Profili Güncellendi', fields, '#2B2D31', 'member', 'user_avatar_change', { userId: newMember.id, isBot: newMember.user?.bot });
+            logSystemEvent(newMember.guild, 'Sunucu Profil Fotoğrafı Güncellendi', fields, '#2B2D31', 'member', 'user_avatar_change', { userId: newMember.id, isBot: newMember.user?.bot });
             
             const { pool } = require('../db');
             pool.query('INSERT INTO user_history (user_id, guild_id, change_type, old_value, new_value) VALUES (?, ?, ?, ?, ?)', [newMember.id, newMember.guild.id, 'server_avatar', oldAvatar, newAvatar]).catch(()=>{});
         }
 
+        // 3. Sunucu Profili (Banner) Değişimi
+        if (oldMember.banner !== newMember.banner) {
+            const oldBanner = oldMember.bannerURL({ size: 1024 });
+            const newBanner = newMember.bannerURL({ size: 1024 });
+
+            const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const fields = [
+                { name: 'Üye', value: `<@${newMember.id}> (\`${escapeMarkdown(newMember.user.tag)}\`)` },
+                { name: 'Değişiklik', value: 'Sunucu Profil Bannerı (Server Banner)' },
+                { name: 'Eski Banner', value: oldBanner ? `[Görüntüle / İndir (1024px)](${oldBanner})` : 'Yok' },
+                { name: 'Yeni Banner', value: newBanner ? `[Görüntüle / İndir (1024px)](${newBanner})` : 'Yok' },
+                { name: 'Zaman', value: now }
+            ];
+            logSystemEvent(newMember.guild, 'Sunucu Bannerı Güncellendi', fields, '#2B2D31', 'member', 'user_banner_change', { userId: newMember.id, isBot: newMember.user?.bot });
+
+            const { pool } = require('../db');
+            pool.query('INSERT INTO user_history (user_id, guild_id, change_type, old_value, new_value) VALUES (?, ?, ?, ?, ?)', [newMember.id, newMember.guild.id, 'server_banner', oldBanner || '', newBanner || '']).catch(()=>{});
+        }
+
+        // 4. Rol Değişimleri
         if (oldMember.roles.cache.size !== newMember.roles.cache.size) {
             const addedRoles = newMember.roles.cache.filter(role => !oldMember.roles.cache.has(role.id));
             const removedRoles = oldMember.roles.cache.filter(role => !newMember.roles.cache.has(role.id));
@@ -244,19 +346,11 @@ module.exports = [
                 data.timeout = setTimeout(async () => {
                     memberRoleDebounce.delete(newMember.id);
 
-                    let executorId = 'Bilinmiyor';
-                    try {
-                        const fetchedLogs = await newMember.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberRoleUpdate });
-                        const log = fetchedLogs.entries.first();
-                        if (log && log.target.id === newMember.id && Date.now() - log.createdTimestamp < 10000) {
-                            executorId = `<@${log.executor.id}>`;
-                        }
-                    } catch (e) {}
-
+                    const audit = await resolveAuditExecutor(newMember.guild, AuditLogEvent.MemberRoleUpdate, newMember.id);
                     const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                     const fields = [
                         { name: 'Üye', value: `<@${newMember.id}> (\`${newMember.user.tag}\`)` },
-                        { name: 'Değiştiren', value: executorId },
+                        { name: 'İşlem Yapan Yetkili', value: audit.executorText },
                         { name: 'Zaman', value: now }
                     ];
 
@@ -268,7 +362,7 @@ module.exports = [
                     }
 
                     logSystemEvent(newMember.guild, 'Roller Güncellendi', fields, '#2B2D31', 'member', data.added.size > 0 ? 'member_role_add' : 'member_role_remove', { userId: newMember.id, roleIds: Array.from([...data.added, ...data.removed]), isBot: newMember.user?.bot });
-                }, 2000);
+                }, 1500);
             }
         }
     }
@@ -285,20 +379,14 @@ module.exports = [
         data.timeout = setTimeout(async () => {
             channelCreateDebounce.delete(guildId);
 
-            let executorId = 'Bilinmiyor';
-            try {
-                const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: Math.min(data.items.length, 10), type: AuditLogEvent.ChannelCreate });
-                const log = fetchedLogs.entries.first();
-                if (log && Date.now() - log.createdTimestamp < 10000) executorId = `<@${log.executor.id}>`;
-            } catch (e) {}
-
+            const audit = await resolveAuditExecutor(channel.guild, AuditLogEvent.ChannelCreate, channel.id);
             const voiceChannels = data.items.filter(ch => ch.type === ChannelType.GuildVoice || ch.type === ChannelType.GuildStageVoice);
             const otherChannels = data.items.filter(ch => ch.type !== ChannelType.GuildVoice && ch.type !== ChannelType.GuildStageVoice);
 
             if (otherChannels.length > 0) {
                 const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 const fields = [
-                    { name: 'Oluşturan Yetkili', value: executorId },
+                    { name: 'Oluşturan Yetkili', value: audit.executorText },
                     { name: 'Zaman', value: now }
                 ];
                 otherChannels.slice(0, 50).forEach(ch => {
@@ -306,14 +394,14 @@ module.exports = [
                     fields.push({ name: 'Yeni Kanal', value: `<#${ch.id}> (\`${ch.name}\`) | Tür: ${channelTypeToTurkish(ch.type)}${parentInfo}` });
                 });
                 const title = otherChannels.length > 1 ? `Toplu ${otherChannels.length} Kanal Oluşturuldu` : 'Yeni Kanal Oluşturuldu';
-                logSystemEvent(channel.guild, title, fields, '#2B2D31');
+                logSystemEvent(channel.guild, title, fields, '#2B2D31', 'channel_ops', 'channel_create');
             }
 
             for (const ch of voiceChannels) {
                 const parentInfo = ch.parent ? ` (Kategori: ${escapeMarkdown(ch.parent.name)})` : '';
-                await sendVoiceLog(channel.client, channel.guild.id, 'Ses Kanalı Oluşturuldu', `${executorId} tarafından <#${ch.id}> adlı yeni ses kanalı oluşturuldu.${parentInfo}`, executorId, 'global');
+                await sendVoiceLog(channel.client, channel.guild.id, 'Ses Kanalı Oluşturuldu', `${audit.executorText} tarafından <#${ch.id}> adlı yeni ses kanalı oluşturuldu.${parentInfo}`, audit.executorText, 'global');
             }
-        }, 3000);
+        }, 2000);
     }
 },
 {
@@ -328,25 +416,15 @@ module.exports = [
         data.timeout = setTimeout(async () => {
             channelDeleteDebounce.delete(guildId);
 
-            let executorId = 'Bilinmiyor';
-            let reason = 'Belirtilmedi';
-            try {
-                const fetchedLogs = await data.items[0].guild.fetchAuditLogs({ limit: Math.min(data.items.length, 10), type: AuditLogEvent.ChannelDelete });
-                const log = fetchedLogs.entries.first();
-                if (log && Date.now() - log.createdTimestamp < 10000) {
-                    executorId = `<@${log.executor.id}> (\`${log.executor.tag}\`)`;
-                    if (log.reason) reason = log.reason;
-                }
-            } catch (e) {}
-
+            const audit = await resolveAuditExecutor(data.items[0].guild, AuditLogEvent.ChannelDelete, data.items[0].id);
             const voiceChannels = data.items.filter(ch => ch.type === ChannelType.GuildVoice || ch.type === ChannelType.GuildStageVoice);
             const otherChannels = data.items.filter(ch => ch.type !== ChannelType.GuildVoice && ch.type !== ChannelType.GuildStageVoice);
 
             if (otherChannels.length > 0) {
                 const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 const fields = [
-                    { name: 'Silen Yetkili', value: executorId },
-                    { name: 'Sebep', value: reason },
+                    { name: 'Silen Yetkili', value: audit.executorText },
+                    { name: 'Sebep', value: audit.reason || 'Belirtilmedi' },
                     { name: 'Zaman', value: now }
                 ];
                 otherChannels.slice(0, 50).forEach(ch => {
@@ -354,79 +432,14 @@ module.exports = [
                     fields.push({ name: 'Silinen Kanal', value: `İsim: \`${escapeMarkdown(ch.name)}\` | Tür: ${channelTypeToTurkish(ch.type)} | ID: \`${ch.id}\`${parentInfo}` });
                 });
                 const title = otherChannels.length > 1 ? `Toplu ${otherChannels.length} Kanal Silindi` : 'Kanal Silindi';
-                logSystemEvent(data.items[0].guild, title, fields, '#2B2D31');
+                logSystemEvent(data.items[0].guild, title, fields, '#2B2D31', 'channel_ops', 'channel_delete');
             }
 
             for (const ch of voiceChannels) {
                 const parentInfo = ch.parentName ? ` (Kategori: ${escapeMarkdown(ch.parentName)})` : '';
-                await sendVoiceLog(data.items[0].guild.client, data.items[0].guild.id, 'Ses Kanalı Silindi', `${executorId} tarafından **${escapeMarkdown(ch.name)}** adlı ses kanalı silindi.${parentInfo} Sebep: ${escapeMarkdown(reason)}`, executorId, 'global');
+                await sendVoiceLog(data.items[0].guild.client, data.items[0].guild.id, 'Ses Kanalı Silindi', `${audit.executorText} tarafından **${escapeMarkdown(ch.name)}** adlı ses kanalı silindi.${parentInfo} Sebep: ${escapeMarkdown(audit.reason || 'Belirtilmedi')}`, audit.executorText, 'global');
             }
-        }, 3000);
-    }
-},
-{
-    name: Events.GuildRoleCreate,
-    async execute(role) {
-        if (!role.guild) return;
-        const guildId = role.guild.id;
-        if (!roleCreateDebounce.has(guildId)) roleCreateDebounce.set(guildId, { items: [], timeout: null });
-        const data = roleCreateDebounce.get(guildId);
-        data.items.push(role);
-        if (data.timeout) clearTimeout(data.timeout);
-        data.timeout = setTimeout(async () => {
-            roleCreateDebounce.delete(guildId);
-
-            let executorId = 'Bilinmiyor';
-            try {
-                const fetchedLogs = await role.guild.fetchAuditLogs({ limit: Math.min(data.items.length, 10), type: AuditLogEvent.RoleCreate });
-                const log = fetchedLogs.entries.first();
-                if (log && Date.now() - log.createdTimestamp < 10000) executorId = `<@${log.executor.id}> (\`${log.executor.tag}\`)`;
-            } catch (e) {}
-
-            const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const fields = [
-                { name: 'Oluşturan Yetkili', value: executorId },
-                { name: 'Zaman', value: now }
-            ];
-            data.items.slice(0, 50).forEach(r => {
-                const colorHex = r.hexColor !== '#000000' ? ` | Renk: ${r.hexColor}` : '';
-                fields.push({ name: 'Yeni Rol', value: `<@&${r.id}> (\`${r.name}\`) | ID: \`${r.id}\`${colorHex}` });
-            });
-            const title = data.items.length > 1 ? `Toplu ${data.items.length} Rol Oluşturuldu` : 'Yeni Rol Oluşturuldu';
-            logSystemEvent(role.guild, title, fields, '#2B2D31');
-        }, 3000);
-    }
-},
-{
-    name: Events.GuildRoleDelete,
-    async execute(role) {
-        if (!role.guild) return;
-        const guildId = role.guild.id;
-        if (!roleDeleteDebounce.has(guildId)) roleDeleteDebounce.set(guildId, { items: [], timeout: null });
-        const data = roleDeleteDebounce.get(guildId);
-        data.items.push(role);
-        if (data.timeout) clearTimeout(data.timeout);
-        data.timeout = setTimeout(async () => {
-            roleDeleteDebounce.delete(guildId);
-
-            let executorId = 'Bilinmiyor';
-            try {
-                const fetchedLogs = await role.guild.fetchAuditLogs({ limit: Math.min(data.items.length, 10), type: AuditLogEvent.RoleDelete });
-                const log = fetchedLogs.entries.first();
-                if (log && Date.now() - log.createdTimestamp < 10000) executorId = `<@${log.executor.id}> (\`${log.executor.tag}\`)`;
-            } catch (e) {}
-
-            const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const fields = [
-                { name: 'Silen Yetkili', value: executorId },
-                { name: 'Zaman', value: now }
-            ];
-            data.items.slice(0, 50).forEach(r => {
-                fields.push({ name: 'Silinen Rol', value: `İsim: \`${r.name}\` | ID: \`${r.id}\`` });
-            });
-            const title = data.items.length > 1 ? `Toplu ${data.items.length} Rol Silindi` : 'Rol Silindi';
-            logSystemEvent(role.guild, title, fields, '#2B2D31');
-        }, 3000);
+        }, 2000);
     }
 },
 {
@@ -442,40 +455,134 @@ module.exports = [
         if (oldChannel.bitrate !== newChannel.bitrate) changes.push({ name: 'Bit Hızı', value: `${Math.floor((oldChannel.bitrate || 0) / 1000)}kbps → ${Math.floor((newChannel.bitrate || 0) / 1000)}kbps` });
         if (oldChannel.userLimit !== newChannel.userLimit) changes.push({ name: 'Kişi Limiti', value: `${oldChannel.userLimit || 'Sınırsız'} → ${newChannel.userLimit || 'Sınırsız'}` });
         if (oldChannel.parentId !== newChannel.parentId) changes.push({ name: 'Kategori Değişti', value: `\`${oldChannel.parent?.name || 'Yok'}\` → \`${newChannel.parent?.name || 'Yok'}\`` });
-        if (!oldChannel.permissionOverwrites.cache.equals(newChannel.permissionOverwrites.cache)) changes.push({ name: 'İzinler', value: 'Kanal yetkilerinde güncelleme yapıldı.' });
+
+        // DETAYLI KANAL İZİN DEĞİŞİKLİKLERİ
+        if (!oldChannel.permissionOverwrites.cache.equals(newChannel.permissionOverwrites.cache)) {
+            const permDiffs = getChannelPermissionDiff(oldChannel, newChannel);
+            if (permDiffs.length > 0) {
+                changes.push(...permDiffs);
+            } else {
+                changes.push({ name: 'İzinler', value: 'Kanal yetkilerinde güncelleme yapıldı.' });
+            }
+        }
 
         if (changes.length === 0) return;
 
-        let executorId = 'Bilinmiyor';
-        try {
-            const fetchedLogs = await newChannel.guild.fetchAuditLogs({ limit: 1 });
-            const log = fetchedLogs.entries.first();
-            if (log && log.target.id === newChannel.id && Date.now() - log.createdTimestamp < 10000) {
-                // Eğer bot yaptıysa (panel butonları/modallar üzerinden), interaction handler zaten gerçek oda sahibinin adıyla logladı. Tekrar 'Bot yaptı' diye loglama!
-                if (log.executor && log.executor.id === newChannel.client.user.id) {
-                    return;
-                }
-                executorId = `<@${log.executor.id}> (\`${escapeMarkdown(log.executor.tag)}\`)`;
-            }
-        } catch (e) {}
+        const audit = await resolveAuditExecutor(newChannel.guild, [
+            AuditLogEvent.ChannelUpdate,
+            AuditLogEvent.ChannelOverwriteCreate,
+            AuditLogEvent.ChannelOverwriteUpdate,
+            AuditLogEvent.ChannelOverwriteDelete
+        ], newChannel.id);
+
+        if (audit.executor && audit.executor.id === newChannel.client.user.id) {
+            return; // Botun kendi güncellemelerini çift loglama
+        }
 
         const isVoice = newChannel.type === ChannelType.GuildVoice || newChannel.type === ChannelType.GuildStageVoice;
         
         if (isVoice) {
             const changeDesc = changes.map(c => `**${c.name}:** ${c.value}`).join(' | ');
-            await sendVoiceLog(newChannel.client, newChannel.guild.id, 'Ses Kanalı Güncellendi', `${executorId} tarafından <#${newChannel.id}> kanalında değişiklik yapıldı: ${changeDesc}`, executorId, `room:${newChannel.id}`);
+            await sendVoiceLog(newChannel.client, newChannel.guild.id, 'Ses Kanalı Güncellendi', `${audit.executorText} tarafından <#${newChannel.id}> kanalında değişiklik yapıldı:\n${changeDesc}`, audit.executorText, `room:${newChannel.id}`);
         } else {
             const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const fields = [
                 { name: 'Kanal', value: `<#${newChannel.id}> (\`${newChannel.name}\`)` },
                 { name: 'Tür', value: channelTypeToTurkish(newChannel.type) },
-                { name: 'Değiştiren', value: executorId },
+                { name: 'Değiştiren Yetkili', value: audit.executorText },
                 { name: 'Zaman', value: now },
                 ...changes
             ];
 
-            logSystemEvent(newChannel.guild, 'Kanal Güncellendi', fields, '#2B2D31');
+            logSystemEvent(newChannel.guild, 'Kanal Güncellendi', fields, '#2B2D31', 'channel_ops', 'channel_update');
         }
+    }
+},
+{
+    name: Events.GuildRoleCreate,
+    async execute(role) {
+        if (!role.guild) return;
+        const guildId = role.guild.id;
+        if (!roleCreateDebounce.has(guildId)) roleCreateDebounce.set(guildId, { items: [], timeout: null });
+        const data = roleCreateDebounce.get(guildId);
+        data.items.push(role);
+        if (data.timeout) clearTimeout(data.timeout);
+        data.timeout = setTimeout(async () => {
+            roleCreateDebounce.delete(guildId);
+
+            const audit = await resolveAuditExecutor(role.guild, AuditLogEvent.RoleCreate, role.id);
+            const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const fields = [
+                { name: 'Oluşturan Yetkili', value: audit.executorText },
+                { name: 'Zaman', value: now }
+            ];
+            data.items.slice(0, 50).forEach(r => {
+                const colorHex = r.hexColor !== '#000000' ? ` | Renk: ${r.hexColor}` : '';
+                fields.push({ name: 'Yeni Rol', value: `<@&${r.id}> (\`${r.name}\`) | ID: \`${r.id}\`${colorHex}` });
+            });
+            const title = data.items.length > 1 ? `Toplu ${data.items.length} Rol Oluşturuldu` : 'Yeni Rol Oluşturuldu';
+            logSystemEvent(role.guild, title, fields, '#2B2D31', 'role', 'role_create', { roleIds: [role.id] });
+        }, 2000);
+    }
+},
+{
+    name: Events.GuildRoleDelete,
+    async execute(role) {
+        if (!role.guild) return;
+        const guildId = role.guild.id;
+        if (!roleDeleteDebounce.has(guildId)) roleDeleteDebounce.set(guildId, { items: [], timeout: null });
+        const data = roleDeleteDebounce.get(guildId);
+        data.items.push(role);
+        if (data.timeout) clearTimeout(data.timeout);
+        data.timeout = setTimeout(async () => {
+            roleDeleteDebounce.delete(guildId);
+
+            const audit = await resolveAuditExecutor(role.guild, AuditLogEvent.RoleDelete, role.id);
+            const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const fields = [
+                { name: 'Silen Yetkili', value: audit.executorText },
+                { name: 'Sebep', value: audit.reason || 'Belirtilmedi' },
+                { name: 'Zaman', value: now }
+            ];
+            data.items.slice(0, 50).forEach(r => {
+                fields.push({ name: 'Silinen Rol', value: `İsim: \`${r.name}\` | ID: \`${r.id}\`` });
+            });
+            const title = data.items.length > 1 ? `Toplu ${data.items.length} Rol Silindi` : 'Rol Silindi';
+            logSystemEvent(role.guild, title, fields, '#2B2D31', 'role', 'role_delete', { roleIds: [role.id] });
+        }, 2000);
+    }
+},
+{
+    name: Events.GuildRoleUpdate,
+    async execute(oldRole, newRole) {
+        if (!oldRole.guild) return;
+
+        const changes = [];
+        if (oldRole.name !== newRole.name) changes.push({ name: 'İsim', value: `\`${escapeMarkdown(oldRole.name)}\` → \`${escapeMarkdown(newRole.name)}\`` });
+        if (oldRole.hexColor !== newRole.hexColor) changes.push({ name: 'Renk', value: `${oldRole.hexColor} → ${newRole.hexColor}` });
+        if (oldRole.hoist !== newRole.hoist) changes.push({ name: 'Ayrı Gösterim', value: `${oldRole.hoist ? 'Açık' : 'Kapalı'} → ${newRole.hoist ? 'Açık' : 'Kapalı'}` });
+        if (oldRole.mentionable !== newRole.mentionable) changes.push({ name: 'Etiketlenebilir', value: `${oldRole.mentionable ? 'Evet' : 'Hayır'} → ${newRole.mentionable ? 'Evet' : 'Hayır'}` });
+
+        // DETAYLI ROL İZİN DEĞİŞİKLİKLERİ
+        if (oldRole.permissions.bitfield !== newRole.permissions.bitfield) {
+            const rolePermDiff = getRolePermissionDiff(oldRole, newRole);
+            if (rolePermDiff) {
+                changes.push({ name: 'Yetki Güncellemeleri', value: rolePermDiff });
+            }
+        }
+
+        if (changes.length === 0) return;
+
+        const audit = await resolveAuditExecutor(newRole.guild, AuditLogEvent.RoleUpdate, newRole.id);
+        const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const fields = [
+            { name: 'Rol', value: `<@&${newRole.id}> (\`${newRole.name}\`)` },
+            { name: 'Değiştiren Yetkili', value: audit.executorText },
+            { name: 'Zaman', value: now },
+            ...changes
+        ];
+
+        logSystemEvent(newRole.guild, 'Rol Güncellendi', fields, '#2B2D31', 'role', 'role_update', { roleIds: [newRole.id] });
     }
 },
 {
@@ -483,23 +590,13 @@ module.exports = [
     async execute(ban, client) {
         if (!ban.guild) return;
 
-        let executorId = 'Bilinmiyor';
-        let reason = 'Belirtilmedi';
-        try {
-            const fetchedLogs = await ban.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberBanAdd });
-            const log = fetchedLogs.entries.first();
-            if (log && log.target.id === ban.user.id && Date.now() - log.createdTimestamp < 10000) {
-                executorId = `<@${log.executor.id}> (\`${log.executor.tag}\`)`;
-                if (log.reason) reason = log.reason;
-            }
-        } catch (e) {}
-
+        const audit = await resolveAuditExecutor(ban.guild, AuditLogEvent.MemberBanAdd, ban.user.id);
         const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const fields = [
             { name: 'Yasaklanan Kullanıcı', value: `<@${ban.user.id}> (\`${escapeMarkdown(ban.user.tag)}\`)` },
             { name: 'Kullanıcı ID', value: `\`${ban.user.id}\`` },
-            { name: 'Yasaklayan Yetkili', value: executorId },
-            { name: 'Sebep', value: escapeMarkdown(reason) },
+            { name: 'Yasaklayan Yetkili', value: audit.executorText },
+            { name: 'Sebep', value: escapeMarkdown(audit.reason || 'Belirtilmedi') },
             { name: 'Zaman', value: now }
         ];
 
@@ -511,20 +608,12 @@ module.exports = [
     async execute(ban, client) {
         if (!ban.guild) return;
 
-        let executorId = 'Bilinmiyor';
-        try {
-            const fetchedLogs = await ban.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberBanRemove });
-            const log = fetchedLogs.entries.first();
-            if (log && log.target.id === ban.user.id && Date.now() - log.createdTimestamp < 10000) {
-                executorId = `<@${log.executor.id}> (\`${log.executor.tag}\`)`;
-            }
-        } catch (e) {}
-
+        const audit = await resolveAuditExecutor(ban.guild, AuditLogEvent.MemberBanRemove, ban.user.id);
         const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const fields = [
             { name: 'Kullanıcı', value: `<@${ban.user.id}> (\`${ban.user.tag}\`)` },
             { name: 'Kullanıcı ID', value: `\`${ban.user.id}\`` },
-            { name: 'Yasağı Kaldıran', value: executorId },
+            { name: 'Yasağı Kaldıran', value: audit.executorText },
             { name: 'Zaman', value: now }
         ];
 
@@ -537,18 +626,13 @@ module.exports = [
         if (!member.guild || member.user.bot) return;
 
         let action = 'Sunucudan Ayrıldı';
-        let executorId = null;
-        let reason = null;
+        let isKick = false;
 
-        try {
-            const fetchedLogs = await member.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberKick });
-            const log = fetchedLogs.entries.first();
-            if (log && log.target.id === member.id && Date.now() - log.createdTimestamp < 10000) {
-                action = 'Sunucudan Atıldı (Kick)';
-                executorId = `<@${log.executor.id}> (\`${log.executor.tag}\`)`;
-                reason = log.reason || 'Belirtilmedi';
-            }
-        } catch (e) {}
+        const kickAudit = await resolveAuditExecutor(member.guild, AuditLogEvent.MemberKick, member.id, 6000);
+        if (kickAudit.executor) {
+            action = 'Sunucudan Atıldı (Kick)';
+            isKick = true;
+        }
 
         const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const roles = member.roles.cache.filter(r => r.id !== member.guild.id).map(r => `<@&${r.id}>`).join(', ') || 'Rol yok';
@@ -562,13 +646,12 @@ module.exports = [
             { name: 'Zaman', value: now }
         ];
 
-        if (executorId) {
-            fields.splice(2, 0, { name: 'Atan Yetkili', value: executorId });
-            fields.splice(3, 0, { name: 'Sebep', value: escapeMarkdown(reason) });
+        if (isKick) {
+            fields.splice(2, 0, { name: 'Atan Yetkili', value: kickAudit.executorText });
+            fields.splice(3, 0, { name: 'Sebep', value: escapeMarkdown(kickAudit.reason || 'Belirtilmedi') });
         }
 
-        const color = '#2B2D31';
-        logSystemEvent(member.guild, action, fields, color, executorId ? 'kick' : 'member', executorId ? 'member_kick' : 'member_leave', { userId: member.id, isBot: member.user?.bot });
+        logSystemEvent(member.guild, action, fields, '#2B2D31', isKick ? 'kick' : 'member', isKick ? 'member_kick' : 'member_leave', { userId: member.id, isBot: member.user?.bot });
     }
 },
 {
@@ -577,7 +660,6 @@ module.exports = [
         if (!invite.guild) return;
 
         const inviter = invite.inviter ? `<@${invite.inviter.id}> (\`${invite.inviter.tag}\`)` : 'Bilinmiyor';
-
         const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const fields = [
             { name: 'Kanal', value: invite.channel ? `<#${invite.channel.id}>` : 'Bilinmiyor' },
@@ -597,21 +679,12 @@ module.exports = [
     async execute(invite, context) {
         if (!invite.guild) return;
 
-        let executorId = 'Bilinmiyor';
-        try {
-            const guild = invite.guild;
-            const fetchedLogs = await guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.InviteDelete });
-            const log = fetchedLogs.entries.first();
-            if (log && log.target?.code === invite.code && Date.now() - log.createdTimestamp < 10000) {
-                executorId = `<@${log.executor.id}> (\`${log.executor.tag}\`)`;
-            }
-        } catch (e) {}
-
+        const audit = await resolveAuditExecutor(invite.guild, AuditLogEvent.InviteDelete);
         const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const fields = [
             { name: 'Kanal', value: invite.channel ? `<#${invite.channel.id}>` : 'Bilinmiyor' },
             { name: 'Davet Kodu', value: `\`${invite.code}\`` },
-            { name: 'Silen', value: executorId },
+            { name: 'Silen', value: audit.executorText },
             { name: 'Zaman', value: now }
         ];
 
@@ -619,104 +692,24 @@ module.exports = [
     }
 },
 {
-    name: Events.GuildRoleUpdate,
-    async execute(oldRole, newRole) {
-        if (!oldRole.guild) return;
-
-        const changes = [];
-        if (oldRole.name !== newRole.name) changes.push({ name: 'İsim', value: `\`${escapeMarkdown(oldRole.name)}\` → \`${escapeMarkdown(newRole.name)}\`` });
-        if (oldRole.hexColor !== newRole.hexColor) changes.push({ name: 'Renk', value: `${oldRole.hexColor} → ${newRole.hexColor}` });
-        if (oldRole.hoist !== newRole.hoist) changes.push({ name: 'Ayrı Gösterim', value: `${oldRole.hoist ? 'Açık' : 'Kapalı'} → ${newRole.hoist ? 'Açık' : 'Kapalı'}` });
-        if (oldRole.mentionable !== newRole.mentionable) changes.push({ name: 'Etiketlenebilir', value: `${oldRole.mentionable ? 'Evet' : 'Hayır'} → ${newRole.mentionable ? 'Evet' : 'Hayır'}` });
-        if (oldRole.permissions.bitfield !== newRole.permissions.bitfield) {
-            const added = newRole.permissions.toArray().filter(p => !oldRole.permissions.has(p));
-            const removed = oldRole.permissions.toArray().filter(p => !newRole.permissions.has(p));
-            if (added.length > 0) changes.push({ name: 'Eklenen İzinler', value: added.join(', ') });
-            if (removed.length > 0) changes.push({ name: 'Kaldırılan İzinler', value: removed.join(', ') });
-        }
-
-        if (changes.length === 0) return;
-
-        let executorId = 'Bilinmiyor';
-        try {
-            const fetchedLogs = await newRole.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleUpdate });
-            const log = fetchedLogs.entries.first();
-            if (log && log.target.id === newRole.id && Date.now() - log.createdTimestamp < 10000) {
-                executorId = `<@${log.executor.id}> (\`${log.executor.tag}\`)`;
-            }
-        } catch (e) {}
-
-        const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const fields = [
-            { name: 'Rol', value: `<@&${newRole.id}> (\`${newRole.name}\`)` },
-            { name: 'Değiştiren', value: executorId },
-            { name: 'Zaman', value: now },
-            ...changes
-        ];
-
-        logSystemEvent(newRole.guild, 'Rol Güncellendi', fields, '#2B2D31', 'role', 'role_update', { roleIds: [newRole.id] });
-    }
-},
-{
-    name: Events.RoleCreate,
-    async execute(role) {
-        if (!role.guild) return;
-        let executorId = 'Bilinmiyor';
-        try {
-            const fetchedLogs = await role.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleCreate });
-            const log = fetchedLogs.entries.first();
-            if (log && log.target.id === role.id && Date.now() - log.createdTimestamp < 10000) executorId = `<@${log.executor.id}> (\`${escapeMarkdown(log.executor.tag)}\`)`;
-        } catch (e) {}
-
-        const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const fields = [
-            { name: 'Oluşturan Yetkili', value: executorId },
-            { name: 'Rol', value: `<@&${role.id}> (\`${escapeMarkdown(role.name)}\`)` },
-            { name: 'Zaman', value: now }
-        ];
-        logSystemEvent(role.guild, 'Yeni Rol Oluşturuldu', fields, '#2B2D31', 'role', 'role_create', { roleIds: [role.id] });
-    }
-},
-{
-    name: Events.RoleDelete,
-    async execute(role) {
-        if (!role.guild) return;
-        let executorId = 'Bilinmiyor';
-        try {
-            const fetchedLogs = await role.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleDelete });
-            const log = fetchedLogs.entries.first();
-            if (log && Date.now() - log.createdTimestamp < 10000) executorId = `<@${log.executor.id}> (\`${escapeMarkdown(log.executor.tag)}\`)`;
-        } catch (e) {}
-
-        const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const fields = [
-            { name: 'Silen Yetkili', value: executorId },
-            { name: 'Silinen Rol', value: `\`${escapeMarkdown(role.name)}\` (ID: \`${role.id}\`)` },
-            { name: 'Zaman', value: now }
-        ];
-        logSystemEvent(role.guild, 'Rol Silindi', fields, '#2B2D31', 'role', 'role_delete', { roleIds: [role.id] });
-    }
-},
-{
     name: Events.WebhooksUpdate,
     async execute(channel) {
         if (!channel.guild) return;
-        let executorId = 'Bilinmiyor';
+
+        const audit = await resolveAuditExecutor(channel.guild, [
+            AuditLogEvent.WebhookCreate,
+            AuditLogEvent.WebhookUpdate,
+            AuditLogEvent.WebhookDelete
+        ], channel.id);
+
         let action = 'Güncellendi';
-        try {
-            const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1 });
-            const log = fetchedLogs.entries.first();
-            if (log && (log.action === AuditLogEvent.WebhookCreate || log.action === AuditLogEvent.WebhookUpdate || log.action === AuditLogEvent.WebhookDelete) && Date.now() - log.createdTimestamp < 10000) {
-                executorId = `<@${log.executor.id}> (\`${escapeMarkdown(log.executor.tag)}\`)`;
-                if (log.action === AuditLogEvent.WebhookCreate) action = 'Oluşturuldu';
-                else if (log.action === AuditLogEvent.WebhookDelete) action = 'Silindi';
-            }
-        } catch (e) {}
+        if (audit.entry?.action === AuditLogEvent.WebhookCreate) action = 'Oluşturuldu';
+        else if (audit.entry?.action === AuditLogEvent.WebhookDelete) action = 'Silindi';
 
         const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const fields = [
             { name: 'Kanal', value: `<#${channel.id}> (\`${escapeMarkdown(channel.name)}\`)` },
-            { name: 'İşlem Yapan', value: executorId },
+            { name: 'İşlem Yapan', value: audit.executorText },
             { name: 'Aksiyon', value: action },
             { name: 'Zaman', value: now }
         ];
@@ -726,40 +719,45 @@ module.exports = [
 {
     name: Events.GuildUpdate,
     async execute(oldGuild, newGuild) {
-        let executorId = 'Bilinmiyor';
-        try {
-            const fetchedLogs = await newGuild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.GuildUpdate });
-            const log = fetchedLogs.entries.first();
-            if (log && Date.now() - log.createdTimestamp < 10000) executorId = `<@${log.executor.id}> (\`${escapeMarkdown(log.executor.tag)}\`)`;
-        } catch (e) {}
-
+        const audit = await resolveAuditExecutor(newGuild, AuditLogEvent.GuildUpdate);
         const changes = [];
         if (oldGuild.name !== newGuild.name) changes.push({ name: 'Sunucu Adı', value: `\`${escapeMarkdown(oldGuild.name)}\` → \`${escapeMarkdown(newGuild.name)}\`` });
-        if (oldGuild.vanityURLCode !== newGuild.vanityURLCode) changes.push({ name: 'Özel URL', value: `\`${oldGuild.vanityURLCode || 'Yok'}\` → \`${newGuild.vanityURLCode || 'Yok'}\`` });
+        if (oldGuild.vanityURLCode !== newGuild.vanityURLCode) changes.push({ name: 'Özel URL (Vanity)', value: `\`${oldGuild.vanityURLCode || 'Yok'}\` → \`${newGuild.vanityURLCode || 'Yok'}\`` });
+        if (oldGuild.description !== newGuild.description) changes.push({ name: 'Sunucu Açıklaması', value: `\`${escapeMarkdown(oldGuild.description || 'Yok')}\` → \`${escapeMarkdown(newGuild.description || 'Yok')}\`` });
+        if (oldGuild.icon !== newGuild.icon) {
+            const oldIcon = oldGuild.iconURL({ extension: 'png', size: 1024 });
+            const newIcon = newGuild.iconURL({ extension: 'png', size: 1024 });
+            changes.push({ name: 'Sunucu İkonu', value: `Eski: ${oldIcon ? `[Görüntüle](${oldIcon})` : 'Yok'}\nYeni: ${newIcon ? `[Görüntüle](${newIcon})` : 'Yok'}` });
+        }
+        if (oldGuild.banner !== newGuild.banner) {
+            const oldBanner = oldGuild.bannerURL({ size: 1024 });
+            const newBanner = newGuild.bannerURL({ size: 1024 });
+            changes.push({ name: 'Sunucu Bannerı', value: `Eski: ${oldBanner ? `[Görüntüle](${oldBanner})` : 'Yok'}\nYeni: ${newBanner ? `[Görüntüle](${newBanner})` : 'Yok'}` });
+        }
+        if (oldGuild.splash !== newGuild.splash) {
+            const oldSplash = oldGuild.splashURL({ size: 1024 });
+            const newSplash = newGuild.splashURL({ size: 1024 });
+            changes.push({ name: 'Davet Splash Görseli', value: `Eski: ${oldSplash ? `[Görüntüle](${oldSplash})` : 'Yok'}\nYeni: ${newSplash ? `[Görüntüle](${newSplash})` : 'Yok'}` });
+        }
         
         if (changes.length === 0) return;
         const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const fields = [
-            { name: 'Değiştiren Yetkili', value: executorId },
+            { name: 'Değiştiren Yetkili', value: audit.executorText },
             { name: 'Zaman', value: now },
             ...changes
         ];
-        logSystemEvent(newGuild, 'Sunucu Ayarları Güncellendi', fields, '#2B2D31', 'guild', 'guild_update');
+        const isVisualOnly = changes.every(c => c.name.includes('İkon') || c.name.includes('Banner') || c.name.includes('Splash'));
+        logSystemEvent(newGuild, 'Sunucu Ayarları Güncellendi', fields, '#2B2D31', 'guild', isVisualOnly ? 'guild_icon' : 'guild_update');
     }
 },
 {
     name: Events.EmojiCreate,
     async execute(emoji) {
-        let executorId = 'Bilinmiyor';
-        try {
-            const fetchedLogs = await emoji.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.EmojiCreate });
-            const log = fetchedLogs.entries.first();
-            if (log && Date.now() - log.createdTimestamp < 10000) executorId = `<@${log.executor.id}> (\`${escapeMarkdown(log.executor.tag)}\`)`;
-        } catch (e) {}
-        
+        const audit = await resolveAuditExecutor(emoji.guild, AuditLogEvent.EmojiCreate, emoji.id);
         const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         logSystemEvent(emoji.guild, 'Emoji Eklendi', [
-            { name: 'Ekleyen', value: executorId },
+            { name: 'Ekleyen Yetkili', value: audit.executorText },
             { name: 'Emoji', value: `${emoji} (\`${emoji.name}\`)` },
             { name: 'Zaman', value: now }
         ], '#2B2D31', 'guild', 'emoji_create');
@@ -768,16 +766,10 @@ module.exports = [
 {
     name: Events.EmojiDelete,
     async execute(emoji) {
-        let executorId = 'Bilinmiyor';
-        try {
-            const fetchedLogs = await emoji.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.EmojiDelete });
-            const log = fetchedLogs.entries.first();
-            if (log && Date.now() - log.createdTimestamp < 10000) executorId = `<@${log.executor.id}> (\`${escapeMarkdown(log.executor.tag)}\`)`;
-        } catch (e) {}
-        
+        const audit = await resolveAuditExecutor(emoji.guild, AuditLogEvent.EmojiDelete, emoji.id);
         const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         logSystemEvent(emoji.guild, 'Emoji Silindi', [
-            { name: 'Silen', value: executorId },
+            { name: 'Silen Yetkili', value: audit.executorText },
             { name: 'Emoji Adı', value: `\`${emoji.name}\`` },
             { name: 'Zaman', value: now }
         ], '#2B2D31', 'guild', 'emoji_delete');
@@ -788,32 +780,55 @@ module.exports = [
     async execute(oldUser, newUser, client) {
         if (oldUser.bot) return;
 
-        // Global Avatar değişimi
+        // 1. Global Avatar (PP) Değişimi
         if (oldUser.avatar !== newUser.avatar) {
-            const oldAvatar = oldUser.displayAvatarURL({ extension: 'png', size: 1024 });
-            const newAvatar = newUser.displayAvatarURL({ extension: 'png', size: 1024 });
+            const oldAvatar = oldUser.displayAvatarURL({ extension: 'png', size: 1024, forceStatic: false });
+            const newAvatar = newUser.displayAvatarURL({ extension: 'png', size: 1024, forceStatic: false });
 
             const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const fields = [
                 { name: 'Kullanıcı', value: `<@${newUser.id}> (\`${newUser.tag}\`)` },
-                { name: 'Değişiklik', value: 'Global Profil Fotoğrafı (Avatar)' },
-                { name: 'Eski Fotoğraf', value: `[Tıkla ve Gör](${oldAvatar})` },
-                { name: 'Yeni Fotoğraf', value: `[Tıkla ve Gör](${newAvatar})` },
+                { name: 'Değişiklik', value: 'Global Profil Fotoğrafı (Avatar / PP)' },
+                { name: 'Eski Profil Fotoğrafı', value: oldAvatar ? `[Görüntüle / İndir (1024px)](${oldAvatar})` : 'Varsayılan Avatar' },
+                { name: 'Yeni Profil Fotoğrafı', value: newAvatar ? `[Görüntüle / İndir (1024px)](${newAvatar})` : 'Varsayılan Avatar' },
                 { name: 'Zaman', value: now }
             ];
 
             const { pool } = require('../db');
             pool.query('INSERT INTO user_history (user_id, guild_id, change_type, old_value, new_value) VALUES (?, ?, ?, ?, ?)', [newUser.id, null, 'global_avatar', oldAvatar, newAvatar]).catch(()=>{});
 
-            // Log to all mutual guilds
             for (const guild of client.guilds.cache.values()) {
                 if (guild.members.cache.has(newUser.id)) {
-                    logSystemEvent(guild, 'Kullanıcı Profili Güncellendi', fields, '#2B2D31', 'member', 'user_avatar_change', { userId: newUser.id, isBot: newUser.bot });
+                    logSystemEvent(guild, 'Kullanıcı Profil Fotoğrafı Güncellendi', fields, '#2B2D31', 'member', 'user_avatar_change', { userId: newUser.id, isBot: newUser.bot });
                 }
             }
         }
 
-        // Global Username (Kullanıcı Adı) değişimi
+        // 2. Global Banner Değişimi
+        if (oldUser.banner !== newUser.banner) {
+            const oldBanner = oldUser.bannerURL({ size: 1024 });
+            const newBanner = newUser.bannerURL({ size: 1024 });
+
+            const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const fields = [
+                { name: 'Kullanıcı', value: `<@${newUser.id}> (\`${newUser.tag}\`)` },
+                { name: 'Değişiklik', value: 'Global Profil Bannerı' },
+                { name: 'Eski Banner', value: oldBanner ? `[Görüntüle / İndir (1024px)](${oldBanner})` : 'Yok' },
+                { name: 'Yeni Banner', value: newBanner ? `[Görüntüle / İndir (1024px)](${newBanner})` : 'Yok' },
+                { name: 'Zaman', value: now }
+            ];
+
+            const { pool } = require('../db');
+            pool.query('INSERT INTO user_history (user_id, guild_id, change_type, old_value, new_value) VALUES (?, ?, ?, ?, ?)', [newUser.id, null, 'banner', oldBanner || '', newBanner || '']).catch(()=>{});
+
+            for (const guild of client.guilds.cache.values()) {
+                if (guild.members.cache.has(newUser.id)) {
+                    logSystemEvent(guild, 'Kullanıcı Bannerı Güncellendi', fields, '#2B2D31', 'member', 'user_banner_change', { userId: newUser.id, isBot: newUser.bot });
+                }
+            }
+        }
+
+        // 3. Global Username / Tag Değişimi
         if (oldUser.username !== newUser.username || oldUser.discriminator !== newUser.discriminator) {
             const oldName = oldUser.tag;
             const newName = newUser.tag;

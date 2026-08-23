@@ -188,24 +188,27 @@ async function createTicket(interaction, reason, category = 'Diğer') {
         }
 
         if (configObj && configObj.ticket_role_id) {
-            const adminRoles = configObj.ticket_role_id.split(',');
+            const adminRoles = configObj.ticket_role_id.split(',').map(r => r.trim()).filter(Boolean);
             try {
-                const members = await interaction.guild.members.fetch({ withPresences: true });
-                
-                const activeAdmins = members.filter(m => {
-                    if (m.user.bot) return false;
-                    const hasRole = adminRoles.some(rId => m.roles.cache.has(rId));
-                    const isOnline = m.presence && ['online', 'idle', 'dnd'].includes(m.presence.status);
-                    return hasRole && isOnline;
-                });
+                const activeAdmins = [];
+                for (const roleId of adminRoles) {
+                    const role = interaction.guild.roles.cache.get(roleId);
+                    if (role) {
+                        for (const member of role.members.values()) {
+                            if (!member.user.bot && !activeAdmins.some(a => a.id === member.id)) {
+                                activeAdmins.push(member);
+                            }
+                        }
+                    }
+                }
 
                 const dmPayload = createV2Message({
                     title: 'Yeni Bilet Oluşturuldu',
-                    description: `Sunucuda **${interaction.user.tag}** yeni bir destek talebi açtı.\n\n**Kanal:** <#${ticketChannel.id}>\n**Kategori:** ${category}\n\nBu mesaj aktif olduğunuz için iletilmiştir.`,
+                    description: `Sunucuda **${interaction.user.tag}** yeni bir destek talebi açtı.\n\n**Kanal:** <#${ticketChannel.id}>\n**Kategori:** ${category}\n\nBu mesaj yetkili olduğunuz için iletilmiştir.`,
                     color: COLORS.INFO
                 });
 
-                const targetAdmins = Array.from(activeAdmins.values()).slice(0, 5);
+                const targetAdmins = activeAdmins.slice(0, 5);
 
                 targetAdmins.forEach((admin, idx) => {
                     setTimeout(() => {

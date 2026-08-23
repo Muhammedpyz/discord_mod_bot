@@ -12,7 +12,9 @@ module.exports = {
         ),
 
     async execute(interaction, client) {
-        await interaction.deferReply();
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
 
         const { member, guild, channel } = interaction;
         const voiceChannel = member.voice.channel;
@@ -23,6 +25,7 @@ module.exports = {
                 'Müzik çalabilmek için lütfen öncelikle bir ses kanalına katılın.',
                 '#ED4245'
             );
+            errPayload.flags = MessageFlags.IsComponentsV2;
             return await interaction.editReply(errPayload);
         }
 
@@ -33,67 +36,93 @@ module.exports = {
                 'Ses kanalına katılmak veya konuşmak için gerekli yetkilere sahip değilim.',
                 '#ED4245'
             );
+            errPayload.flags = MessageFlags.IsComponentsV2;
             return await interaction.editReply(errPayload);
+        }
+
+        // Müzik yöneticisi ve Lavalink düğüm kontrolü
+        if (!client.manager || !client.manager.shoukaku || client.manager.shoukaku.nodes.size === 0) {
+            const nodeErrPayload = createContainerMessage(
+                `<:mono:${MONO_EMOJIS.cross || '1530917536806469783'}> Müzik Sunucusu Bağlanıyor`,
+                'Müzik sunucusu şu anda yeniden bağlanıyor. Lütfen birkaç saniye sonra tekrar deneyin.',
+                '#ED4245'
+            );
+            nodeErrPayload.flags = MessageFlags.IsComponentsV2;
+            return await interaction.editReply(nodeErrPayload);
         }
 
         const query = interaction.options.getString('sarki');
 
-        let player = client.manager.players.get(guild.id);
-        if (!player) {
-            player = await client.manager.createPlayer({
-                guildId: guild.id,
-                textId: voiceChannel.id, // Doğrudan Ses Kanalının Kendi Metin Sohbeti!
-                voiceId: voiceChannel.id,
-                deaf: true
-            });
-        } else {
-            // Eğer player varsa textId'yi güncel ses kanalına eşitle
-            player.setTextChannel(voiceChannel.id);
-        }
+        try {
+            let player = client.manager.players.get(guild.id);
+            if (!player) {
+                player = await client.manager.createPlayer({
+                    guildId: guild.id,
+                    textId: voiceChannel.id,
+                    voiceId: voiceChannel.id,
+                    deaf: true
+                });
+            } else {
+                player.setTextChannel(voiceChannel.id);
+            }
 
-        const result = await client.manager.search(query, { requester: member.user });
+            const result = await client.manager.search(query, { requester: member.user });
 
-        if (!result || !result.tracks.length) {
-            const notFoundPayload = createContainerMessage(
-                `<:mono:${MONO_EMOJIS.cross || '1530917536806469783'}> Şarkı Bulunamadı`,
-                `**"${query}"** araması için herhangi bir parça bulunamadı.`,
+            if (!result || !result.tracks.length) {
+                const notFoundPayload = createContainerMessage(
+                    `<:mono:${MONO_EMOJIS.cross || '1530917536806469783'}> Şarkı Bulunamadı`,
+                    `**"${query}"** araması için herhangi bir parça bulunamadı.`,
+                    '#ED4245'
+                );
+                notFoundPayload.flags = MessageFlags.IsComponentsV2;
+                return await interaction.editReply(notFoundPayload);
+            }
+
+            if (result.type === 'PLAYLIST') {
+                for (const track of result.tracks) {
+                    player.queue.add(track);
+                }
+                if (!player.playing && !player.paused) player.play();
+
+                const playlistPayload = createContainerMessage(
+                    `<:mono:${MONO_EMOJIS.music || '1537767791908884500'}> Çalma Listesi Eklendi`,
+                    `**${result.playlistName || 'Çalma Listesi'}** listesinden **${result.tracks.length}** şarkı sıraya eklendi!`,
+                    '#57F287'
+                );
+                playlistPayload.flags = MessageFlags.IsComponentsV2;
+                return await interaction.editReply(playlistPayload);
+            }
+
+            const track = result.tracks[0];
+            player.queue.add(track);
+
+            if (!player.playing && !player.paused) {
+                player.play();
+                const startedPayload = createContainerMessage(
+                    `<:mono:${MONO_EMOJIS.music || '1537767791908884500'}> Şarkı Başlatılıyor`,
+                    `[${track.title}](${track.uri}) çalmaya başlıyor...`,
+                    '#57F287'
+                );
+                startedPayload.flags = MessageFlags.IsComponentsV2;
+                return await interaction.editReply(startedPayload);
+            } else {
+                const queuedPayload = createContainerMessage(
+                    `<:mono:${MONO_EMOJIS.music || '1537767791908884500'}> Sıraya Eklendi`,
+                    `[${track.title}](${track.uri})\n\n<:mono:${MONO_EMOJIS.user || '1537768132062486558'}> **Sanatçı:** ${track.author}\n<:mono:${MONO_EMOJIS.time || '1530917536806469783'}> **Sıra Konumu:** #${player.queue.length}`,
+                    '#5865F2'
+                );
+                queuedPayload.flags = MessageFlags.IsComponentsV2;
+                return await interaction.editReply(queuedPayload);
+            }
+        } catch (err) {
+            console.error('[Play Komut Hatası]:', err);
+            const failPayload = createContainerMessage(
+                `<:mono:${MONO_EMOJIS.cross || '1530917536806469783'}> Müzik Oynatılamadı`,
+                `Müzik sunucusu ile iletişim kurulurken bir sorun oluştu:\n\`${err.message || 'Bilinmeyen Hata'}\``,
                 '#ED4245'
             );
-            return await interaction.editReply(notFoundPayload);
-        }
-
-        if (result.type === 'PLAYLIST') {
-            for (const track of result.tracks) {
-                player.queue.add(track);
-            }
-            if (!player.playing && !player.paused) player.play();
-
-            const playlistPayload = createContainerMessage(
-                `<:mono:${MONO_EMOJIS.music || '1537767791908884500'}> Çalma Listesi Eklendi`,
-                `**${result.playlistName || 'Çalma Listesi'}** listesinden **${result.tracks.length}** şarkı sıraya eklendi!`,
-                '#57F287'
-            );
-            return await interaction.editReply(playlistPayload);
-        }
-
-        const track = result.tracks[0];
-        player.queue.add(track);
-
-        if (!player.playing && !player.paused) {
-            player.play();
-            const startedPayload = createContainerMessage(
-                `<:mono:${MONO_EMOJIS.music || '1537767791908884500'}> Şarkı Başlatılıyor`,
-                `[${track.title}](${track.uri}) çalmaya başlıyor...`,
-                '#57F287'
-            );
-            return await interaction.editReply(startedPayload);
-        } else {
-            const queuedPayload = createContainerMessage(
-                `<:mono:${MONO_EMOJIS.music || '1537767791908884500'}> Sıraya Eklendi`,
-                `[${track.title}](${track.uri})\n\n<:mono:${MONO_EMOJIS.user || '1537768132062486558'}> **Sanatçı:** ${track.author}\n<:mono:${MONO_EMOJIS.time || '1530917536806469783'}> **Sıra Konumu:** #${player.queue.length}`,
-                '#5865F2'
-            );
-            return await interaction.editReply(queuedPayload);
+            failPayload.flags = MessageFlags.IsComponentsV2;
+            return await interaction.editReply(failPayload).catch(() => {});
         }
     }
 };

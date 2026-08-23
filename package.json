@@ -13,15 +13,18 @@
   "dependencies": {
     "@discordjs/voice": "^0.19.2",
     "@flytri/lyrics-finder": "^1.0.7",
+    "@marsaud/smb2": "^0.18.0",
     "@resvg/resvg-js": "^2.6.2",
     "discord-html-transcripts": "^3.2.0",
     "discord.js": "^14.27.0",
     "dotenv": "^17.4.2",
     "ioredis": "^5.11.1",
     "jimp": "^0.22.12",
+    "js-yaml": "^5.3.0",
     "kazagumo": "^3.4.3",
     "kazagumo-spotify": "^2.1.1",
     "mariadb": "^3.5.3",
-    "shoukaku": "^4.3.0"
+    "shoukaku": "^4.3.0",
+    "ssh2": "^1.17.0"
   }
 }

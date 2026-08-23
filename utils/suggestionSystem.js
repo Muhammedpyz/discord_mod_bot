@@ -339,7 +339,7 @@ async function handleUserSuggestionSubmit(interaction) {
     if (cooldownSec > 0 && lastTime && Date.now() < lastTime + cooldownMs) {
         const remaining = Math.ceil((lastTime + cooldownMs - Date.now()) / 1000);
         return await interaction.reply({
-            content: `⏱️ Çok hızlı öneri gönderiyorsunuz. Lütfen **${remaining} saniye** bekleyin.`,
+            content: `${getMonoEmoji('clock')} Çok hızlı öneri gönderiyorsunuz. Lütfen **${remaining} saniye** bekleyin.`,
             flags: MessageFlags.Ephemeral
         });
     }
@@ -347,10 +347,16 @@ async function handleUserSuggestionSubmit(interaction) {
     const text = interaction.fields.getTextInputValue('suggestion_text')?.trim();
     let isAnon = false;
     try {
-        isAnon = interaction.fields.getCheckbox('anonymous_check') === true;
-    } catch(e) {
-        isAnon = false;
-    }
+        if (interaction.fields.getCheckbox('anonymous_check') === true) {
+            isAnon = true;
+        }
+    } catch(e) {}
+    try {
+        const anonInput = interaction.fields.getTextInputValue('anonymous_text');
+        if (anonInput && (anonInput.toLowerCase().includes('evet') || anonInput.toLowerCase().includes('yes') || anonInput.toLowerCase().includes('true') || anonInput.toLowerCase().includes('1'))) {
+            isAnon = true;
+        }
+    } catch(e) {}
 
     if (!setup.suggestion_channel_id) {
         return await interaction.reply({
@@ -380,6 +386,9 @@ async function handleUserSuggestionSubmit(interaction) {
         );
         const suggestionId = res.insertId;
         const paddedId = String(suggestionId).padStart(4, '0');
+
+        const { trackSuggestionQuest } = require('./questManager');
+        trackSuggestionQuest(guild.id, user.id).catch(() => {});
 
         // Screenshot-matching Public Card:
         // Title: <:mono:vote> Öneri

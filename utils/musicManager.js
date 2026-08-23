@@ -184,10 +184,10 @@ function startProgressUpdater(client, player) {
 function initMusicManager(client) {
     const nodes = [
         {
-            name: "Groove-Main",
-            url: "lavalinkv4.serenetia.com:443",
-            auth: "https://seretia.link/discord",
-            secure: true
+            name: "Kasawa-Main",
+            url: "lava2.kasawa.pro:2334",
+            auth: "youshallnotpass",
+            secure: false
         }
     ];
 
@@ -197,12 +197,13 @@ function initMusicManager(client) {
         playlistPageLimit: 2,
         albumPageLimit: 2,
         searchLimit: 10,
-        searchMarket: 'TR'
+        searchMarket: 'TR',
+        searchEngine: 'soundcloud'
     });
 
     const manager = new Kazagumo(
         {
-            defaultSearchEngine: "ytmsearch",
+            defaultSearchEngine: "soundcloud",
             send: (guildId, payload) => {
                 const guild = client.guilds.cache.get(guildId);
                 if (guild) guild.shard.send(payload);
@@ -214,9 +215,9 @@ function initMusicManager(client) {
         {
             moveOnDisconnect: true,
             resume: true,
-            reconnectTries: 15,
-            reconnectInterval: 10000,
-            restTimeout: 60000
+            reconnectTries: 50,
+            reconnectInterval: 15000,
+            restTimeout: 30000
         }
     );
 
@@ -313,6 +314,18 @@ function initMusicManager(client) {
                 player.destroy();
             }
         }, 30000);
+    });
+
+    manager.on('playerEnd', (player, track) => {
+        // Track finished normally or skipped
+    });
+
+    manager.on('playerException', (player, data) => {
+        console.error('[Müzik] playerException:', data);
+    });
+
+    manager.on('playerError', (player, error) => {
+        console.error('[Müzik] playerError:', error);
     });
 
     manager.on('playerDestroy', (player) => {

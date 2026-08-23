@@ -12,6 +12,33 @@ module.exports = {
     async execute(member, client) {
         if (!member.guild) return;
 
+        // --- 0. ANTI-BOT ADD KORUMASI ---
+        if (member.user.bot) {
+            try {
+                const { getAntiNukeConfig } = require('../db');
+                const anConfig = await getAntiNukeConfig(member.guild.id).catch(() => null);
+                if (anConfig && anConfig.is_enabled && anConfig.anti_bot_add !== false) {
+                    const { AuditLogEvent } = require('discord.js');
+                    const { isWhitelisted, executePunishment } = require('../utils/antinukeManager');
+                    const auditLogs = await member.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.BotAdd }).catch(() => null);
+                    const entry = auditLogs?.entries?.first();
+
+                    if (entry && entry.executor && entry.targetId === member.id) {
+                        const executor = entry.executor;
+                        if (!(await isWhitelisted(member.guild, executor.id))) {
+                            // Eklenen botu at
+                            await member.kick('Anti-Nuke: İzinsiz bot ekleme engellendi.').catch(() => {});
+                            // Ekleyen yetkiliyi cezalandır
+                            await executePunishment(member.guild, executor.id, 'İzinsiz Bot Ekleme (Anti-Bot)', `İzinsiz olarak sunucuya <@${member.id}> (${member.user.tag}) botunu ekledi.`, anConfig);
+                            return;
+                        }
+                    }
+                }
+            } catch (botErr) {
+                console.error('[Anti-BotAdd Error]:', botErr);
+            }
+        }
+
         const accountAgeDays = (Date.now() - member.user.createdTimestamp) / (1000 * 60 * 60 * 24);
         const isSuspicious = accountAgeDays < 7;
         
@@ -77,7 +104,7 @@ module.exports = {
 
                 const payload = createV2Message({
                     title: 'Giriş: Detaylı Kullanıcı Raporu',
-                    description: `**Kullanıcı:** <@${member.id}>\n**Kullanıcı Adı:** \`${member.user.tag}\`\n**ID:** \`${member.id}\`\n\n**Hesap Türü:** ${member.user.bot ? 'Bot 🤖' : 'İnsan 👤'}\n**Hesap Kuruluş Tarihi:** ${creationDate} (${ageDays} gün önce)\n**Rozetleri (Badges):** ${badges}\n\n**Güvenlik Durumu:** ${riskText}`,
+                    description: `**Kullanıcı:** <@${member.id}>\n**Kullanıcı Adı:** \`${member.user.tag}\`\n**ID:** \`${member.id}\`\n\n**Hesap Türü:** ${member.user.bot ? `<:mono:${MONO_EMOJIS.cat_ai || '1538517197398483005'}> Bot` : `<:mono:${MONO_EMOJIS.user || '1537768132062486558'}> Kullanıcı`}\n**Hesap Kuruluş Tarihi:** ${creationDate} (${ageDays} gün önce)\n**Rozetleri (Badges):** ${badges}\n\n**Güvenlik Durumu:** ${riskText}`,
                     color: colorToUse,
                     thumbnail: member.user.displayAvatarURL({ dynamic: true, size: 256 }),
                     actionRows: [buttons]
@@ -157,6 +184,12 @@ module.exports = {
                     VALUES (?, ?, ?, ?, ?, NOW())
                     ON DUPLICATE KEY UPDATE inviter_id = ?, invite_code = ?, is_fake = ?, joined_at = NOW()
                 `, [member.guild.id, member.id, inviter, inviteCode, isSuspicious, inviter, inviteCode, isSuspicious]);
+
+                // Seviye Sistemi: Davet Eden Kullanıcıya Bonus XP
+                if (!isSuspicious) {
+                    const { processInviteXP } = require('../utils/levelManager');
+                    processInviteXP(member.guild, inviter).catch(e => console.error('[Invite XP Error]:', e.message));
+                }
             }
         } catch (err) {
             console.error("Member DB check/insert error:", err);
@@ -235,7 +268,7 @@ module.exports = {
                                     textLines: [
                                         `**Üye:** <@${member.id}> (${member.user.tag})`,
                                         `**Verilen Rol:** <@&${roleToAssign}>`,
-                                        `**Tür:** ${member.user.bot ? 'Bot 🤖' : 'Kullanıcı 👤'}`
+                                        `**Tür:** ${member.user.bot ? `<:mono:${MONO_EMOJIS.cat_ai || '1538517197398483005'}> Bot` : `<:mono:${MONO_EMOJIS.user || '1537768132062486558'}> Kullanıcı`}`
                                     ]
                                 });
                                 await notifyChan.send(payload).catch(() => {});
@@ -245,6 +278,20 @@ module.exports = {
                 }
             } catch (err) {
                 console.error(`Otorol işlemi hatası: ${err.message}`);
+            }
+
+            // Vanity Kontrolü: Yeni katılan üyenin durumunda vanity yazısı var mı?
+            try {
+                const { getVanityConfig } = require('../db');
+                const { hasVanity, applyVanity } = require('../utils/securityPanelHandler');
+                const vConfig = await getVanityConfig(member.guild.id).catch(() => null);
+                if (vConfig && vConfig.is_enabled && vConfig.vanity_string) {
+                    if (hasVanity(member.presence, vConfig.vanity_string)) {
+                        await applyVanity(member.guild, member, vConfig, client);
+                    }
+                }
+            } catch (vErr) {
+                console.error('[GuildMemberAdd Vanity Error]:', vErr.message);
             }
         }
 

@@ -5,11 +5,36 @@ const { createRoomPanel } = require('../utils/roomPanel');
 module.exports = {
     name: Events.VoiceStateUpdate,
     async execute(oldState, newState, client) {
-        let conn;
         try {
-            conn = await pool.getConnection();
             const guildId = newState.guild.id || oldState.guild.id;
             const { sendVoiceLog } = require('../utils/logger');
+            const { processVoiceXP } = require('../utils/levelManager');
+
+            // --- SEVİYE SİSTEMİ: SESLİ XP TAKİBİ (AFK ve Kulaklık Kapalı Filtreli) ---
+            if (!client.voiceXpTimers) client.voiceXpTimers = new Map();
+            const voiceMember = newState.member || oldState.member;
+            if (voiceMember && !voiceMember.user.bot) {
+                const currentGuild = newState.guild || oldState.guild;
+                const isAfkChannel = currentGuild.afkChannelId && newState.channelId === currentGuild.afkChannelId;
+                const isDeafened = newState.selfDeaf || newState.serverDeaf;
+                const isEligibleNow = Boolean(newState.channelId && !isAfkChannel && !isDeafened);
+
+                const timerKey = `${guildId}_${voiceMember.id}`;
+                const startTime = client.voiceXpTimers.get(timerKey);
+
+                if (startTime) {
+                    const durationSecs = Math.floor((Date.now() - startTime) / 1000);
+                    if (durationSecs >= 60) {
+                        processVoiceXP(currentGuild, voiceMember, durationSecs).catch(e => console.error('[Voice XP Error]:', e.message));
+                    }
+                    client.voiceXpTimers.delete(timerKey);
+                }
+
+                if (isEligibleNow) {
+                    client.voiceXpTimers.set(timerKey, Date.now());
+                }
+            }
+            // --------------------------------------------------------------------------
 
             // 0. AYNI ODA İÇİNDEKİ DEĞİŞİKLİKLER (Yayın, Kamera, Mute, Deafen, Self-Mute, Self-Deafen)
             if (oldState.channelId === newState.channelId && newState.channelId) {
@@ -100,21 +125,19 @@ module.exports = {
                             const blockedArr = JSON.parse(setupInfo.blocked_roles_json);
                             if (Array.isArray(blockedArr) && blockedArr.some(rId => member.roles.cache.has(rId))) {
                                 await member.voice.disconnect('Engelli rolde olduğu için özel oda açamaz').catch(() => {});
-                                if (conn) conn.release();
                                 return;
                             }
                         } catch(e) {}
                     }
                     
-                    const existing = await conn.query('SELECT channel_id FROM active_rooms WHERE owner_id = ? AND guild_id = ?', [member.id, guildId]);
+                    const existing = await pool.query('SELECT channel_id FROM active_rooms WHERE owner_id = ? AND guild_id = ?', [member.id, guildId]);
                     if (existing.length > 0) {
                         const existingChannel = newState.guild.channels.cache.get(existing[0].channel_id);
                         if (existingChannel) {
                             await member.voice.setChannel(existingChannel).catch(()=>{});
-                            if (conn) conn.release();
                             return;
                         } else {
-                            await conn.query('DELETE FROM active_rooms WHERE owner_id = ? AND guild_id = ?', [member.id, guildId]);
+                            await pool.query('DELETE FROM active_rooms WHERE owner_id = ? AND guild_id = ?', [member.id, guildId]);
                         }
                     }
 
@@ -129,12 +152,12 @@ module.exports = {
                             type: ChannelType.GuildCategory
                         });
                         categoryId = category.id;
-                        await conn.query('UPDATE guild_setup SET active_rooms_category_id = ? WHERE guild_id = ?', [categoryId, guildId]);
+                        await pool.query('UPDATE guild_setup SET active_rooms_category_id = ? WHERE guild_id = ?', [categoryId, guildId]);
                     }
 
                     let bannedRoleId = null;
                     try {
-                        const configRows = await conn.query('SELECT banned_role_id FROM guild_config WHERE guild_id = ?', [guildId]);
+                        const configRows = await pool.query('SELECT banned_role_id FROM guild_config WHERE guild_id = ?', [guildId]);
                         if (configRows.length > 0) bannedRoleId = configRows[0].banned_role_id;
                     } catch(e) {}
 
@@ -151,7 +174,7 @@ module.exports = {
                     }
 
                     const template = setupInfo.room_name_template || "{user}'in Odası";
-                    const roomCountRows = await conn.query('SELECT COUNT(*) as c FROM active_rooms WHERE guild_id = ?', [guildId]);
+                    const roomCountRows = await pool.query('SELECT COUNT(*) as c FROM active_rooms WHERE guild_id = ?', [guildId]);
                     const roomNum = (roomCountRows.length > 0 ? Number(roomCountRows[0].c) : 0) + 1;
                     const roomName = template
                         .replace(/\{user\}/gi, member.displayName || member.user.username)
@@ -165,7 +188,7 @@ module.exports = {
                         permissionOverwrites: overwrites
                     });
 
-                    await conn.query('INSERT INTO active_rooms (channel_id, owner_id, guild_id, room_name) VALUES (?, ?, ?, ?)', [newChannel.id, member.id, guildId, roomName]);
+                    await pool.query('INSERT INTO active_rooms (channel_id, owner_id, guild_id, room_name) VALUES (?, ?, ?, ?)', [newChannel.id, member.id, guildId, roomName]);
                     await member.voice.setChannel(newChannel).catch(()=>{});
 
                     const showCard = setupInfo.show_control_card !== 0 && setupInfo.show_control_card !== false;
@@ -183,7 +206,7 @@ module.exports = {
                 }
 
                 // Zamanlayıcıları iptal et
-                const activeRoomRows = await conn.query('SELECT owner_id FROM active_rooms WHERE channel_id = ?', [newState.channelId]);
+                const activeRoomRows = await pool.query('SELECT owner_id FROM active_rooms WHERE channel_id = ?', [newState.channelId]);
                 if (activeRoomRows.length > 0) {
                     const ownerId = activeRoomRows[0].owner_id;
                     if (client.roomDeleteTimeouts && client.roomDeleteTimeouts.has(newState.channelId)) {
@@ -202,7 +225,7 @@ module.exports = {
                 const scopeKey = `room:${oldState.channelId}`;
                 const channelMention = `<#${oldState.channelId}>`;
 
-                const activeRoomRows = await conn.query('SELECT owner_id FROM active_rooms WHERE channel_id = ?', [oldState.channelId]);
+                const activeRoomRows = await pool.query('SELECT owner_id FROM active_rooms WHERE channel_id = ?', [oldState.channelId]);
                 const channel = oldState.guild.channels.cache.get(oldState.channelId);
 
                 if (client.mediaTimers) {
@@ -239,18 +262,15 @@ module.exports = {
                                 clearTimeout(client.roomDeleteTimeouts.get(oldState.channelId));
                             }
                             const timeoutId = setTimeout(async () => {
-                                let c;
                                 try {
-                                    c = await pool.getConnection();
                                     const ch = oldState.guild.channels.cache.get(oldState.channelId);
                                     if (ch && ch.members.size === 0) {
                                         const { sendVoiceLog } = require('../utils/logger');
                                         await sendVoiceLog(client, oldState.guild.id, 'Özel Oda Silindi (Otomatik)', `Özel oda boş kaldığı için otomatik olarak silindi: ${channelMention}`, null, scopeKey);
                                         await ch.delete().catch(() => {});
                                     }
-                                    await c.query('DELETE FROM active_rooms WHERE channel_id = ?', [oldState.channelId]);
+                                    await pool.query('DELETE FROM active_rooms WHERE channel_id = ?', [oldState.channelId]);
                                 } catch(e){} finally {
-                                    if(c) c.release();
                                     if (client.roomDeleteTimeouts) client.roomDeleteTimeouts.delete(oldState.channelId);
                                 }
                             }, 60000);
@@ -263,6 +283,7 @@ module.exports = {
                             const timeoutId = setTimeout(async () => {
                                 const ch = oldState.guild.channels.cache.get(oldState.channelId);
                                 if (ch && !ch.members.has(ownerId) && ch.members.filter(m => !m.user.bot).size > 0) {
+                                    const { createContainerMessage } = require('../utils/uiBuilder');
                                     const row = new ActionRowBuilder().addComponents(
                                         new ButtonBuilder().setCustomId('room_claim_ownership').setLabel('Odayı Devral').setStyle(ButtonStyle.Success)
                                     );
@@ -280,14 +301,12 @@ module.exports = {
                             client.roomTransferTimeouts.set(oldState.channelId, timeoutId);
                         }
                     } else {
-                        await conn.query('DELETE FROM active_rooms WHERE channel_id = ?', [oldState.channelId]);
+                        await pool.query('DELETE FROM active_rooms WHERE channel_id = ?', [oldState.channelId]);
                     }
                 }
             }
         } catch (err) {
             console.error("Ses olay hatası:", err);
-        } finally {
-            if (conn) conn.release();
         }
     }
 };
