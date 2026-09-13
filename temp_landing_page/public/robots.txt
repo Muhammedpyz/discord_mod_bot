@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://nyxbot.app/sitemap.xml

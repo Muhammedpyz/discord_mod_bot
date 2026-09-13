@@ -1,0 +1,348 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 0 0% 8%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 8%;
+
+    --primary: 0 0% 10%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 0 0% 30%;
+
+    --secondary: 0 0% 92%;
+    --secondary-foreground: 0 0% 10%;
+
+    --muted: 0 0% 94%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 0 0% 20%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 0% 25%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 86%;
+    --input: 0 0% 90%;
+    --ring: 0 0% 10%;
+
+    --radius: 1rem;
+
+    --glass-bg: 0 0% 100%;
+    --glass-border: 0 0% 80%;
+    --glass-shine: 0 0% 100%;
+
+    --gradient-aurora: linear-gradient(135deg, hsl(0 0% 10%), hsl(0 0% 35%) 50%, hsl(0 0% 60%));
+    --gradient-mesh: radial-gradient(at 20% 30%, hsl(0 0% 20% / 0.18) 0px, transparent 50%),
+      radial-gradient(at 80% 20%, hsl(0 0% 40% / 0.15) 0px, transparent 50%),
+      radial-gradient(at 70% 90%, hsl(0 0% 60% / 0.15) 0px, transparent 50%);
+    --gradient-text: linear-gradient(135deg, hsl(0 0% 8%), hsl(0 0% 35%), hsl(0 0% 55%));
+
+    --shadow-glow: 0 20px 60px -20px hsl(0 0% 0% / 0.35);
+    --shadow-glass: 0 8px 32px hsl(0 0% 0% / 0.08), inset 0 1px 0 hsl(0 0% 100% / 0.5);
+    --shadow-elegant: 0 30px 80px -30px hsl(0 0% 0% / 0.3);
+
+    --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* ===== Discord Bot ile Ortak Marka Renkleri (uiBuilder.js COLORS) ===== */
+    --brand: 235 86% 65%;        /* 0x5865F2 Discord Blurple */
+    --brand-foreground: 0 0% 100%;
+    --success: 145 80% 61%;      /* 0x57F287 */
+    --success-foreground: 0 0% 8%;
+    --error: 0 84% 59%;          /* 0xED4245 */
+    --error-foreground: 0 0% 100%;
+    --warning: 48 98% 68%;       /* 0xFEE75C */
+    --warning-foreground: 0 0% 8%;
+    --log: 210 66% 55%;          /* 0x3498DB */
+    --log-foreground: 0 0% 100%;
+    --info: 235 86% 65%;         /* 0x5865F2 */
+    --info-foreground: 0 0% 100%;
+  }
+
+  .dark {
+    --background: 0 0% 5%;
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 5%;
+    --primary-glow: 0 0% 80%;
+
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 0 0% 85%;
+    --accent-foreground: 0 0% 5%;
+
+    --destructive: 0 0% 70%;
+    --destructive-foreground: 0 0% 5%;
+
+    --border: 0 0% 18%;
+    --input: 0 0% 16%;
+    --ring: 0 0% 98%;
+
+    --glass-bg: 0 0% 10%;
+    --glass-border: 0 0% 30%;
+    --glass-shine: 0 0% 100%;
+
+    --gradient-aurora: linear-gradient(135deg, hsl(0 0% 95%), hsl(0 0% 65%) 50%, hsl(0 0% 35%));
+    --gradient-mesh: radial-gradient(at 20% 30%, hsl(0 0% 80% / 0.2) 0px, transparent 50%),
+      radial-gradient(at 80% 20%, hsl(0 0% 60% / 0.15) 0px, transparent 50%),
+      radial-gradient(at 70% 90%, hsl(0 0% 40% / 0.15) 0px, transparent 50%);
+    --gradient-text: linear-gradient(135deg, hsl(0 0% 100%), hsl(0 0% 75%), hsl(0 0% 55%));
+
+    --shadow-glow: 0 20px 60px -20px hsl(0 0% 100% / 0.25);
+    --shadow-glass: 0 8px 32px hsl(0 0% 0% / 0.5), inset 0 1px 0 hsl(0 0% 100% / 0.08);
+    --shadow-elegant: 0 30px 80px -30px hsl(0 0% 100% / 0.2);
+
+    /* ===== Discord Bot ile Ortak Marka Renkleri (Dark - Aynı Değerler) ===== */
+    --brand: 235 86% 65%;        /* 0x5865F2 */
+    --brand-foreground: 0 0% 100%;
+    --success: 145 80% 61%;      /* 0x57F287 */
+    --success-foreground: 0 0% 8%;
+    --error: 0 84% 59%;          /* 0xED4245 */
+    --error-foreground: 0 0% 100%;
+    --warning: 48 98% 68%;       /* 0xFEE75C */
+    --warning-foreground: 0 0% 8%;
+    --log: 210 66% 55%;          /* 0x3498DB */
+    --log-foreground: 0 0% 100%;
+    --info: 235 86% 65%;         /* 0x5865F2 */
+    --info-foreground: 0 0% 100%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: "Inter", system-ui, sans-serif;
+    transition: background-color 0.6s var(--transition-smooth), color 0.6s var(--transition-smooth);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Space Grotesk", system-ui, sans-serif;
+    @apply tracking-tight;
+  }
+
+  select {
+    background-color: hsl(var(--card));
+    color: hsl(var(--foreground));
+    border-radius: 0.75rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+  }
+
+  select:focus {
+    outline: none;
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.4);
+  }
+
+  select option {
+    background-color: hsl(var(--card));
+    color: hsl(var(--foreground));
+    padding: 0.5rem;
+  }
+
+  /* ===== Erişilebilirlik: Görünür Focus Halkaları ===== */
+  :focus-visible {
+    outline: 2px solid hsl(var(--brand));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid hsl(var(--brand));
+    outline-offset: 2px;
+  }
+
+  /* ===== Erişilebilirlik: Hareket Azaltma Desteği ===== */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .glass {
+    background: hsl(var(--glass-bg) / 0.6);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    border: 1px solid hsl(var(--glass-border) / 0.4);
+    box-shadow: var(--shadow-glass);
+  }
+
+  .glass-strong {
+    background: hsl(var(--glass-bg) / 0.78);
+    backdrop-filter: blur(16px) saturate(170%);
+    -webkit-backdrop-filter: blur(16px) saturate(170%);
+    border: 1px solid hsl(var(--glass-border) / 0.5);
+    box-shadow: var(--shadow-glass);
+  }
+
+  .liquid-glass {
+    position: relative;
+    background: hsl(var(--glass-bg) / 0.5);
+    backdrop-filter: blur(14px) saturate(170%);
+    -webkit-backdrop-filter: blur(14px) saturate(170%);
+    border: 1px solid hsl(var(--glass-border) / 0.5);
+    box-shadow: var(--shadow-glass);
+    overflow: hidden;
+  }
+
+  .liquid-glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, hsl(var(--glass-shine) / 0.16), transparent 45%);
+    pointer-events: none;
+  }
+
+  .text-gradient {
+    background: var(--gradient-text);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .bg-aurora {
+    background: var(--gradient-aurora);
+  }
+
+  .bg-mesh {
+    background-image: var(--gradient-mesh);
+  }
+
+  .glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* ===== Bot ile Ortak Marka Yardımcı Sınıfları ===== */
+  .text-brand {
+    color: hsl(var(--brand));
+  }
+  .bg-brand {
+    background-color: hsl(var(--brand));
+  }
+  .border-brand {
+    border-color: hsl(var(--brand) / 0.4);
+  }
+  .text-success {
+    color: hsl(var(--success));
+  }
+  .bg-success {
+    background-color: hsl(var(--success));
+  }
+  .text-error {
+    color: hsl(var(--error));
+  }
+  .bg-error {
+    background-color: hsl(var(--error));
+  }
+  .text-warning {
+    color: hsl(var(--warning));
+  }
+  .bg-warning {
+    background-color: hsl(var(--warning));
+  }
+  .text-log {
+    color: hsl(var(--log));
+  }
+  .bg-log {
+    background-color: hsl(var(--log));
+  }
+}
+
+@layer utilities {
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  .animate-float-slow {
+    animation: float 9s ease-in-out infinite;
+  }
+  .animate-blob {
+    animation: blob 18s ease-in-out infinite;
+  }
+  .animate-shimmer {
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+  }
+  .animate-aurora {
+    background-size: 300% 300%;
+    animation: aurora 12s ease infinite;
+  }
+  .animate-pulse-glow {
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(2deg); }
+}
+
+@keyframes blob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(40px, -50px) scale(1.1); }
+  66% { transform: translate(-30px, 30px) scale(0.95); }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes aurora {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 30px hsl(var(--primary) / 0.4); }
+  50% { box-shadow: 0 0 60px hsl(var(--primary) / 0.7); }
+}

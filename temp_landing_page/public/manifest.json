@@ -1,0 +1,17 @@
+{
+  "short_name": "Nyx",
+  "name": "Nyx - Gelişmiş Discord Moderasyon & Yönetim Botu",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#09090b",
+  "theme_color": "#6366f1",
+  "display": "standalone",
+  "orientation": "portrait"
+}
