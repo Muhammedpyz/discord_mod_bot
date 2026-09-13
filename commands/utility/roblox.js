@@ -53,7 +53,7 @@ module.exports = {
             const createdDate = detailData.created ? `<t:${Math.floor(new Date(detailData.created).getTime() / 1000)}:D>` : 'Bilinmiyor';
             const friendsCount = friendsData.count ?? 0;
             const followersCount = followersData.count ?? 0;
-            const bannedStatus = detailData.isBanned ? '❌ Evet' : '✅ Hayır';
+            const bannedStatus = detailData.isBanned ? `<:mono:${MONO_EMOJIS.cross}> Evet` : `<:mono:${MONO_EMOJIS.check}> Hayır`;
 
             const profileBtn = new ButtonBuilder()
                 .setLabel('Profiline Git')

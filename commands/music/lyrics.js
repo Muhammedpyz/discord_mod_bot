@@ -6,7 +6,7 @@ async function fetchLyricsFromLRCLIB(query) {
     try {
         const res = await axios.get('https://lrclib.net/api/search', {
             params: { q: query },
-            headers: { 'User-Agent': 'TurkLion-Music-Bot/1.0' },
+            headers: { 'User-Agent': 'Nyx-Music-Bot/1.0' },
             timeout: 6000
         });
         if (res.data && Array.isArray(res.data) && res.data.length > 0) {

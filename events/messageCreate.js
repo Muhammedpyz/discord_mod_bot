@@ -58,6 +58,7 @@ async function handleAutomodViolation(message, reason, ruleName, matchedValue = 
                     'INSERT INTO mutes (guild_id, user_id, moderator_id, reason, expires_at, is_active) VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), TRUE)',
                     [guildId, userId, message.client.user.id, `AutoMod: ${ruleName}`, muteMins]
                 ).catch(()=>{});
+                try { require('../utils/cacheEvents').dataChanged('moderation_action', guildId); } catch {}
             }
             isTimedOut = true;
             punishmentActionText = `Mesaj Silindi + ${muteMins} Dk Susturuldu`;
@@ -117,7 +118,10 @@ module.exports = {
         }
 
         // Bilet mesaj kaydı (Tüm mesajlar, görseller, ses kayıtları, dosyalar ve embedler canlı olarak kaydolur - 0 KB Disk Kullanımı)
-        if (message.guild && message.channel.name && message.channel.name.startsWith('destek-')) {
+        const isTicketChannel = (global.activeTicketChannels && global.activeTicketChannels.has(message.channel.id)) ||
+            (message.channel.name && (message.channel.name.startsWith('destek-') || message.channel.name.startsWith('ticket-') || message.channel.name.startsWith('closed-')));
+
+        if (message.guild && isTicketChannel) {
             let attachArr = [];
             if (message.attachments && message.attachments.size > 0) {
                 for (const a of message.attachments.values()) {
@@ -132,24 +136,6 @@ module.exports = {
                         width: a.width
                     });
                 }
-
-                // Arka planda güvenli ve takılmayan DM yedekleme
-                (async () => {
-                    try {
-                        const ticketRows = await pool.query('SELECT owner_id FROM tickets WHERE channel_id = ?', [message.channel.id]);
-                        const backupUserId = ticketRows.length > 0 ? ticketRows[0].owner_id : null;
-                        if (!backupUserId) return;
-                        
-                        const backupUser = await client.users.fetch(backupUserId).catch(() => null);
-                        if (backupUser) {
-                            const filesToBackup = Array.from(message.attachments.values()).map(a => a.url);
-                            await backupUser.send({
-                                content: `[Dosya Yedeği] Bilet: #${message.channel.name} | Gönderen: ${message.author.tag}`,
-                                files: filesToBackup
-                            }).catch(() => {});
-                        }
-                    } catch (e) {}
-                })();
             }
             const embedsArr = message.embeds ? message.embeds.map(e => ({
                 title: e.title,
@@ -167,13 +153,31 @@ module.exports = {
             const replyToId = message.reference ? message.reference.messageId : null;
             const isPinned = message.pinned || false;
 
-            pool.query('SELECT owner_id FROM tickets WHERE channel_id = ?', [message.channel.id])
-                .then((ticketRows) => {
-                    const ticketOwnerId = ticketRows.length > 0 ? ticketRows[0].owner_id : '';
-                    return pool.query(
+            pool.query('SELECT id, owner_id FROM tickets WHERE channel_id = ?', [message.channel.id])
+                .then(async (ticketRows) => {
+                    const ticket = ticketRows.length > 0 ? ticketRows[0] : null;
+                    const ticketOwnerId = ticket ? ticket.owner_id : '';
+                    await pool.query(
                         `INSERT INTO ticket_messages (message_id, guild_id, channel_id, ticket_owner_id, author_id, author_tag, author_avatar, content, attachments, attachments_json, embeds_json, components_json, stickers_json, reply_to_id, is_pinned, is_deleted, is_edited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FALSE, FALSE)`,
                         [message.id, message.guild.id, message.channel.id, ticketOwnerId, message.author ? message.author.id : '0', authorTag, authorAvatar, message.content || '', '', JSON.stringify(attachArr), JSON.stringify(embedsArr), JSON.stringify(compsArr), JSON.stringify(stickersArr), replyToId, isPinned]
                     );
+
+                    try {
+                        const { broadcastEvent } = require('../utils/eventBus');
+                        broadcastEvent('ticket_message', {
+                            guild_id: message.guild.id,
+                            channel_id: message.channel.id,
+                            ticket_id: ticket ? ticket.id : null,
+                            message: {
+                                id: message.id,
+                                author_id: message.author ? message.author.id : '0',
+                                author_tag: authorTag,
+                                author_avatar: authorAvatar,
+                                content: message.content || '',
+                                created_at: new Date().toISOString()
+                            }
+                        });
+                    } catch(e) {}
                 })
                 .catch(err => console.error('[TicketMsg] Kayıt hatası:', err.message));
         }
@@ -269,11 +273,11 @@ module.exports = {
                     
                     await message.reply(`Hesap Makinesi Sonucu: **${result}**`).catch(() => {});
                 } else if (lowerMsg === 'ip' || lowerMsg === 'server ip' || lowerMsg === 'sunucu ip') {
-                    autoReplyText = 'Sunucu Bağlantı Adresi: `mc.turklion.net`\nSürüm: 1.8.9';
+                    autoReplyText = 'Sunucu Bağlantı Adresi: Henüz belirlenmedi';
                 } else if (lowerMsg === 'site' || lowerMsg === 'web sitesi' || lowerMsg === 'website') {
-                    autoReplyText = 'Resmi Web Sitemiz: https://turklion.net';
+                    autoReplyText = 'Resmi Web Sitemiz: https://nyx.bot';
                 } else if (lowerMsg === 'instagram' || lowerMsg === 'ig' || lowerMsg === 'insta') {
-                    autoReplyText = 'Resmi Instagram Hesabımız: https://instagram.com/turklion';
+                    autoReplyText = 'Resmi Instagram Hesabımız: https://instagram.com/nyxbot';
                 }
 
                 if (autoReplyText) {
@@ -381,10 +385,13 @@ module.exports = {
             }
 
             // 0.1 Zalgo Filtresi
-            const zalgoRegex = /\p{M}{3,}/gu;
-            const zalgoMatch = message.content.match(zalgoRegex);
-            if (zalgoMatch && zalgoMatch.length > 10) {
-                return await handleAutomodViolation(message, 'Mesajınızda bozuk ve ekran taşmasına yol açan karakterler tespit edildi.', 'Bozuk Metin (Zalgo)', 'Zalgo / Bozuk Karakterler', automodCfg);
+            const isZalgoActive = automodCfg ? Boolean(automodCfg.anti_zalgo) : true;
+            if (isZalgoActive) {
+                const zalgoRegex = /\p{M}{3,}/gu;
+                const zalgoMatch = message.content.match(zalgoRegex);
+                if (zalgoMatch && zalgoMatch.length > 6) {
+                    return await handleAutomodViolation(message, 'Mesajınızda bozuk ve ekran taşmasına yol açan karakterler tespit edildi.', 'Bozuk Metin (Zalgo)', 'Zalgo / Bozuk Karakterler', automodCfg);
+                }
             }
 
             // 1. Davet ve Bağlantı (Link/Reklam) Filtresi
@@ -396,8 +403,12 @@ module.exports = {
                 const discordInviteRegex = /(discord\s*\.\s*gg|discordapp\s*\.\s*com\s*\/\s*invite|discord\s*\.\s*com\s*\/\s*invite|dsc\s*\.\s*gg)\s*\/?\s*[a-zA-Z0-9]+/gi;
                 
                 let allowedLinks = ['tenor.com', 'giphy.com'];
-                if (config && config.allowed_links) {
-                    allowedLinks = config.allowed_links.split(',').map(l => l.trim());
+                if (automodCfg && automodCfg.allowed_links) {
+                    const extra = automodCfg.allowed_links.split(/[\n,]+/).map(l => l.trim().toLowerCase()).filter(Boolean);
+                    allowedLinks.push(...extra);
+                } else if (config && config.allowed_links) {
+                    const extra = config.allowed_links.split(/[\n,]+/).map(l => l.trim().toLowerCase()).filter(Boolean);
+                    allowedLinks.push(...extra);
                 }
                 const isSafeLink = allowedLinks.some(link => message.content.toLowerCase().includes(link.toLowerCase()));
 
@@ -474,6 +485,54 @@ module.exports = {
                 }
             }
 
+            // 3.1 Aşırı Emoji Flood (Emoji Baskını)
+            const emojiLimit = (automodCfg && automodCfg.emoji_limit > 0) ? automodCfg.emoji_limit : 0;
+            if (emojiLimit > 0) {
+                const customEmojis = (message.content.match(/<a?:[a-zA-Z0-9_]+:[0-9]+>/g) || []).length;
+                const unicodeEmojis = (message.content.match(/\p{Extended_Pictographic}/gu) || []).length;
+                const totalEmojis = customEmojis + unicodeEmojis;
+                if (totalEmojis >= emojiLimit) {
+                    return await handleAutomodViolation(
+                        message,
+                        'Mesajınızda çok fazla emoji tespit edildi.',
+                        'Aşırı Emoji Flood',
+                        `${totalEmojis} Emoji (Sınır: ${emojiLimit})`,
+                        automodCfg
+                    );
+                }
+            }
+
+            // 3.2 Satır / Boşluk Atlama Flood (Newline Flood)
+            const lineLimit = (automodCfg && automodCfg.line_limit > 0) ? automodCfg.line_limit : 0;
+            if (lineLimit > 0) {
+                const lineCount = (message.content.match(/\n/g) || []).length + 1;
+                if (lineCount >= lineLimit) {
+                    return await handleAutomodViolation(
+                        message,
+                        'Mesajınızda aşırı satır atlama ve boşluk tespit edildi.',
+                        'Satır Atlama Flood',
+                        `${lineCount} Satır (Sınır: ${lineLimit})`,
+                        automodCfg
+                    );
+                }
+            }
+
+            // 3.3 Harf Uzatma / Karakter Tekrarı
+            const repeatLimit = (automodCfg && automodCfg.repeat_limit > 0) ? automodCfg.repeat_limit : 0;
+            if (repeatLimit > 0) {
+                const repeatRegex = new RegExp(`(.)\\1{${repeatLimit - 1},}`, 'gu');
+                const repeatMatch = message.content.match(repeatRegex);
+                if (repeatMatch && repeatMatch.length > 0) {
+                    return await handleAutomodViolation(
+                        message,
+                        'Mesajınızda aşırı harf/karakter tekrarı tespit edildi.',
+                        'Karakter Tekrarı',
+                        `${repeatMatch[0].slice(0, 15)}... (Sınır: ${repeatLimit})`,
+                        automodCfg
+                    );
+                }
+            }
+
             // 4. Toplu Etiket Filtresi
             const mentionLimit = (automodCfg && automodCfg.mention_limit > 0) ? automodCfg.mention_limit : 5;
             if (automodCfg && automodCfg.mention_limit > 0 && message.mentions.users.size >= mentionLimit) {
@@ -521,16 +580,65 @@ module.exports = {
                 spamData.msgContent = message.content;
                 client.spamMap.set(message.author.id, spamData);
             }
+
+            // 5.1 Çapraz Kanal Baskın Spamı (Raid Copypaste)
+            const isCrossSpamEnabled = automodCfg ? Boolean(automodCfg.cross_spam_enabled) : false;
+            if (isCrossSpamEnabled && message.content.length > 8) {
+                client.crossSpamMap = client.crossSpamMap || new Map();
+                const now = Date.now();
+                const userCrossData = client.crossSpamMap.get(message.author.id);
+
+                if (userCrossData && (now - userCrossData.firstTime < 8000)) {
+                    if (userCrossData.content === message.content.trim()) {
+                        userCrossData.channels.add(message.channel.id);
+                        if (userCrossData.channels.size >= 3) {
+                            client.crossSpamMap.delete(message.author.id);
+                            return await handleAutomodViolation(
+                                message,
+                                'Aynı mesajı kısa sürede birden fazla kanala göndermek (çapraz kanal spamı) yasaktır.',
+                                'Çapraz Kanal Baskın Spamı',
+                                `${userCrossData.channels.size} Farklı Kanal / 8 Saniye`,
+                                automodCfg
+                            );
+                        }
+                    } else {
+                        client.crossSpamMap.set(message.author.id, {
+                            content: message.content.trim(),
+                            channels: new Set([message.channel.id]),
+                            firstTime: now
+                        });
+                    }
+                } else {
+                    client.crossSpamMap.set(message.author.id, {
+                        content: message.content.trim(),
+                        channels: new Set([message.channel.id]),
+                        firstTime: now
+                    });
+                }
+            }
         } catch (err) {
             console.error("MessageCreate DB Error:", err);
         } finally {
             if (conn) conn.release();
         }
 
-        // Seviye Sistemi - Mesaj XP Kazanımı & Günlük Görev Takibi
+        // --- CUSTOM COMMANDS ---
+        if (!message.author.bot) {
+            try {
+                const { handleCustomCommands } = require('../utils/customCommandHandler');
+                await handleCustomCommands(message);
+            } catch (err) {
+                console.error("Custom Command Error:", err);
+            }
+        }
+
+        // Seviye Sistemi - Mesaj XP Kazanımı & Günlük Görev Takibi & Ekonomi Coin & Başarım
         const { processMessageXP } = require('../utils/levelManager');
         const { trackMessageQuest } = require('../utils/questManager');
+        const { rewardMessageEconomy } = require('../utils/economyHandler');
         processMessageXP(message).catch(e => console.error('[Level XP Error]:', e.message));
         trackMessageQuest(message).catch(e => console.error('[Quest Msg Error]:', e.message));
+        rewardMessageEconomy(message).catch(e => console.error('[Eco Msg Error]:', e.message));
+        try { require('../utils/achievements').trackMessages(message.guild.id, message.author.id).catch(() => {}); } catch {}
     },
 };

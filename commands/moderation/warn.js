@@ -74,11 +74,7 @@ module.exports = {
 
         } catch (error) {
             console.error('Warn hatası:', error);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            } else {
-                await interaction.reply({ content: 'Sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
+            throw error;
         }
     }
 };

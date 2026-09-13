@@ -94,6 +94,7 @@ module.exports = {
                     'INSERT INTO mutes (guild_id, user_id, moderator_id, action_type, expires_at, reason) VALUES (?, ?, ?, ?, ?, ?)',
                     [interaction.guild.id, targetUser.id, interaction.user.id, 'text_mute', expiresAt, reason]
                 );
+                try { require('../../utils/cacheEvents').dataChanged('moderation_action', interaction.guild.id); } catch {}
 
                 try {
                     const dmPayload = createContainerMessage(
@@ -141,11 +142,7 @@ module.exports = {
             }
         } catch (error) {
             console.error('Mute hatası:', error);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            } else {
-                await interaction.editReply({ content: 'Sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
+            throw error;
         }
     }
 };

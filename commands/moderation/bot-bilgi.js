@@ -45,7 +45,7 @@ async function buildBotInfoPayload(interaction, client) {
         .setAccentColor(0x5865F2);
 
     const header = `## <:mono:${MONO_EMOJIS.bot || MONO_EMOJIS.cpu}> **${client.user.username} | Sistem Bilgisi & Durum**\n` +
-                   `> Turklion Altyapısı ile çalışan yeni nesil Discord güvenlik ve moderasyon botu.`;
+                   `> Nyx Altyapısı ile çalışan yeni nesil Discord güvenlik ve moderasyon botu.`;
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(header));
     container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));

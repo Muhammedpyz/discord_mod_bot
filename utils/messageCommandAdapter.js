@@ -1,6 +1,7 @@
 const { MessageFlags } = require('discord.js');
 const { getGuildPrefixes } = require('./prefixSystem');
 const { buildWrongUsageContainer } = require('./commandUsageHelper');
+const { logCommandExecution } = require('./commandLogger');
 
 // Per-guild prefix memory cache with 60s TTL for blazing fast message checking
 const prefixCache = new Map();
@@ -356,12 +357,35 @@ async function handleMessageCommand(message, client) {
         return true;
     }
 
+    const startTime = Date.now();
+    const fakeInteraction = createMessageInteractionAdapter(message, command.data, args, client);
+
     try {
-        const fakeInteraction = createMessageInteractionAdapter(message, command.data, args, client);
         await command.execute(fakeInteraction, client);
+        const durationMs = Date.now() - startTime;
+        logCommandExecution({
+            interaction: fakeInteraction,
+            commandName: `${matchedPrefix}${cmdName}`,
+            durationMs,
+            success: true,
+            source: 'PREFIX',
+            extraInfo: { args, matchedPrefix }
+        });
         return true;
     } catch (err) {
+        const durationMs = Date.now() - startTime;
         console.error(`[MessageCommand Error: ${cmdName}]`, err);
+
+        logCommandExecution({
+            interaction: fakeInteraction,
+            commandName: `${matchedPrefix}${cmdName}`,
+            durationMs,
+            success: false,
+            error: err,
+            source: 'PREFIX',
+            extraInfo: { args, matchedPrefix }
+        });
+
         const wrongUsagePayload = buildWrongUsageContainer(command.data, matchedPrefix, err.message || 'Komut yürütülürken beklenmeyen bir hata oluştu.');
         message.delete().catch(() => {});
         const dmMsg = await message.author.send(wrongUsagePayload).catch(() => null);

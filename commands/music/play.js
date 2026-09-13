@@ -41,10 +41,11 @@ module.exports = {
         }
 
         // Müzik yöneticisi ve Lavalink düğüm kontrolü
-        if (!client.manager || !client.manager.shoukaku || client.manager.shoukaku.nodes.size === 0) {
+        const hasConnectedNode = client.manager && client.manager.shoukaku && Array.from(client.manager.shoukaku.nodes.values()).some(n => n.state === 1);
+        if (!hasConnectedNode) {
             const nodeErrPayload = createContainerMessage(
-                `<:mono:${MONO_EMOJIS.cross || '1530917536806469783'}> Müzik Sunucusu Bağlanıyor`,
-                'Müzik sunucusu şu anda yeniden bağlanıyor. Lütfen birkaç saniye sonra tekrar deneyin.',
+                `<:mono:${MONO_EMOJIS.cross || '1530917536806469783'}> Müzik Sunucusu Çevrimdışı`,
+                'Müzik sunucusuna (Lavalink) şu anda ulaşılamıyor veya yeniden bağlanıyor. Lütfen daha sonra tekrar deneyin.',
                 '#ED4245'
             );
             nodeErrPayload.flags = MessageFlags.IsComponentsV2;

@@ -28,10 +28,13 @@ module.exports = {
         // 1. ADMIN PANELİ
         if (subCmd === 'panel') {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-                return await interaction.reply({
-                    content: 'Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısınız.',
-                    flags: MessageFlags.Ephemeral
-                });
+                const noPerm = createContainerMessage(
+                    'Yetki Yetersiz',
+                    'Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısınız.',
+                    COLORS.RED || '#ED4245'
+                );
+                noPerm.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+                return await interaction.reply(noPerm);
             }
 
             await interaction.deferReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
@@ -40,7 +43,13 @@ module.exports = {
                 await interaction.editReply(menu);
             } catch (error) {
                 console.error('[Oneri Panel Error]:', error);
-                await interaction.editReply({ content: 'Panel yüklenirken bir hata oluştu.' }).catch(() => {});
+                const errPayload = createContainerMessage(
+                    'Hata',
+                    'Panel yüklenirken bir hata oluştu.',
+                    COLORS.RED || '#ED4245'
+                );
+                errPayload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+                await interaction.editReply(errPayload).catch(() => {});
             }
         }
 

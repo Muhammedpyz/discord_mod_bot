@@ -9,7 +9,7 @@ const {
 const { createContainerMessage, MONO_EMOJIS, COLORS } = require('../../utils/uiBuilder');
 
 function buildRoleInfoPayload(category = 'all') {
-    let title = 'TurkLion Rol & Yetki Bilgilendirme Sistemi';
+    let title = 'Nyx Rol & Yetki Bilgilendirme Sistemi';
     let description = '';
 
     if (category === 'all') {

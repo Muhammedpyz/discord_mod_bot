@@ -3,11 +3,11 @@ const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, ModalBuilder,
     TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder,
     RoleSelectMenuBuilder, StringSelectMenuBuilder, UserSelectMenuBuilder,
-    LabelBuilder, RadioGroupBuilder, CheckboxBuilder, CheckboxGroupBuilder,
     MessageFlags, AttachmentBuilder, PermissionFlagsBits
 } = require('discord.js');
-const { buildModBResponse, createContainerMessage, MONO_EMOJIS } = require('./uiBuilder');
+const { buildModBResponse, createContainerMessage, buildTicketActionComponents, MONO_EMOJIS } = require('./uiBuilder');
 const { pool } = require('../db');
+const cacheManager = require('./cacheManager');
 const discordTranscripts = require('discord-html-transcripts');
 
 const nudgeCooldowns = new Map();
@@ -20,9 +20,13 @@ function getMonoEmoji(name) {
 }
 
 // -------------------------------------------------------------
-// Database Operations
+// Database Operations (with In-Memory FastCache)
 // -------------------------------------------------------------
 async function getTicketSetup(guildId) {
+    const cacheKey = `ticket_setup_${guildId}`;
+    const cached = cacheManager.get(cacheKey);
+    if (cached) return cached;
+
     let conn;
     try {
         conn = await pool.getConnection();
@@ -32,9 +36,10 @@ async function getTicketSetup(guildId) {
             try { setup.support_roles = typeof setup.support_roles === 'string' ? JSON.parse(setup.support_roles) : (setup.support_roles || []); } catch(e) { setup.support_roles = []; }
             try { setup.ticket_types = typeof setup.ticket_types === 'string' ? JSON.parse(setup.ticket_types) : (setup.ticket_types || []); } catch(e) { setup.ticket_types = []; }
             try { setup.panel_sections = typeof setup.panel_sections === 'string' ? JSON.parse(setup.panel_sections) : (setup.panel_sections || []); } catch(e) { setup.panel_sections = []; }
+            cacheManager.set(cacheKey, setup, 120);
             return setup;
         }
-        return {
+        const defaultSetup = {
             guild_id: guildId,
             room_type: 'channel',
             category_id: null,
@@ -53,6 +58,8 @@ async function getTicketSetup(guildId) {
             close_behavior: 'archive',
             welcome_message: null
         };
+        cacheManager.set(cacheKey, defaultSetup, 120);
+        return defaultSetup;
     } catch(err) {
         console.error('getTicketSetup error:', err);
         return null;
@@ -64,6 +71,7 @@ async function getTicketSetup(guildId) {
 async function saveTicketSetup(setup) {
     let conn;
     try {
+        cacheManager.del(`ticket_setup_${setup.guild_id}`);
         conn = await pool.getConnection();
         await conn.query(`
             INSERT INTO tickets_setup 
@@ -218,128 +226,200 @@ async function renderTicketTypesMenu(guildId) {
 }
 
 // -------------------------------------------------------------
-// 3. Modals Builders (Using Native Builders & Labels)
+// 3. Sub-views & Standard Modals (100% Discord API compliant)
 // -------------------------------------------------------------
-function buildTicketSetupModal(setup) {
-    const currentRoomType = setup.room_type || 'channel';
-    const modal = new ModalBuilder().setCustomId('ticket_modal_setup').setTitle('Destek Kurulumu');
 
-    modal.addLabelComponents(
-        new LabelBuilder()
-            .setLabel('Talep nerede açılsın?')
-            .setDescription('Mevcut özel kanal veya iki özel alt başlık akışından birini seç.')
-            .setRadioGroupComponent(
-                new RadioGroupBuilder().setCustomId('setup_room_type').setRequired(true).setOptions([
-                    { label: 'Özel kanal', value: 'channel', description: 'Her talep için klasik, izinleri ayrı bir metin kanalı açar.', default: currentRoomType === 'channel' },
-                    { label: 'Özel alt başlık · yetkilileri ekle', value: 'thread_auto', description: 'Alt başlığı açar ve destek rolündeki yetkilileri doğrudan ekler.', default: currentRoomType === 'thread_auto' },
-                    { label: 'Özel alt başlık · katıl butonu', value: 'thread_join', description: 'Alt başlığı açar; yetkililer ana kanaldaki butonla katılır.', default: currentRoomType === 'thread_join' }
-                ])
-            ),
-        new LabelBuilder()
-            .setLabel('Talep kategorisi')
-            .setDescription('Klasik kanal modundaki yeni odalar burada açılır. Alt başlık modunda panel kanalı kullanılır.')
-            .setChannelSelectMenuComponent(new ChannelSelectMenuBuilder().setCustomId('setup_category').setChannelTypes(ChannelType.GuildCategory).setRequired(false)),
-        new LabelBuilder()
-            .setLabel('Destek rolleri')
-            .setDescription('Bu roller her talebi görebilir ve yönetebilir.')
-            .setRoleSelectMenuComponent(new RoleSelectMenuBuilder().setCustomId('setup_support_roles').setMinValues(0).setMaxValues(10).setRequired(false)),
-        new LabelBuilder()
-            .setLabel('Log kanalı')
-            .setDescription('Açılış, üstlenme ve kapanış kayıtları buraya düşer. Transkript de buraya gelir.')
-            .setChannelSelectMenuComponent(new ChannelSelectMenuBuilder().setCustomId('setup_log_channel').setChannelTypes(ChannelType.GuildText).setRequired(false)),
-        new LabelBuilder()
-            .setLabel('Odadaki karşılama metni')
-            .setDescription('Talep açılınca odanın içinde görünür. Boş bırakırsan varsayılan kullanılır.')
-            .setTextInputComponent(new TextInputBuilder().setCustomId('setup_welcome_message').setStyle(TextInputStyle.Paragraph).setValue(setup.welcome_message || '').setRequired(false).setMaxLength(1000))
+async function renderTicketSetupView(guildId) {
+    const setup = await getTicketSetup(guildId);
+    const roomType = setup?.room_type || 'channel';
+
+    const roomTypeOptions = [
+        { label: 'Özel kanal', value: 'channel', description: 'Klasik, izinleri ayrı bir metin kanalı açar.', default: roomType === 'channel' },
+        { label: 'Özel alt başlık · yetkilileri ekle', value: 'thread_auto', description: 'Alt başlık açar, yetkilileri doğrudan ekler.', default: roomType === 'thread_auto' },
+        { label: 'Özel alt başlık · katıl butonu', value: 'thread_join', description: 'Alt başlık açar; yetkililer butonla katılır.', default: roomType === 'thread_join' }
+    ];
+
+    const rowRoomType = new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId('ticket_sel_room_type')
+            .setPlaceholder('Talep nerede açılsın? (Oda türü)')
+            .addOptions(roomTypeOptions)
     );
-    return modal;
+
+    const rowCategory = new ActionRowBuilder().addComponents(
+        new ChannelSelectMenuBuilder()
+            .setCustomId('ticket_sel_category')
+            .setPlaceholder('Talep kategorisi seçin')
+            .setChannelTypes(ChannelType.GuildCategory)
+    );
+
+    const rowRoles = new ActionRowBuilder().addComponents(
+        new RoleSelectMenuBuilder()
+            .setCustomId('ticket_sel_support_roles')
+            .setPlaceholder('Destek rolleri seçin (birden fazla seçilebilir)')
+            .setMinValues(0)
+            .setMaxValues(10)
+    );
+
+    const rowLog = new ActionRowBuilder().addComponents(
+        new ChannelSelectMenuBuilder()
+            .setCustomId('ticket_sel_log_channel')
+            .setPlaceholder('Log kanalı seçin')
+            .setChannelTypes(ChannelType.GuildText)
+    );
+
+    const rowBtns = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('ticket_btn_welcome_msg').setLabel('Karşılama Metni').setStyle(ButtonStyle.Primary).setEmoji(MONO_EMOJIS.edit || '1530918960764027000'),
+        new ButtonBuilder().setCustomId('ticket_admin_home').setLabel('Geri Dön').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.arrow_left || '1530917536806469783')
+    );
+
+    const catText = setup.category_id ? `<#${setup.category_id}>` : 'Seçilmedi';
+    const logText = setup.log_channel_id ? `<#${setup.log_channel_id}>` : 'Seçilmedi';
+    const rolesText = setup.support_roles?.length ? `${setup.support_roles.length} rol seçili` : 'Seçilmedi';
+
+    return buildModBResponse({
+        title: 'Destek Kurulumu',
+        textLines: [
+            'Aşağıdaki menülerden talep odası türünü, kategoriyi, destek rollerini ve log kanalını ayarlayabilirsiniz.',
+            '---SEPARATOR---',
+            `**Oda Türü:** \`${roomType}\``,
+            `**Kategori:** ${catText}`,
+            `**Destek Rolleri:** ${rolesText}`,
+            `**Log Kanalı:** ${logText}`,
+            `**Karşılama Metni:** ${setup.welcome_message ? 'Özel metin ayarlı' : 'Varsayılan'}`
+        ],
+        actionRows: [rowRoomType, rowCategory, rowRoles, rowLog, rowBtns]
+    });
 }
 
-function buildTicketBehaviorModal(setup) {
-    const currentCloseBehavior = setup.close_behavior || 'archive';
-    const modal = new ModalBuilder().setCustomId('ticket_modal_behavior').setTitle('Kapanış ve Oda Ayarları');
+async function renderTicketBehaviorView(guildId) {
+    const setup = await getTicketSetup(guildId);
+    const closeBehavior = setup?.close_behavior || 'archive';
 
-    modal.addLabelComponents(
-        new LabelBuilder()
-            .setLabel('Talep kapatılınca ne olsun?')
-            .setDescription('Arşivlersen oda kalır, kullanıcı göremez; silersen oda tamamen kaybolur.')
-            .setRadioGroupComponent(
-                new RadioGroupBuilder().setCustomId('behavior_close_action').setRequired(true).setOptions([
-                    { label: 'Arşivle', value: 'archive', default: currentCloseBehavior === 'archive' },
-                    { label: 'Sil', value: 'delete', default: currentCloseBehavior === 'delete' }
-                ])
-            ),
-        new LabelBuilder()
-            .setLabel('Arşiv kategorisi')
-            .setDescription('Klasik kanallar buraya taşınır. Özel alt başlıklar kendi kanalında arşivlenir.')
-            .setChannelSelectMenuComponent(new ChannelSelectMenuBuilder().setCustomId('behavior_archive_category').setChannelTypes(ChannelType.GuildCategory).setRequired(false)),
-        new LabelBuilder()
-            .setLabel('Oda adı şablonu')
-            .setDescription('{number} sıra numarası (0001), {user} kullanıcı adı.')
-            .setTextInputComponent(new TextInputBuilder().setCustomId('behavior_room_name').setStyle(TextInputStyle.Short).setValue(setup.room_name_template || 'ticket-{number}').setRequired(true).setMaxLength(50)),
-        new LabelBuilder()
-            .setLabel('Kişi başı açık talep sınırı')
-            .setDescription('1 ile 10 arasında. Varsayılan 1.')
-            .setTextInputComponent(new TextInputBuilder().setCustomId('behavior_user_limit').setStyle(TextInputStyle.Short).setValue(String(setup.user_limit || 1)).setRequired(true).setMaxLength(2)),
-        new LabelBuilder()
-            .setLabel('Transkript ayarı')
-            .setCheckboxComponent(new CheckboxBuilder().setCustomId('behavior_transcript').setDefault(setup.create_transcript !== 0))
+    const closeOptions = [
+        { label: 'Arşivle', value: 'archive', description: 'Talep kapatılınca arşiv kategorisine taşınır.', default: closeBehavior === 'archive' },
+        { label: 'Sil', value: 'delete', description: 'Talep kapatılınca kanal tamamen silinir.', default: closeBehavior === 'delete' }
+    ];
+
+    const rowClose = new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId('ticket_sel_close_behavior')
+            .setPlaceholder('Kapanış davranışı seçin')
+            .addOptions(closeOptions)
     );
-    return modal;
+
+    const rowArchiveCat = new ActionRowBuilder().addComponents(
+        new ChannelSelectMenuBuilder()
+            .setCustomId('ticket_sel_archive_category')
+            .setPlaceholder('Arşiv kategorisi seçin')
+            .setChannelTypes(ChannelType.GuildCategory)
+    );
+
+    const rowBtns = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('ticket_btn_behavior_settings').setLabel('Oda Adı & Sınır').setStyle(ButtonStyle.Primary).setEmoji(MONO_EMOJIS.settings || '1530918960764027000'),
+        new ButtonBuilder().setCustomId('ticket_btn_toggle_transcript').setLabel(setup.create_transcript ? 'Transkript: Açık' : 'Transkript: Kapalı').setStyle(setup.create_transcript ? ButtonStyle.Success : ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('ticket_admin_home').setLabel('Geri Dön').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.arrow_left || '1530917536806469783')
+    );
+
+    const archText = setup.archive_category_id ? `<#${setup.archive_category_id}>` : 'Seçilmedi';
+
+    return buildModBResponse({
+        title: 'Kapanış ve Davranış Ayarları',
+        textLines: [
+            'Taleplerin kapatılması, arşivlenmesi ve adlandırma kurallarını buradan yapılandırın.',
+            '---SEPARATOR---',
+            `**Kapanış Davranışı:** \`${closeBehavior === 'delete' ? 'Sil' : 'Arşivle'}\``,
+            `**Arşiv Kategorisi:** ${archText}`,
+            `**Oda Adı Şablonu:** \`${setup.room_name_template || 'ticket-{number}'}\``,
+            `**Kişi Başı Açık Talep Sınırı:** \`${setup.user_limit || 1}\``,
+            `**Transkript Kaydı:** \`${setup.create_transcript ? 'Açık' : 'Kapalı'}\``
+        ],
+        actionRows: [rowClose, rowArchiveCat, rowBtns]
+    });
 }
 
-function buildTicketThreadModal() {
-    const modal = new ModalBuilder().setCustomId('ticket_modal_thread').setTitle('Alt Başlık Ayarları');
-    modal.addLabelComponents(
-        new LabelBuilder()
-            .setLabel('Yetkili katılım kartı hangi kanala gitsin?')
-            .setDescription("Butonlu alt başlık modunda 'Katıl' kartı bu kanala gönderilir.")
-            .setChannelSelectMenuComponent(new ChannelSelectMenuBuilder().setCustomId('thread_channel').setChannelTypes(ChannelType.GuildText).setRequired(true))
+async function renderTicketThreadView(guildId) {
+    const setup = await getTicketSetup(guildId);
+
+    const rowThread = new ActionRowBuilder().addComponents(
+        new ChannelSelectMenuBuilder()
+            .setCustomId('ticket_sel_thread_channel')
+            .setPlaceholder('Yetkili katılım kanalı seçin')
+            .setChannelTypes(ChannelType.GuildText)
     );
-    return modal;
+
+    const rowBtns = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('ticket_admin_home').setLabel('Geri Dön').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.arrow_left || '1530917536806469783')
+    );
+
+    const thText = setup.thread_channel_id ? `<#${setup.thread_channel_id}>` : 'Seçilmedi';
+
+    return buildModBResponse({
+        title: 'Alt Başlık Ayarları',
+        textLines: [
+            'Butonlu alt başlık modunda "Katıl" kartının gönderileceği yetkili kanalını buradan belirleyebilirsiniz.',
+            '---SEPARATOR---',
+            `**Yetkili Katılım Kanalı:** ${thText}`
+        ],
+        actionRows: [rowThread, rowBtns]
+    });
 }
 
-function buildTicketPublishModal(setup) {
-    const modal = new ModalBuilder().setCustomId('ticket_modal_publish').setTitle('Talep Panelini Yayınla');
-    const sections = Array.isArray(setup.panel_sections) ? setup.panel_sections : ['how_it_works', 'type_list', 'stats', 'warning'];
+async function renderTicketPublishView(guildId) {
+    const setup = await getTicketSetup(guildId);
 
-    modal.addLabelComponents(
-        new LabelBuilder()
-            .setLabel('Panel hangi kanala gitsin? *')
-            .setChannelSelectMenuComponent(new ChannelSelectMenuBuilder().setCustomId('publish_channel').setChannelTypes(ChannelType.GuildText).setRequired(true)),
-        new LabelBuilder()
-            .setLabel('Panel başlığı')
-            .setTextInputComponent(new TextInputBuilder().setCustomId('publish_title').setStyle(TextInputStyle.Short).setValue('Destek Talebi').setRequired(false).setMaxLength(100)),
-        new LabelBuilder()
-            .setLabel('Panel açıklaması')
-            .setTextInputComponent(new TextInputBuilder().setCustomId('publish_desc').setStyle(TextInputStyle.Paragraph).setValue('Bir sorunun mu var? Aşağıdan talep oluştur, sana özel bir kanal açılsın ve ekibimiz yardımcı olsun.').setRequired(false).setMaxLength(1500)),
-        new LabelBuilder()
-            .setLabel('Panelde görünecek bölümler')
-            .setCheckboxGroupComponent(
-                new CheckboxGroupBuilder().setCustomId('publish_sections').setOptions([
-                    { label: 'Nasıl çalışır?', value: 'how_it_works', description: 'Üç adımlık kısa anlatım.', default: sections.includes('how_it_works') },
-                    { label: 'Talep türleri listesi', value: 'type_list', description: 'Türleri menünün üstünde yazıyla da gösterir.', default: sections.includes('type_list') },
-                    { label: 'İstatistikler', value: 'stats', description: 'Açılan talep sayısı ve durum.', default: sections.includes('stats') },
-                    { label: 'Uyarı metni', value: 'warning', description: 'Gereksiz talep açma uyarısı.', default: sections.includes('warning') }
-                ])
-            ),
-        new LabelBuilder()
-            .setLabel('Talep açılınca destek rollerini etiketle')
-            .setCheckboxComponent(new CheckboxBuilder().setCustomId('publish_ping_roles').setDefault(Boolean(setup.ping_roles)))
+    const rowChannel = new ActionRowBuilder().addComponents(
+        new ChannelSelectMenuBuilder()
+            .setCustomId('ticket_sel_publish_channel')
+            .setPlaceholder('Panelin yayınlanacağı kanalı seçin')
+            .setChannelTypes(ChannelType.GuildText)
     );
-    return modal;
+
+    const rowBtns = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('ticket_btn_publish_text').setLabel('Başlık & Açıklama').setStyle(ButtonStyle.Primary).setEmoji(MONO_EMOJIS.edit || '1530918960764027000'),
+        new ButtonBuilder().setCustomId('ticket_btn_do_publish').setLabel('Paneli Yayınla').setStyle(ButtonStyle.Success).setEmoji(MONO_EMOJIS.send || '1530917534885478600').setDisabled(!setup.panel_channel_id),
+        new ButtonBuilder().setCustomId('ticket_admin_home').setLabel('Geri Dön').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.arrow_left || '1530917536806469783')
+    );
+
+    const pChanText = setup.panel_channel_id ? `<#${setup.panel_channel_id}>` : 'Seçilmedi';
+
+    return buildModBResponse({
+        title: 'Talep Panelini Yayınla',
+        textLines: [
+            'Destek talebi panelinin gönderileceği kanalı seçip yayına alabilirsiniz.',
+            '---SEPARATOR---',
+            `**Hedef Kanal:** ${pChanText}`,
+            `**Panel Başlığı:** ${setup.panel_title || 'Destek Talebi'}`,
+            `**Panel Açıklaması:** ${setup.panel_desc || 'Bir sorunun mu var? Aşağıdan talep oluştur, sana özel bir kanal açılsın ve ekibimiz yardımcı olsun.'}`
+        ],
+        actionRows: [rowChannel, rowBtns]
+    });
 }
 
 function buildTicketCreateModal(typeLabel = null) {
-    const modal = new ModalBuilder().setCustomId(typeLabel ? `ticket_modal_create:${typeLabel}` : 'ticket_modal_create').setTitle('Destek Talebi Oluştur');
-    modal.addLabelComponents(
-        new LabelBuilder()
-            .setLabel('Konu *')
-            .setTextInputComponent(new TextInputBuilder().setCustomId('ticket_subject').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100)),
-        new LabelBuilder()
-            .setLabel('Detaylı açıklama')
-            .setDescription('Ne kadar çok bilgi verirsen o kadar hızlı çözülür.')
-            .setTextInputComponent(new TextInputBuilder().setCustomId('ticket_desc').setStyle(TextInputStyle.Paragraph).setRequired(false).setMaxLength(1500))
+    const modal = new ModalBuilder()
+        .setCustomId(typeLabel ? `ticket_modal_create:${typeLabel}` : 'ticket_modal_create')
+        .setTitle('Destek Talebi Oluştur');
+
+    const subjectInput = new TextInputBuilder()
+        .setCustomId('ticket_subject')
+        .setLabel('Konu')
+        .setPlaceholder('Talebinizin konusunu kısaca özetleyin')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setMaxLength(100);
+
+    const descInput = new TextInputBuilder()
+        .setCustomId('ticket_desc')
+        .setLabel('Detaylı Açıklama')
+        .setPlaceholder('Ne kadar çok bilgi verirseniz o kadar hızlı çözülür...')
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(false)
+        .setMaxLength(1500);
+
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(subjectInput),
+        new ActionRowBuilder().addComponents(descInput)
     );
     return modal;
 }
@@ -362,10 +442,9 @@ async function handleTicketInteraction(interaction) {
     }
     else if (customId === 'ticket_admin_type_add') {
         const modal = new ModalBuilder().setCustomId('ticket_modal_type_add').setTitle('Talep Türü Ekle');
-        modal.addLabelComponents(
-            new LabelBuilder().setLabel('Tür adı *').setTextInputComponent(new TextInputBuilder().setCustomId('ticket_type_name').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(80)),
-            new LabelBuilder().setLabel('Kısa açıklama').setTextInputComponent(new TextInputBuilder().setCustomId('ticket_type_description').setStyle(TextInputStyle.Paragraph).setRequired(false).setMaxLength(300))
-        );
+        const nameInput = new TextInputBuilder().setCustomId('ticket_type_name').setLabel('Tür Adı').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(80);
+        const descInput = new TextInputBuilder().setCustomId('ticket_type_description').setLabel('Kısa Açıklama').setStyle(TextInputStyle.Paragraph).setRequired(false).setMaxLength(300);
+        modal.addComponents(new ActionRowBuilder().addComponents(nameInput), new ActionRowBuilder().addComponents(descInput));
         await interaction.showModal(modal);
     }
     else if (customId === 'ticket_modal_type_add') {
@@ -385,45 +464,137 @@ async function handleTicketInteraction(interaction) {
         await interaction.editReply(await renderTicketTypesMenu(guildId));
     }
     else if (customId === 'ticket_admin_setup') {
-        const setup = await getTicketSetup(guildId);
-        await interaction.showModal(buildTicketSetupModal(setup));
+        await interaction.deferUpdate();
+        const view = await renderTicketSetupView(guildId);
+        await interaction.editReply(view);
     }
-    else if (customId === 'ticket_modal_setup') {
+    else if (customId === 'ticket_sel_room_type') {
+        await interaction.deferUpdate();
+        const setup = await getTicketSetup(guildId);
+        setup.room_type = interaction.values[0];
+        await saveTicketSetup(setup);
+        const view = await renderTicketSetupView(guildId);
+        await interaction.editReply(view);
+    }
+    else if (customId === 'ticket_sel_category') {
+        await interaction.deferUpdate();
+        const setup = await getTicketSetup(guildId);
+        setup.category_id = interaction.values[0];
+        await saveTicketSetup(setup);
+        const view = await renderTicketSetupView(guildId);
+        await interaction.editReply(view);
+    }
+    else if (customId === 'ticket_sel_support_roles') {
+        await interaction.deferUpdate();
+        const setup = await getTicketSetup(guildId);
+        setup.support_roles = interaction.values;
+        await saveTicketSetup(setup);
+        const view = await renderTicketSetupView(guildId);
+        await interaction.editReply(view);
+    }
+    else if (customId === 'ticket_sel_log_channel') {
+        await interaction.deferUpdate();
+        const setup = await getTicketSetup(guildId);
+        setup.log_channel_id = interaction.values[0];
+        await saveTicketSetup(setup);
+        const view = await renderTicketSetupView(guildId);
+        await interaction.editReply(view);
+    }
+    else if (customId === 'ticket_btn_welcome_msg') {
+        const setup = await getTicketSetup(guildId);
+        const modal = new ModalBuilder().setCustomId('ticket_modal_welcome').setTitle('Karşılama Metni');
+        const input = new TextInputBuilder()
+            .setCustomId('setup_welcome_message')
+            .setLabel('Karşılama Metni')
+            .setStyle(TextInputStyle.Paragraph)
+            .setValue(setup.welcome_message || '')
+            .setRequired(false)
+            .setMaxLength(1000);
+        modal.addComponents(new ActionRowBuilder().addComponents(input));
+        await interaction.showModal(modal);
+    }
+    else if (customId === 'ticket_modal_welcome') {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
         const setup = await getTicketSetup(guildId);
-        setup.room_type = interaction.fields.getRadioGroup('setup_room_type', true) || 'channel';
-        setup.category_id = selectedChannelId(interaction, 'setup_category');
-        setup.support_roles = selectedRoleIds(interaction, 'setup_support_roles');
-        setup.log_channel_id = selectedChannelId(interaction, 'setup_log_channel');
         setup.welcome_message = interaction.fields.getTextInputValue('setup_welcome_message')?.trim() || null;
         await saveTicketSetup(setup);
-        await interaction.editReply(await renderTicketAdminMenu(guildId));
+        const view = await renderTicketSetupView(guildId);
+        await interaction.editReply(view);
     }
     else if (customId === 'ticket_admin_behavior') {
-        const setup = await getTicketSetup(guildId);
-        await interaction.showModal(buildTicketBehaviorModal(setup));
+        await interaction.deferUpdate();
+        const view = await renderTicketBehaviorView(guildId);
+        await interaction.editReply(view);
     }
-    else if (customId === 'ticket_modal_behavior') {
+    else if (customId === 'ticket_sel_close_behavior') {
+        await interaction.deferUpdate();
+        const setup = await getTicketSetup(guildId);
+        setup.close_behavior = interaction.values[0];
+        await saveTicketSetup(setup);
+        const view = await renderTicketBehaviorView(guildId);
+        await interaction.editReply(view);
+    }
+    else if (customId === 'ticket_sel_archive_category') {
+        await interaction.deferUpdate();
+        const setup = await getTicketSetup(guildId);
+        setup.archive_category_id = interaction.values[0];
+        await saveTicketSetup(setup);
+        const view = await renderTicketBehaviorView(guildId);
+        await interaction.editReply(view);
+    }
+    else if (customId === 'ticket_btn_toggle_transcript') {
+        await interaction.deferUpdate();
+        const setup = await getTicketSetup(guildId);
+        setup.create_transcript = setup.create_transcript ? 0 : 1;
+        await saveTicketSetup(setup);
+        const view = await renderTicketBehaviorView(guildId);
+        await interaction.editReply(view);
+    }
+    else if (customId === 'ticket_btn_behavior_settings') {
+        const setup = await getTicketSetup(guildId);
+        const modal = new ModalBuilder().setCustomId('ticket_modal_behavior_settings').setTitle('Oda Adı ve Sınır');
+        const nameInput = new TextInputBuilder()
+            .setCustomId('behavior_room_name')
+            .setLabel('Oda Adı Şablonu ({number}, {user})')
+            .setStyle(TextInputStyle.Short)
+            .setValue(setup.room_name_template || 'ticket-{number}')
+            .setRequired(true)
+            .setMaxLength(50);
+        const limitInput = new TextInputBuilder()
+            .setCustomId('behavior_user_limit')
+            .setLabel('Kişi Başı Açık Talep Sınırı (1-10)')
+            .setStyle(TextInputStyle.Short)
+            .setValue(String(setup.user_limit || 1))
+            .setRequired(true)
+            .setMaxLength(2);
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(nameInput),
+            new ActionRowBuilder().addComponents(limitInput)
+        );
+        await interaction.showModal(modal);
+    }
+    else if (customId === 'ticket_modal_behavior_settings') {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
         const setup = await getTicketSetup(guildId);
-        setup.close_behavior = interaction.fields.getRadioGroup('behavior_close_action', true) || 'archive';
-        setup.archive_category_id = selectedChannelId(interaction, 'behavior_archive_category');
         setup.room_name_template = interaction.fields.getTextInputValue('behavior_room_name')?.trim() || 'ticket-{number}';
         const limit = parseInt(interaction.fields.getTextInputValue('behavior_user_limit'), 10);
         setup.user_limit = (!isNaN(limit) && limit >= 1 && limit <= 10) ? limit : 1;
-        setup.create_transcript = interaction.fields.getCheckbox('behavior_transcript') ? 1 : 0;
         await saveTicketSetup(setup);
-        await interaction.editReply(await renderTicketAdminMenu(guildId));
+        const view = await renderTicketBehaviorView(guildId);
+        await interaction.editReply(view);
     }
     else if (customId === 'ticket_admin_thread') {
-        await interaction.showModal(buildTicketThreadModal());
+        await interaction.deferUpdate();
+        const view = await renderTicketThreadView(guildId);
+        await interaction.editReply(view);
     }
-    else if (customId === 'ticket_modal_thread') {
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
+    else if (customId === 'ticket_sel_thread_channel') {
+        await interaction.deferUpdate();
         const setup = await getTicketSetup(guildId);
-        setup.thread_channel_id = selectedChannelId(interaction, 'thread_channel');
+        setup.thread_channel_id = interaction.values[0];
         await saveTicketSetup(setup);
-        await interaction.editReply(await renderTicketAdminMenu(guildId));
+        const view = await renderTicketThreadView(guildId);
+        await interaction.editReply(view);
     }
     else if (customId === 'ticket_admin_quick') {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
@@ -453,21 +624,61 @@ async function handleTicketInteraction(interaction) {
         }
     }
     else if (customId === 'ticket_admin_panel') {
-        const setup = await getTicketSetup(guildId);
-        await interaction.showModal(buildTicketPublishModal(setup));
+        await interaction.deferUpdate();
+        const view = await renderTicketPublishView(guildId);
+        await interaction.editReply(view);
     }
-    else if (customId === 'ticket_modal_publish') {
+    else if (customId === 'ticket_sel_publish_channel') {
+        await interaction.deferUpdate();
+        const setup = await getTicketSetup(guildId);
+        setup.panel_channel_id = interaction.values[0];
+        await saveTicketSetup(setup);
+        const view = await renderTicketPublishView(guildId);
+        await interaction.editReply(view);
+    }
+    else if (customId === 'ticket_btn_publish_text') {
+        const setup = await getTicketSetup(guildId);
+        const modal = new ModalBuilder().setCustomId('ticket_modal_publish_text').setTitle('Panel Metinleri');
+        const titleInput = new TextInputBuilder()
+            .setCustomId('publish_title')
+            .setLabel('Panel Başlığı')
+            .setStyle(TextInputStyle.Short)
+            .setValue(setup.panel_title || 'Destek Talebi')
+            .setRequired(false)
+            .setMaxLength(100);
+        const descInput = new TextInputBuilder()
+            .setCustomId('publish_desc')
+            .setLabel('Panel Açıklaması')
+            .setStyle(TextInputStyle.Paragraph)
+            .setValue(setup.panel_desc || 'Bir sorunun mu var? Aşağıdan talep oluştur, sana özel bir kanal açılsın ve ekibimiz yardımcı olsun.')
+            .setRequired(false)
+            .setMaxLength(1500);
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(titleInput),
+            new ActionRowBuilder().addComponents(descInput)
+        );
+        await interaction.showModal(modal);
+    }
+    else if (customId === 'ticket_modal_publish_text') {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
-        const channelId = selectedChannelId(interaction, 'publish_channel');
+        const setup = await getTicketSetup(guildId);
+        setup.panel_title = interaction.fields.getTextInputValue('publish_title')?.trim() || 'Destek Talebi';
+        setup.panel_desc = interaction.fields.getTextInputValue('publish_desc')?.trim() || 'Bir sorunun mu var? Aşağıdan talep oluştur, sana özel bir kanal açılsın ve ekibimiz yardımcı olsun.';
+        await saveTicketSetup(setup);
+        const view = await renderTicketPublishView(guildId);
+        await interaction.editReply(view);
+    }
+    else if (customId === 'ticket_btn_do_publish') {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
+        const setup = await getTicketSetup(guildId);
+        const channelId = setup.panel_channel_id;
         const channel = interaction.guild.channels.cache.get(channelId);
         if (!channel) {
-            return await interaction.editReply(buildModBResponse({ title: 'Hata', textLines: ['Seçilen hedef kanal bulunamadı.'] }));
+            return await interaction.editReply(buildModBResponse({ title: 'Hata', textLines: ['Hedef panel kanalı bulunamadı. Lütfen önce kanalı seçin.'] }));
         }
 
-        const panelTitle = interaction.fields.getTextInputValue('publish_title')?.trim() || 'Destek Talebi';
-        const panelDesc = interaction.fields.getTextInputValue('publish_desc')?.trim() || 'Bir sorunun mu var? Aşağıdan talep oluştur, sana özel bir kanal açılsın ve ekibimiz yardımcı olsun.';
-        const sections = interaction.fields.getCheckboxGroup('publish_sections') || [];
-        const pingRoles = interaction.fields.getCheckbox('publish_ping_roles');
+        const panelTitle = setup.panel_title || 'Destek Talebi';
+        const panelDesc = setup.panel_desc || 'Bir sorunun mu var? Aşağıdan talep oluştur, sana özel bir kanal açılsın ve ekibimiz yardımcı olsun.';
 
         let conn;
         let totalCount = 0;
@@ -483,50 +694,45 @@ async function handleTicketInteraction(interaction) {
         }
 
         const eChevron = getMonoEmoji('chevron_right');
-        let textLines = [panelDesc];
-
-        if (sections.includes('how_it_works')) {
-            textLines.push('---SEPARATOR---');
-            textLines.push('**Nasıl çalışır?**');
-            textLines.push(`${eChevron} Aşağıdan talebini oluştur, konuyu kısaca yaz.`);
-            textLines.push(`${eChevron} Sana özel, sadece senin ve ekibin görebildiği bir kanal açılır.`);
-            textLines.push(`${eChevron} Konu çözülünce talep kapatılır ve konuşma kaydı sana gönderilir.`);
-        }
-
-        if (sections.includes('stats') || sections.includes('warning')) {
-            textLines.push('---SEPARATOR---');
-            if (sections.includes('stats')) {
-                textLines.push(`${totalCount} talep açıldı · ${openCount} tanesi şu an açık`);
-            }
-            if (sections.includes('warning')) {
-                textLines.push('Gereksiz talep açmak yetkililerin işini yavaşlatır — lütfen tek seferde net yaz.');
-            }
-        }
-
-        const setup = await getTicketSetup(guildId);
-        setup.panel_channel_id = channelId;
-        setup.panel_sections = sections;
-        setup.ping_roles = pingRoles ? 1 : 0;
+        let textLines = [
+            panelDesc,
+            '---SEPARATOR---',
+            '**Nasıl çalışır?**',
+            `${eChevron} Aşağıdan talebini oluştur, konuyu kısaca yaz.`,
+            `${eChevron} Sana özel, sadece senin ve ekibin görebildiği bir kanal açılır.`,
+            `${eChevron} Konu çözülünce talep kapatılır ve konuşma kaydı sana gönderilir.`,
+            '---SEPARATOR---',
+            `${totalCount} talep açıldı · ${openCount} tanesi şu an açık`,
+            'Gereksiz talep açmak yetkililerin işini yavaşlatır — lütfen tek seferde net yaz.'
+        ];
 
         let actionRows = [];
+        const extraInfoBtn = new ButtonBuilder()
+            .setCustomId(`ticket_btn_extra_info_${guildId}`)
+            .setLabel('Kurallar & SSS')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji(MONO_EMOJIS.info || MONO_EMOJIS.help_circle);
+
         if (setup.ticket_types && setup.ticket_types.length > 0) {
             const selectOptions = setup.ticket_types.map((type, idx) => ({
                 label: type.name,
                 value: `type_${idx}`,
-                description: type.description ? type.description.substring(0, 50) : undefined
+                description: type.description ? type.description.substring(0, 50) : undefined,
+                emoji: MONO_EMOJIS.ticket
             }));
             const selectMenu = new StringSelectMenuBuilder()
                 .setCustomId('ticket_select_type')
                 .setPlaceholder('Talep türü seçin...')
                 .addOptions(selectOptions);
             actionRows.push(new ActionRowBuilder().addComponents(selectMenu));
+            actionRows.push(new ActionRowBuilder().addComponents(extraInfoBtn));
         } else {
             const btn = new ButtonBuilder()
                 .setCustomId('ticket_create_btn')
                 .setLabel('Talep Oluştur')
                 .setStyle(ButtonStyle.Primary)
                 .setEmoji(MONO_EMOJIS.ticket);
-            actionRows.push(new ActionRowBuilder().addComponents(btn));
+            actionRows.push(new ActionRowBuilder().addComponents(btn, extraInfoBtn));
         }
 
         const panelPayload = buildModBResponse({
@@ -535,11 +741,30 @@ async function handleTicketInteraction(interaction) {
             actionRows: actionRows
         });
 
-        const sent = await channel.send(panelPayload);
-        setup.published_panel_id = sent.id;
-        await saveTicketSetup(setup);
+        let sent = null;
+        let isUpdated = false;
+        if (setup.published_panel_id) {
+            try {
+                const oldMsg = await channel.messages.fetch(setup.published_panel_id).catch(() => null);
+                if (oldMsg) {
+                    await oldMsg.edit(panelPayload);
+                    sent = oldMsg;
+                    isUpdated = true;
+                }
+            } catch(e) {}
+        }
 
-        await interaction.editReply(await renderTicketAdminMenu(guildId));
+        if (!sent) {
+            sent = await channel.send(panelPayload);
+            setup.published_panel_id = sent.id;
+            await saveTicketSetup(setup);
+        }
+
+        const confirmPayload = buildModBResponse({
+            title: isUpdated ? 'Panel Güncellendi' : 'Panel Yayınlandı',
+            textLines: [`${getMonoEmoji('check')} Destek paneli <#${channel.id}> kanalında başarıyla ${isUpdated ? 'yerinde güncellendi' : 'yayınlandı'}.`]
+        });
+        await interaction.editReply(confirmPayload).catch(() => {});
     }
 
     // --- User Ticket Creation Flows ---
@@ -563,6 +788,55 @@ async function handleTicketInteraction(interaction) {
     }
 
     // --- In-Room Controls & Dynamic Updates ---
+    else if (customId.startsWith('ticket_room_actions_')) {
+        const channelId = customId.replace('ticket_room_actions_', '') || interaction.channel.id;
+        const selected = interaction.values?.[0];
+
+        if (selected === 'priority') {
+            await handleTicketPriorityMenu(interaction);
+        } else if (selected === 'adduser') {
+            const select = new UserSelectMenuBuilder()
+                .setCustomId(`ticket_sel_adduser:${channelId}`)
+                .setPlaceholder('Talebe eklenecek kullanıcıyı seçin...')
+                .setMinValues(1)
+                .setMaxValues(1);
+            const row = new ActionRowBuilder().addComponents(select);
+            const payload = buildModBResponse({
+                title: 'Kişi Ekle',
+                textLines: ['Talebe eklemek istediğiniz kullanıcıyı aşağıdaki menüden seçin:'],
+                actionRows: [row]
+            });
+            await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
+        } else if (selected === 'removeuser') {
+            const select = new UserSelectMenuBuilder()
+                .setCustomId(`ticket_sel_removeuser:${channelId}`)
+                .setPlaceholder('Talepten çıkarılacak kullanıcıyı seçin...')
+                .setMinValues(1)
+                .setMaxValues(1);
+            const row = new ActionRowBuilder().addComponents(select);
+            const payload = buildModBResponse({
+                title: 'Kişi Çıkar',
+                textLines: ['Talepten çıkarmak istediğiniz kullanıcıyı aşağıdaki menüden seçin:'],
+                actionRows: [row]
+            });
+            await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
+        } else if (selected === 'rename') {
+            const modal = new ModalBuilder().setCustomId(`ticket_modal_rename:${channelId}`).setTitle('Yeniden Adlandır');
+            const input = new TextInputBuilder()
+                .setCustomId('new_name')
+                .setLabel('Yeni Oda Adı')
+                .setStyle(TextInputStyle.Short)
+                .setValue(interaction.channel.name)
+                .setRequired(true)
+                .setMaxLength(50);
+            modal.addComponents(new ActionRowBuilder().addComponents(input));
+            await interaction.showModal(modal);
+        } else if (selected === 'nudge') {
+            await handleTicketNudge(interaction);
+        } else if (selected === 'transcript') {
+            await handleTicketTranscript(interaction);
+        }
+    }
     else if (customId.startsWith('ticket_claim_')) {
         await handleTicketClaim(interaction);
     }
@@ -582,58 +856,88 @@ async function handleTicketInteraction(interaction) {
         const reason = interaction.fields.getTextInputValue('close_reason')?.trim() || 'Sorun çözüldü.';
         await handleTicketCloseConfirm(interaction, reason);
     }
+    else if (customId.startsWith('ticket_reopen_')) {
+        await handleTicketReopen(interaction);
+    }
+    else if (customId.startsWith('ticket_delete_perm_')) {
+        await handleTicketDeletePermanent(interaction);
+    }
+    else if (customId.startsWith('ticket_btn_extra_info')) {
+        await handleTicketExtraInfo(interaction);
+    }
     else if (customId.startsWith('ticket_nudge_')) {
         await handleTicketNudge(interaction);
     }
     else if (customId.startsWith('ticket_adduser_')) {
-        const modal = new ModalBuilder().setCustomId(`ticket_modal_adduser:${interaction.channel.id}`).setTitle('Kişi Ekle');
-        modal.addLabelComponents(
-            new LabelBuilder()
-                .setLabel('Eklenecek Kullanıcı')
-                .setUserSelectMenuComponent(new UserSelectMenuBuilder().setCustomId('target_user').setRequired(true))
-        );
-        await interaction.showModal(modal);
+        const channelId = customId.split('_')[2] || interaction.channel.id;
+        const select = new UserSelectMenuBuilder()
+            .setCustomId(`ticket_sel_adduser:${channelId}`)
+            .setPlaceholder('Talebe eklenecek kullanıcıyı seçin...')
+            .setMinValues(1)
+            .setMaxValues(1);
+        const row = new ActionRowBuilder().addComponents(select);
+        const payload = buildModBResponse({
+            title: 'Kişi Ekle',
+            textLines: ['Talebe eklemek istediğiniz kullanıcıyı aşağıdaki menüden seçin:'],
+            actionRows: [row]
+        });
+        await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
     }
-    else if (customId.startsWith('ticket_modal_adduser:')) {
+    else if (customId.startsWith('ticket_sel_adduser:')) {
         const channelId = customId.split(':')[1];
         const channel = interaction.guild.channels.cache.get(channelId);
-        const userIds = selectedUserIds(interaction, 'target_user');
-        if (channel && userIds.length > 0) {
-            const targetId = userIds[0];
+        const targetId = interaction.values?.[0];
+        if (channel && targetId) {
             await channel.permissionOverwrites.edit(targetId, {
                 ViewChannel: true,
                 SendMessages: true,
                 ReadMessageHistory: true
             });
-            await interaction.reply({ content: `${getMonoEmoji('check')} <@${targetId}> talebe eklendi.`, flags: MessageFlags.Ephemeral });
+            const payload = buildModBResponse({
+                title: 'Kişi Eklendi',
+                textLines: [`${getMonoEmoji('check')} <@${targetId}> başarıyla talebe eklendi.`]
+            });
+            await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
         }
     }
     else if (customId.startsWith('ticket_removeuser_')) {
-        const modal = new ModalBuilder().setCustomId(`ticket_modal_removeuser:${interaction.channel.id}`).setTitle('Kişi Çıkar');
-        modal.addLabelComponents(
-            new LabelBuilder()
-                .setLabel('Çıkarılacak Kullanıcı')
-                .setUserSelectMenuComponent(new UserSelectMenuBuilder().setCustomId('target_user').setRequired(true))
-        );
-        await interaction.showModal(modal);
+        const channelId = customId.split('_')[2] || interaction.channel.id;
+        const select = new UserSelectMenuBuilder()
+            .setCustomId(`ticket_sel_removeuser:${channelId}`)
+            .setPlaceholder('Talepten çıkarılacak kullanıcıyı seçin...')
+            .setMinValues(1)
+            .setMaxValues(1);
+        const row = new ActionRowBuilder().addComponents(select);
+        const payload = buildModBResponse({
+            title: 'Kişi Çıkar',
+            textLines: ['Talepten çıkarmak istediğiniz kullanıcıyı aşağıdaki menüden seçin:'],
+            actionRows: [row]
+        });
+        await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
     }
-    else if (customId.startsWith('ticket_modal_removeuser:')) {
+    else if (customId.startsWith('ticket_sel_removeuser:')) {
         const channelId = customId.split(':')[1];
         const channel = interaction.guild.channels.cache.get(channelId);
-        const userIds = selectedUserIds(interaction, 'target_user');
-        if (channel && userIds.length > 0) {
-            const targetId = userIds[0];
+        const targetId = interaction.values?.[0];
+        if (channel && targetId) {
             await channel.permissionOverwrites.delete(targetId);
-            await interaction.reply({ content: `${getMonoEmoji('check')} <@${targetId}> talepten çıkarıldı.`, flags: MessageFlags.Ephemeral });
+            const payload = buildModBResponse({
+                title: 'Kişi Çıkarıldı',
+                textLines: [`${getMonoEmoji('check')} <@${targetId}> talepten çıkarıldı.`]
+            });
+            await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
         }
     }
     else if (customId.startsWith('ticket_rename_')) {
         const modal = new ModalBuilder().setCustomId(`ticket_modal_rename:${interaction.channel.id}`).setTitle('Yeniden Adlandır');
-        modal.addLabelComponents(
-            new LabelBuilder()
-                .setLabel('Yeni Oda Adı')
-                .setTextInputComponent(new TextInputBuilder().setCustomId('new_name').setStyle(TextInputStyle.Short).setValue(interaction.channel.name).setRequired(true).setMaxLength(50))
-        );
+        const input = new TextInputBuilder()
+            .setCustomId('new_name')
+            .setLabel('Yeni Oda Adı')
+            .setStyle(TextInputStyle.Short)
+            .setValue(interaction.channel.name)
+            .setRequired(true)
+            .setMaxLength(50);
+        modal.addComponents(new ActionRowBuilder().addComponents(input));
         await interaction.showModal(modal);
     }
     else if (customId.startsWith('ticket_modal_rename:')) {
@@ -642,7 +946,11 @@ async function handleTicketInteraction(interaction) {
         const newName = interaction.fields.getTextInputValue('new_name')?.trim();
         if (channel && newName) {
             await channel.setName(newName);
-            await interaction.reply({ content: `${getMonoEmoji('check')} Oda adı \`${newName}\` olarak değiştirildi.`, flags: MessageFlags.Ephemeral });
+            const payload = buildModBResponse({
+                title: 'Oda Adı Güncellendi',
+                textLines: [`${getMonoEmoji('check')} Oda adı \`${newName}\` olarak değiştirildi.`]
+            });
+            await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
         }
     }
     else if (customId.startsWith('ticket_transcript_')) {
@@ -668,7 +976,10 @@ async function createTicket(interaction, subject, desc, typeName = null) {
         userOpenTickets = Number(resUser[0]?.cnt || 0);
 
         if (userOpenTickets >= (setup.user_limit || 1)) {
-            return await interaction.editReply({ content: `Aynı anda en fazla **${setup.user_limit || 1}** açık talebiniz olabilir.` });
+            return await interaction.editReply(buildModBResponse({
+                title: 'Talep Limiti',
+                textLines: [`Aynı anda en fazla **${setup.user_limit || 1}** açık talebiniz olabilir.`]
+            }));
         }
 
         const resTotal = await conn.query('SELECT COUNT(*) as cnt FROM tickets WHERE guild_id = ?', [guild.id]);
@@ -728,8 +1039,13 @@ async function createTicket(interaction, subject, desc, typeName = null) {
             [guild.id, ticketChannel.id, user.id, user.tag || user.username, subject]
         );
 
+        if (global.activeTicketChannels) global.activeTicketChannels.add(ticketChannel.id);
+
         // Render main card in room
-        await renderMainRoomMessage(ticketChannel, user, ticketNum, subject, desc, 'Normal', null, 'Açık', setup.welcome_message, typeName);
+        const mainRoomMsg = await renderMainRoomMessage(ticketChannel, user, ticketNum, subject, desc, 'Normal', null, 'Açık', setup.welcome_message, typeName);
+        if (mainRoomMsg && mainRoomMsg.id) {
+            await conn.query('UPDATE tickets SET message_id = ? WHERE channel_id = ?', [mainRoomMsg.id, ticketChannel.id]).catch(() => {});
+        }
 
         // Ping support roles if enabled
         if (setup.ping_roles && setup.support_roles?.length > 0) {
@@ -737,11 +1053,17 @@ async function createTicket(interaction, subject, desc, typeName = null) {
             await ticketChannel.send({ content: roleMentions }).then(m => setTimeout(() => m.delete().catch(()=>{}), 4000));
         }
 
-        await interaction.editReply({ content: `${getMonoEmoji('check')} Talebiniz oluşturuldu: <#${ticketChannel.id}>` });
+        await interaction.editReply(buildModBResponse({
+            title: 'Talep Oluşturuldu',
+            textLines: [`${getMonoEmoji('check')} Talebiniz başarıyla oluşturuldu: <#${ticketChannel.id}>`]
+        }));
 
     } catch(err) {
         console.error('Ticket creation error:', err);
-        await interaction.editReply({ content: 'Talep oluşturulurken bir hata meydana geldi.' });
+        await interaction.editReply(buildModBResponse({
+            title: 'Hata',
+            textLines: ['Talep oluşturulurken bir hata meydana geldi.']
+        }));
     } finally {
         if (conn) conn.release();
     }
@@ -760,7 +1082,7 @@ async function renderMainRoomMessage(channel, user, ticketNum, subject, desc, pr
     const eTicket = getMonoEmoji('ticket');
 
     const welcome = welcomeMessage || 'Talebin alındı. Ekibimiz en kısa sürede yanıt verecek — lütfen sabırlı ol.';
-    const typeLine = typeName ? `\n🏷️ **Tür ›** ${typeName}` : '';
+    const typeLine = typeName ? `\n${getMonoEmoji('bookmark')} **Tür ›** ${typeName}` : '';
 
     const textLines = [
         `**${subject}**`,
@@ -770,33 +1092,15 @@ async function renderMainRoomMessage(channel, user, ticketNum, subject, desc, pr
         '---SEPARATOR---',
         `> ${desc || 'Belirtilmedi'}`,
         '---SEPARATOR---',
-        '-# Butonlar yalnızca destek ekibi içindir; talebi açan kişi sadece kapatabilir.'
+        '-# Temel aksiyonlar butonlarda, diğer tüm işlemler menüdedir.'
     ];
 
-    const row1 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`ticket_claim_${channel.id}`).setLabel(claimedBy ? 'Bırak' : 'Üstlen').setStyle(claimedBy ? ButtonStyle.Secondary : ButtonStyle.Success).setEmoji(MONO_EMOJIS.user_round_check),
-        new ButtonBuilder().setCustomId(`ticket_priority_${channel.id}`).setLabel('Öncelik').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.flag_triangle_right)
-    );
-    const row2 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`ticket_lock_${channel.id}`).setLabel(status === 'Kilitli' ? 'Kilit Aç' : 'Kilitle').setStyle(ButtonStyle.Secondary).setEmoji(status === 'Kilitli' ? MONO_EMOJIS.unlock : MONO_EMOJIS.lock),
-        new ButtonBuilder().setCustomId(`ticket_close_prompt_${channel.id}`).setLabel('Kapat').setStyle(ButtonStyle.Danger).setEmoji(MONO_EMOJIS.delete)
-    );
-    const row3 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`ticket_adduser_${channel.id}`).setLabel('Kişi Ekle').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.user_round_plus),
-        new ButtonBuilder().setCustomId(`ticket_removeuser_${channel.id}`).setLabel('Kişi Çıkar').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.user_round_minus)
-    );
-    const row4 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`ticket_rename_${channel.id}`).setLabel('Yeniden Adlandır').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.file_text),
-        new ButtonBuilder().setCustomId(`ticket_nudge_${channel.id}`).setLabel('Yetkiliyi Dürt').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.bell_ring)
-    );
-    const row5 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`ticket_transcript_${channel.id}`).setLabel('Transkript').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.clipboard_check)
-    );
+    const actionRows = buildTicketActionComponents(channel.id, Boolean(claimedBy), status === 'Kilitli');
 
     const payload = buildModBResponse({
         title: `Talep #${paddedNum}`,
         textLines: textLines,
-        actionRows: [row1, row2, row3, row4, row5],
+        actionRows: actionRows,
         images: [user.displayAvatarURL({ dynamic: true })]
     });
 
@@ -833,66 +1137,83 @@ async function refreshRoomMessageInPlace(channel, updates = {}) {
 
         const welcome = setup?.welcome_message || 'Talebin alındı. Ekibimiz en kısa sürede yanıt verecek — lütfen sabırlı ol.';
 
-        const textLines = [
-            `**${ticket.reason || 'Destek Talebi'}**`,
-            welcome,
-            '---SEPARATOR---',
-            `${eUser} **Açan ›** <@${ticket.owner_id}>\n${eFlag} **Öncelik ›** ${priority}\n${eUsers} **Üstlenen ›** ${claimedBy ? `<@${claimedBy}>` : 'henüz kimse üstlenmedi'}\n${eCheck} **Durum ›** ${status}`,
-            '---SEPARATOR---',
-            `> ${ticket.reason || 'Belirtilmedi'}`,
-            '---SEPARATOR---',
-            '-# Butonlar yalnızca destek ekibi içindir; talebi açan kişi sadece kapatabilir.'
-        ];
+        let actionRows;
+        let textLines;
 
-        const row1 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`ticket_claim_${channel.id}`).setLabel(claimedBy ? 'Bırak' : 'Üstlen').setStyle(claimedBy ? ButtonStyle.Secondary : ButtonStyle.Success).setEmoji(MONO_EMOJIS.user_round_check),
-            new ButtonBuilder().setCustomId(`ticket_priority_${channel.id}`).setLabel('Öncelik').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.flag_triangle_right)
-        );
-        const row2 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`ticket_lock_${channel.id}`).setLabel(status === 'Kilitli' ? 'Kilit Aç' : 'Kilitle').setStyle(ButtonStyle.Secondary).setEmoji(status === 'Kilitli' ? MONO_EMOJIS.unlock : MONO_EMOJIS.lock),
-            new ButtonBuilder().setCustomId(`ticket_close_prompt_${channel.id}`).setLabel('Kapat').setStyle(ButtonStyle.Danger).setEmoji(MONO_EMOJIS.delete)
-        );
-        const row3 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`ticket_adduser_${channel.id}`).setLabel('Kişi Ekle').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.user_round_plus),
-            new ButtonBuilder().setCustomId(`ticket_removeuser_${channel.id}`).setLabel('Kişi Çıkar').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.user_round_minus)
-        );
-        const row4 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`ticket_rename_${channel.id}`).setLabel('Yeniden Adlandır').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.file_text),
-            new ButtonBuilder().setCustomId(`ticket_nudge_${channel.id}`).setLabel('Yetkiliyi Dürt').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.bell_ring)
-        );
-        const row5 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`ticket_transcript_${channel.id}`).setLabel('Transkript').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.clipboard_check)
-        );
+        if (status === 'Kapalı' || status === 'closed') {
+            const reopenRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`ticket_reopen_${channel.id}`)
+                    .setLabel('Talebi Tekrar Aç')
+                    .setStyle(ButtonStyle.Success)
+                    .setEmoji(MONO_EMOJIS.rotate_cw || '1548248467472781432'),
+                new ButtonBuilder()
+                    .setCustomId(`ticket_delete_perm_${channel.id}`)
+                    .setLabel('Kalıcı Olarak Sil')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji(MONO_EMOJIS.trash || '1542629920197312532')
+            );
+            actionRows = [reopenRow];
+            textLines = [
+                `**${ticket.reason || 'Destek Talebi'}**`,
+                '---SEPARATOR---',
+                `${eUser} **Açan ›** <@${ticket.owner_id}>\n${eCheck} **Durum ›** Kapalı / Arşivlendi\n${eFlag} **Kapatan ›** ${updates.closedBy ? `<@${updates.closedBy}>` : (ticket.closed_by ? `<@${ticket.closed_by}>` : 'Yetkili')}`,
+                `**Kapanış Sebebi ›** ${updates.closeReason || ticket.close_reason || 'Belirtilmedi'}`,
+                '---SEPARATOR---',
+                '-# Yetkililer veya talep sahibi gerektiğinde bu talebi tekrar açabilir veya kalıcı olarak silebilir.'
+            ];
+        } else {
+            actionRows = buildTicketActionComponents(channel.id, Boolean(claimedBy), status === 'Kilitli');
+            textLines = [
+                `**${ticket.reason || 'Destek Talebi'}**`,
+                welcome,
+                '---SEPARATOR---',
+                `${eUser} **Açan ›** <@${ticket.owner_id}>\n${eFlag} **Öncelik ›** ${priority}\n${eUsers} **Üstlenen ›** ${claimedBy ? `<@${claimedBy}>` : 'henüz kimse üstlenmedi'}\n${eCheck} **Durum ›** ${status}`,
+                '---SEPARATOR---',
+                `> ${ticket.reason || 'Belirtilmedi'}`,
+                '---SEPARATOR---',
+                '-# Temel aksiyonlar butonlarda, diğer tüm işlemler menüdedir.'
+            ];
+        }
 
         const payload = buildModBResponse({
             title: `Talep #${paddedNum}`,
             textLines: textLines,
-            actionRows: [row1, row2, row3, row4, row5],
+            actionRows: actionRows,
             images: [ownerUser.displayAvatarURL({ dynamic: true })]
         });
 
-        // Find pinned message or first bot message to edit in-place
+        // Find main message to edit in-place
         let mainMsg = null;
-        try {
-            const pinned = await channel.messages.fetchPins().catch(() => null);
-            if (pinned) {
-                if (Array.isArray(pinned)) mainMsg = pinned[0];
-                else if (typeof pinned.first === 'function') mainMsg = pinned.first();
-                else if (pinned.values) mainMsg = pinned.values().next().value;
-            }
-        } catch(e) {}
+        if (ticket.message_id) {
+            mainMsg = await channel.messages.fetch(ticket.message_id).catch(() => null);
+        }
 
         if (!mainMsg) {
             try {
-                const recent = await channel.messages.fetch({ limit: 10 }).catch(() => null);
+                const pinned = await channel.messages.fetchPins().catch(() => null);
+                if (pinned) {
+                    if (Array.isArray(pinned)) mainMsg = pinned[0];
+                    else if (typeof pinned.first === 'function') mainMsg = pinned.first();
+                    else if (pinned.values) mainMsg = pinned.values().next().value;
+                }
+            } catch(e) {}
+        }
+
+        if (!mainMsg) {
+            try {
+                const recent = await channel.messages.fetch({ limit: 25 }).catch(() => null);
                 if (recent && typeof recent.find === 'function') {
-                    mainMsg = recent.find(m => m.author.id === channel.client.user.id);
+                    mainMsg = recent.find(m => m.author.id === channel.client.user.id && m.components && m.components.length > 0);
                 }
             } catch(e) {}
         }
 
         if (mainMsg && typeof mainMsg.edit === 'function') {
             await mainMsg.edit(payload).catch(() => {});
+            if (mainMsg.id && ticket.message_id !== mainMsg.id) {
+                await conn.query('UPDATE tickets SET message_id = ? WHERE channel_id = ?', [mainMsg.id, channel.id]).catch(() => {});
+            }
         }
     } finally {
         if (conn) conn.release();
@@ -911,10 +1232,11 @@ async function handleTicketClaim(interaction) {
         await conn.query('UPDATE tickets SET claimed_by = ? WHERE channel_id = ?', [newClaimed, channel.id]);
 
         await refreshRoomMessageInPlace(channel, { claimedBy: newClaimed });
-        await interaction.reply({
-            content: newClaimed ? `${getMonoEmoji('check')} Talep başarıyla üstlenildi.` : `${getMonoEmoji('check')} Talep üzerinizden bırakıldı.`,
-            flags: MessageFlags.Ephemeral
+        const payload = buildModBResponse({
+            title: newClaimed ? 'Talep Üstlenildi' : 'Talep Bırakıldı',
+            textLines: [newClaimed ? `${getMonoEmoji('check')} Talep başarıyla üstlenildi.` : `${getMonoEmoji('check')} Talep üzerinizden bırakıldı.`]
         });
+        await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
     } finally {
         if (conn) conn.release();
     }
@@ -926,17 +1248,18 @@ async function handleTicketPriorityMenu(interaction) {
             .setCustomId(`ticket_set_priority_${interaction.channel.id}`)
             .setPlaceholder('Yeni öncelik derecesini seçin...')
             .addOptions([
-                { label: 'Düşük', value: 'Düşük', description: 'Acil olmayan genel sorular' },
-                { label: 'Normal', value: 'Normal', description: 'Standart öncelikli talepler' },
-                { label: 'Yüksek', value: 'Yüksek', description: 'Önemli ve hızlı yanıt bekleyen konular' },
-                { label: 'Acil', value: 'Acil', description: 'Kritik güvenlik ve acil müdahale gerektiren durumlar' }
+                { label: 'Düşük', value: 'Düşük', description: 'Acil olmayan genel sorular', emoji: MONO_EMOJIS.flag_triangle_right },
+                { label: 'Normal', value: 'Normal', description: 'Standart öncelikli talepler', emoji: MONO_EMOJIS.flag_triangle_right },
+                { label: 'Yüksek', value: 'Yüksek', description: 'Önemli ve hızlı yanıt bekleyen konular', emoji: MONO_EMOJIS.warning || MONO_EMOJIS.flag_triangle_right },
+                { label: 'Acil', value: 'Acil', description: 'Kritik güvenlik ve acil müdahale gerektiren durumlar', emoji: MONO_EMOJIS.warning || MONO_EMOJIS.flag_triangle_right }
             ])
     );
-    await interaction.reply({
-        content: 'Lütfen talep için yeni öncelik seviyesini seçin:',
-        components: [row],
-        flags: MessageFlags.Ephemeral
+    const payload = buildModBResponse({
+        title: 'Öncelik Seviyesi',
+        textLines: ['Lütfen talep için yeni öncelik seviyesini seçin:'],
+        actionRows: [row]
     });
+    await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
 }
 
 async function handleTicketPrioritySet(interaction) {
@@ -947,7 +1270,11 @@ async function handleTicketPrioritySet(interaction) {
         conn = await pool.getConnection();
         await conn.query('UPDATE tickets SET priority = ? WHERE channel_id = ?', [priority, channel.id]);
         await refreshRoomMessageInPlace(channel, { priority: priority });
-        await interaction.update({ content: `${getMonoEmoji('check')} Öncelik seviyesi **${priority}** olarak güncellendi.`, components: [] });
+        const payload = buildModBResponse({
+            title: 'Öncelik Güncellendi',
+            textLines: [`${getMonoEmoji('check')} Öncelik seviyesi **${priority}** olarak güncellendi.`]
+        });
+        await interaction.update({ ...payload, components: [] });
     } finally {
         if (conn) conn.release();
     }
@@ -971,10 +1298,11 @@ async function handleTicketLock(interaction) {
         }
 
         await refreshRoomMessageInPlace(channel, { status: isLocked ? 'Açık' : 'Kilitli' });
-        await interaction.reply({
-            content: isLocked ? `${getMonoEmoji('unlock')} Talep kilidi açıldı.` : `${getMonoEmoji('lock')} Talep kilitlendi, kullanıcı mesaj yazamaz.`,
-            flags: MessageFlags.Ephemeral
+        const payload = buildModBResponse({
+            title: isLocked ? 'Kilit Açıldı' : 'Talep Kilitlendi',
+            textLines: [isLocked ? `${getMonoEmoji('unlock')} Talep kilidi açıldı.` : `${getMonoEmoji('lock')} Talep kilitlendi, kullanıcı mesaj yazamaz.`]
         });
+        await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
     } finally {
         if (conn) conn.release();
     }
@@ -985,19 +1313,15 @@ async function handleTicketClosePrompt(interaction) {
         .setCustomId(`ticket_modal_close:${interaction.channel.id}`)
         .setTitle('Destek Talebini Kapat');
 
-    modal.addLabelComponents(
-        new LabelBuilder()
-            .setLabel('Kapanış Sebebi *')
-            .setDescription('Bu sebep log kaydına ve kullanıcıya iletilecek transkripte yazılır.')
-            .setTextInputComponent(
-                new TextInputBuilder()
-                    .setCustomId('close_reason')
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setValue('Sorun çözüldü / Talep tamamlandı.')
-                    .setRequired(true)
-                    .setMaxLength(500)
-            )
-    );
+    const input = new TextInputBuilder()
+        .setCustomId('close_reason')
+        .setLabel('Kapanış Sebebi')
+        .setStyle(TextInputStyle.Paragraph)
+        .setValue('Sorun çözüldü / Talep tamamlandı.')
+        .setRequired(true)
+        .setMaxLength(500);
+
+    modal.addComponents(new ActionRowBuilder().addComponents(input));
     await interaction.showModal(modal);
 }
 
@@ -1008,10 +1332,11 @@ async function handleTicketNudge(interaction) {
 
     if (lastNudge && Date.now() < lastNudge + COOLDOWN_MS) {
         const remainingMinutes = Math.ceil((lastNudge + COOLDOWN_MS - Date.now()) / 60000);
-        return await interaction.reply({
-            content: `⏱️ Destek ekibini zaten yakın zamanda dürttünüz. Lütfen sabırla bekleyin (Kalan: **${remainingMinutes} dakika**).`,
-            flags: MessageFlags.Ephemeral
+        const payload = buildModBResponse({
+            title: 'Yetkili Dürtme',
+            textLines: [`Destek ekibini zaten yakın zamanda dürttünüz. Lütfen sabırla bekleyin (Kalan: **${remainingMinutes} dakika**).`]
         });
+        return await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
     }
 
     nudgeCooldowns.set(channelId, Date.now());
@@ -1022,13 +1347,14 @@ async function handleTicketNudge(interaction) {
         : 'Destek Ekibi';
 
     await interaction.channel.send({
-        content: `${pingText} 🔔 <@${interaction.user.id}> yetkili ekibinden yanıt bekliyor!`
+        content: `${pingText} <:mono:${MONO_EMOJIS.bell_ring}> <@${interaction.user.id}> yetkili ekibinden yanıt bekliyor!`
     });
 
-    await interaction.reply({
-        content: `${getMonoEmoji('check')} Destek ekibine bildirim iletildi.`,
-        flags: MessageFlags.Ephemeral
+    const payload = buildModBResponse({
+        title: 'Bildirim Gönderildi',
+        textLines: [`${getMonoEmoji('check')} Destek ekibine bildirim iletildi.`]
     });
+    await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
 }
 
 async function generateTranscripts(channel, closeReason = null) {
@@ -1080,13 +1406,17 @@ async function handleTicketTranscript(interaction) {
         const channel = interaction.channel;
         const attachments = await generateTranscripts(channel);
 
-        await interaction.editReply({
-            content: `${getMonoEmoji('clipboard_check')} Bu talebin konuşma transkripti (HTML ve TXT) başarıyla oluşturuldu:`,
-            files: attachments
+        const payload = buildModBResponse({
+            title: 'Talep Transkripti',
+            textLines: [`${getMonoEmoji('clipboard_check')} Bu talebin konuşma transkripti (HTML ve TXT) başarıyla oluşturuldu:`]
         });
+        await interaction.editReply({ ...payload, files: attachments });
     } catch(err) {
         console.error('Transcript error:', err);
-        await interaction.editReply({ content: 'Transkript oluşturulurken bir hata oluştu.' });
+        await interaction.editReply(buildModBResponse({
+            title: 'Hata',
+            textLines: ['Transkript oluşturulurken bir hata oluştu.']
+        }));
     }
 }
 
@@ -1095,12 +1425,15 @@ async function handleTicketCloseConfirm(interaction, closeReason = 'Sorun çöz�
     const guild = interaction.guild;
     const setup = await getTicketSetup(guild.id);
 
-    await interaction.reply({
-        content: setup.close_behavior === 'delete'
-            ? `${getMonoEmoji('delete')} Talep kapatıldı (Sebep: *${closeReason}*). Transkript kaydedildi, oda 5 saniye içinde tamamen siliniyor...`
-            : `${getMonoEmoji('delete')} Talep kapatıldı (Sebep: *${closeReason}*) ve arşive taşındı.`,
-        flags: MessageFlags.Ephemeral
+    const closeText = setup.close_behavior === 'delete'
+        ? `${getMonoEmoji('delete')} Talep kapatıldı (Sebep: *${closeReason}*). Transkript kaydedildi, oda 5 saniye içinde tamamen siliniyor...`
+        : `${getMonoEmoji('delete')} Talep kapatıldı (Sebep: *${closeReason}*) ve arşive taşındı.`;
+
+    const closePayload = buildModBResponse({
+        title: 'Talep Kapatıldı',
+        textLines: [closeText]
     });
+    await interaction.reply({ ...closePayload, flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
 
     let conn;
     try {
@@ -1166,7 +1499,11 @@ async function handleTicketCloseConfirm(interaction, closeReason = 'Sorun çöz�
                 }
                 await channel.permissionOverwrites.edit(guild.roles.everyone.id, { ViewChannel: false, SendMessages: false }).catch(() => {});
                 await channel.setName(`closed-${channel.name.replace('ticket-', '').replace('destek-', '')}`).catch(() => {});
-                await refreshRoomMessageInPlace(channel, { status: 'Kapalı' });
+                await refreshRoomMessageInPlace(channel, {
+                    status: 'Kapalı',
+                    closedBy: interaction.user.id,
+                    closeReason: closeReason
+                });
             }
         } else {
             // Delete with 5s grace period
@@ -1182,11 +1519,233 @@ async function handleTicketCloseConfirm(interaction, closeReason = 'Sorun çöz�
     }
 }
 
+async function handleTicketReopen(interaction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const channel = interaction.channel;
+    const guild = interaction.guild;
+    const setup = await getTicketSetup(guild.id);
+
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM tickets WHERE channel_id = ?', [channel.id]);
+        if (!rows.length) {
+            return await interaction.editReply(buildModBResponse({
+                title: 'Hata',
+                textLines: ['Veritabanında bu talebe ait kayıt bulunamadı.']
+            }));
+        }
+        const ticket = rows[0];
+
+        // Yetki Kontrolü: Yalnızca bilet sahibi veya yetkili/destek ekibi açabilir!
+        const isOwner = interaction.user.id === ticket.owner_id;
+        const isStaff = interaction.member.permissions.has(PermissionFlagsBits.ManageChannels) ||
+                        interaction.member.permissions.has(PermissionFlagsBits.Administrator) ||
+                        (setup?.support_roles || []).some(rId => interaction.member.roles.cache.has(rId));
+
+        if (!isOwner && !isStaff) {
+            return await interaction.editReply(buildModBResponse({
+                title: 'Yetki Hatası',
+                textLines: ['Bu talebi yalnızca talebi açan kullanıcı veya destek ekibi yeniden açabilir.']
+            }));
+        }
+
+        // 1. Veritabanını güncelle
+        await conn.query("UPDATE tickets SET status = 'open', closed_at = NULL, closed_by = NULL, close_reason = NULL WHERE channel_id = ?", [channel.id]);
+
+        // 2. Aktif kategoriye geri taşı
+        if (setup?.category_id) {
+            await channel.setParent(setup.category_id, { lockPermissions: false }).catch(() => {});
+        }
+
+        // 3. Kullanıcının izinlerini yenile
+        if (ticket.owner_id) {
+            await channel.permissionOverwrites.edit(ticket.owner_id, {
+                ViewChannel: true,
+                SendMessages: true,
+                ReadMessageHistory: true,
+                AttachFiles: true,
+                EmbedLinks: true
+            }).catch(() => {});
+        }
+
+        // 4. Kanal adını tekrar aç
+        const cleanName = channel.name.replace(/^closed-/, '');
+        await channel.setName(`ticket-${cleanName}`).catch(() => {});
+
+        await refreshRoomMessageInPlace(channel, { status: 'Açık' });
+
+        await interaction.editReply(buildModBResponse({
+            title: 'Başarılı',
+            textLines: [`${getMonoEmoji('check')} Talep başarıyla tekrar açıldı ve yetkiler yenilendi.`]
+        }));
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function handleTicketDeletePermanent(interaction) {
+    const channel = interaction.channel;
+    const isStaff = interaction.member.permissions.has(PermissionFlagsBits.ManageChannels) ||
+                    interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+
+    if (!isStaff) {
+        return await interaction.reply({
+            ...buildModBResponse({
+                title: 'Yetki Hatası',
+                textLines: ['Bu talebi kalıcı olarak silmek için **Kanalları Yönet** yetkisine sahip olmalısınız.']
+            }),
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2
+        });
+    }
+
+    const payload = buildModBResponse({
+        title: 'Kalıcı Silme',
+        textLines: [`${getMonoEmoji('delete')} Talep <@${interaction.user.id}> tarafından siliniyor. Oda 5 saniye içinde tamamen yok edilecek...`]
+    });
+    await interaction.reply({ ...payload, flags: MessageFlags.IsComponentsV2 });
+
+    if (global.activeTicketChannels) global.activeTicketChannels.delete(channel.id);
+
+    setTimeout(async () => {
+        await channel.delete().catch(() => {});
+    }, 5000);
+}
+
+async function handleTicketExtraInfo(interaction) {
+    const payload = buildModBResponse({
+        title: 'Destek Kuralları & Sıkça Sorulanlar (SSS)',
+        textLines: [
+            `**${getMonoEmoji('shield')} Nyx Destek İlkeleri**`,
+            `${getMonoEmoji('chevron_right')} Talebinizde sorununuzu, hata kodlarını veya ekran görüntülerini tek seferde eksiksiz belirtin.`,
+            `${getMonoEmoji('chevron_right')} Gereksiz yere yetkilileri etiketlemeyiniz; ekibimiz sırayla tüm talepleri incelemektedir.`,
+            `${getMonoEmoji('chevron_right')} Hesap devri, yasa dışı işlemler ve kural ihlali içeren konularda destek sağlanmaz.`,
+            '---SEPARATOR---',
+            `**${getMonoEmoji('info')} Çalışma & Yanıt Saatleri**`,
+            `Destek ekibimiz genellikle **10:00 - 01:00** saatleri arasında aktiftir. Talepler ortalama **15-45 dakika** içerisinde yanıtlanır.`
+        ]
+    });
+    await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
+}
+
+/**
+ * Hareketsizlik Zamanlayıcısı (Tam Teşekküllü Inactivity Engine)
+ * Açık biletleri 15 dakikada bir tarar; 24 saat işlem yapılmayanlara uyarı bırakır, 36 saati aşanları otomatik kapatır ve transkriptlerini teslim eder.
+ */
+function startTicketInactivityScheduler(client) {
+    setInterval(async () => {
+        let conn;
+        try {
+            conn = await pool.getConnection();
+            const openTickets = await conn.query("SELECT * FROM tickets WHERE status = 'open'");
+            if (!openTickets || !openTickets.length) return;
+
+            const now = Date.now();
+            const WARN_THRESHOLD = 24 * 60 * 60 * 1000; // 24 Saat
+            const CLOSE_THRESHOLD = 36 * 60 * 60 * 1000; // 36 Saat
+
+            for (const ticket of openTickets) {
+                const channel = client.channels.cache.get(ticket.channel_id);
+                if (!channel || channel.deleted) continue;
+
+                try {
+                    const messages = await channel.messages.fetch({ limit: 10 }).catch(() => null);
+                    if (!messages || !messages.size) continue;
+
+                    const lastMsg = messages.first();
+                    const idleTime = now - lastMsg.createdTimestamp;
+
+                    // 36 Saati aşmışsa tam teşekküllü otomatik kapat
+                    if (idleTime >= CLOSE_THRESHOLD) {
+                        const setup = await getTicketSetup(ticket.guild_id);
+                        const autoReason = 'Hareketsizlik zaman aşımı (36 saat boyunca yanıt verilmedi).';
+
+                        await conn.query("UPDATE tickets SET status = 'closed', closed_at = NOW(), close_reason = ? WHERE id = ?", [autoReason, ticket.id]);
+
+                        // 1. Dual Transcripts Oluştur
+                        let attachments = [];
+                        if (setup?.create_transcript !== 0) {
+                            attachments = await generateTranscripts(channel, autoReason).catch(() => []);
+                        }
+
+                        // 2. Log Kanalına Gönder
+                        if (setup?.log_channel_id && attachments.length > 0) {
+                            const logChannel = client.channels.cache.get(setup.log_channel_id);
+                            if (logChannel) {
+                                const logPayload = createContainerMessage(
+                                    'Talep Otomatik Kapatıldı (Zaman Aşımı)',
+                                    `**Oda:** #${channel.name}\n**Açan:** <@${ticket.owner_id}>\n**Sebep:** ${autoReason}`,
+                                    '#2B2D31',
+                                    [],
+                                    [],
+                                    false,
+                                    false,
+                                    attachments
+                                );
+                                await logChannel.send(logPayload).catch(() => {});
+                            }
+                        }
+
+                        // 3. Kullanıcı DM'ine Gönder
+                        if (ticket.owner_id && attachments.length > 0) {
+                            const owner = await client.users.fetch(ticket.owner_id).catch(() => null);
+                            if (owner) {
+                                const dmPayload = createContainerMessage(
+                                    'Talebiniz Zaman Aşımı Sebebiyle Kapatıldı',
+                                    `**${channel.guild.name}** sunucusundaki destek talebiniz 36 saat boyunca yanıt verilmediği için otomatik kapatıldı.\n\nKonuşma kaydı ektedir.`,
+                                    '#2B2D31',
+                                    [],
+                                    [],
+                                    false,
+                                    false,
+                                    attachments
+                                );
+                                await owner.send(dmPayload).catch(() => {});
+                            }
+                        }
+
+                        // 4. Arşivle veya sil
+                        if (setup?.close_behavior === 'archive') {
+                            if (setup.archive_category_id) {
+                                await channel.setParent(setup.archive_category_id, { lockPermissions: false }).catch(() => {});
+                            }
+                            await channel.permissionOverwrites.edit(ticket.owner_id, {
+                                ViewChannel: true,
+                                SendMessages: false
+                            }).catch(() => {});
+                            await channel.setName(`closed-${ticket.id}`).catch(() => {});
+
+                            await refreshRoomMessageInPlace(channel, {
+                                status: 'Kapalı',
+                                closedBy: client.user.id,
+                                closeReason: autoReason
+                            });
+                        } else {
+                            setTimeout(async () => {
+                                await channel.delete().catch(() => {});
+                            }, 5000);
+                        }
+                    }
+                    // 24 Saati aşmışsa mesaj spamlamamak için yeni mesaj atılmaz
+                } catch (innerErr) {
+                    console.error(`[Inactivity Ticket Error] Channel ${channel.id}:`, innerErr.message);
+                }
+            }
+        } catch(err) {
+            console.error('Ticket inactivity scheduler error:', err.message);
+        } finally {
+            if (conn) conn.release();
+        }
+    }, 15 * 60 * 1000);
+}
+
 module.exports = {
     getTicketSetup,
     saveTicketSetup,
     renderTicketAdminMenu,
     renderTicketTypesMenu,
     handleTicketInteraction,
-    createTicket
+    createTicket,
+    refreshRoomMessageInPlace,
+    startTicketInactivityScheduler
 };

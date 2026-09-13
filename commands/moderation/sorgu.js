@@ -26,7 +26,7 @@ module.exports = {
                 title: 'Yetkisiz İşlem',
                 textLines: ['Bu komutu kullanmak için gerekli moderasyon yetkilerine sahip olmalısınız.']
             });
-            return interaction.reply({ ...errPayload, flags: MessageFlags.Ephemeral });
+            return interaction.reply({ ...errPayload, flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
         }
 
         try {

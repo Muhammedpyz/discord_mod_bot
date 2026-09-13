@@ -1,5 +1,21 @@
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+process.versions.bun = '1.0';
+
+const dns = require('node:dns');
+try {
+  dns.setServers(['1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4']);
+  dns.setDefaultResultOrder('ipv4first');
+} catch (e) {}
+
+const { ProxyAgent, setGlobalDispatcher } = require('undici');
+try {
+  setGlobalDispatcher(new ProxyAgent('http://127.0.0.1:8080'));
+} catch (e) {
+  console.warn('Proxy dispatcher warning:', e.message);
+}
+
 const { Client, GatewayIntentBits, Partials, Collection, Events } = require('discord.js');
-const { initDB } = require('./db');
+const { initDB, pool } = require('./db');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
@@ -34,7 +50,7 @@ async function sendErrorDM(err, type) {
         const adminUser = await client.users.fetch(SUPER_ADMIN_ID).catch(() => null);
         if (adminUser) {
             const errDetails = err.stack ? err.stack.substring(0, 1900) : err.message;
-            await adminUser.send(`🚨 **[Mod Bot] Kritik Hata Yakalandı! (${type})**\n\`\`\`js\n${errDetails}\n\`\`\``).catch(() => {});
+            await adminUser.send(`**[Mod Bot] Kritik Hata Yakalandı! (${type})**\n\`\`\`js\n${errDetails}\n\`\`\``).catch(() => {});
         }
     } catch (e) {
         console.error("Hata DM ile gönderilemedi:", e);
@@ -94,9 +110,12 @@ if (fs.existsSync(foldersPath)) {
         const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
         for (const file of commandFiles) {
             const filePath = path.join(commandsPath, file);
-            const command = require(filePath);
-            if ('data' in command && 'execute' in command) {
-                client.commands.set(command.data.name, command);
+            const loaded = require(filePath);
+            const list = Array.isArray(loaded) ? loaded : [loaded];
+            for (const command of list) {
+                if ('data' in command && 'execute' in command) {
+                    client.commands.set(command.data.name, command);
+                }
             }
         }
     }
@@ -109,8 +128,8 @@ client.once(Events.ClientReady, async c => {
     startMuteChecker(client, 30000);
 
     // Otomatik İçerik Göndericiyi Başlat
-    const { initAutoPostScheduler } = require('./utils/autopostScheduler');
-    initAutoPostScheduler(client);
+    const { initScheduler } = require('./utils/scheduler');
+    initScheduler(client);
 
     // Çekiliş (Giveaway) Zamanlayıcısını Başlat
     const { initGiveawayScheduler } = require('./utils/giveawayManager');
@@ -120,9 +139,17 @@ client.once(Events.ClientReady, async c => {
     const { initVoiceXpEngine } = require('./utils/levelManager');
     initVoiceXpEngine(client);
 
+    // Başarım (Achievements) bildirim motorunu başlat
+    const { initAchievements } = require('./utils/achievements');
+    initAchievements(client);
+
     // Sistem Durumunu Geri Yükleme (Ses XP sayaçları, Özel odalar vb.)
     const { restoreSystemState } = require('./utils/systemRestore');
     await restoreSystemState(client).catch(err => console.error('[Sistem Kurtarma Hatası]:', err));
+
+    // Bilet Hareketsizlik Zamanlayıcısı devre dışı bırakıldı (kullanıcı talimatı: periyodik döngü ve mesaj spamı önleme)
+    // const { startTicketInactivityScheduler } = require('./utils/ticketSystem');
+    // startTicketInactivityScheduler(client);
 
     // Snipe hafıza temizliği (1 saate bir eski snipeleri sil)
     setInterval(() => {
@@ -161,13 +188,25 @@ client.once(Events.ClientReady, async c => {
 
     console.log(`[Bot] Moderasyon sistemleri aktif.`);
 
+    // Aktif Bilet Kanalları Bellek Önbelleği (Kanal adı ne olursa olsun mesajları anında yakalar)
+    global.activeTicketChannels = new Set();
+    try {
+        const activeRows = await pool.query("SELECT channel_id FROM tickets WHERE status = 'open'");
+        for (const r of activeRows) {
+            if (r.channel_id) global.activeTicketChannels.add(r.channel_id);
+        }
+        console.log(`[TicketSystem] ${global.activeTicketChannels.size} aktif bilet kanalı önbelleğe yüklendi.`);
+    } catch(e) {
+        console.error('[TicketSystem] Aktif bilet önbellek hatası:', e.message);
+    }
+
     const statuses = [
-        { name: 'turklion.net', type: 3 }, // İzliyor
+        { name: 'Nyx Dashboard', type: 3 }, // İzliyor
         { name: 'Muhammedpyz', type: 0 }, // Oynuyor
-        { name: 'Turklion | /yardım', type: 0 }, // Oynuyor
-        { name: 'Turklion Topluluğunu', type: 3 }, // İzliyor
+        { name: 'Nyx | /yardım', type: 0 }, // Oynuyor
+        { name: 'Topluluğu', type: 3 }, // İzliyor
         { name: '7/24 Aktif Hizmet', type: 0 }, // Oynuyor
-        { name: 'Turklion | /sorgu', type: 2 } // Dinliyor
+        { name: 'Nyx | /sorgu', type: 2 } // Dinliyor
     ];
     
     client.invites = new Map();
@@ -188,17 +227,84 @@ client.once(Events.ClientReady, async c => {
         client.user.setActivity(currentStatus.name, { type: currentStatus.type });
         statusIndex = (statusIndex + 1) % statuses.length;
     }, 60000);
+
+    // Initial Developer Presence Sync & Polling
+    refreshDevPresence();
+    setInterval(refreshDevPresence, 10000);
+});
+
+const { setCache } = require('./utils/redis');
+
+async function syncDevPresence(presence) {
+    try {
+        if (!presence || presence.status === 'offline') {
+            await setCache('dev:presence', {
+                status: 'offline',
+                activities: [],
+                updatedAt: Date.now()
+            }, 86400);
+            return;
+        }
+
+        const status = presence.status;
+        const rawActivities = presence.activities || [];
+        const activities = rawActivities.map(act => ({
+            name: act.name,
+            type: act.type,
+            state: act.state || null,
+            details: act.details || null
+        }));
+
+        await setCache('dev:presence', {
+            status,
+            activities,
+            updatedAt: Date.now()
+        }, 86400);
+    } catch (e) {
+        console.error('[DevPresence Sync Error]:', e);
+    }
+}
+
+async function refreshDevPresence() {
+    try {
+        let activePresence = null;
+        for (const guild of client.guilds.cache.values()) {
+            try {
+                const member = await guild.members.fetch({ user: SUPER_ADMIN_ID, withPresences: true }).catch(() => null);
+                if (member && member.presence && member.presence.status && member.presence.status !== 'offline') {
+                    activePresence = member.presence;
+                    break;
+                }
+            } catch (e) {}
+        }
+
+        if (activePresence) {
+            await syncDevPresence(activePresence);
+        } else {
+            await syncDevPresence(null);
+        }
+    } catch (err) {
+        console.error('[DevPresence Refresh Error]:', err);
+    }
+}
+
+client.on(Events.PresenceUpdate, (oldP, newP) => {
+    const targetId = newP?.userId || oldP?.userId;
+    if (targetId === SUPER_ADMIN_ID) {
+        if (newP && newP.status && newP.status !== 'offline') {
+            syncDevPresence(newP);
+        } else {
+            refreshDevPresence();
+        }
+    }
 });
 
 const startBot = async () => {
-    while (true) {
-        try {
-            await client.login(process.env.DISCORD_TOKEN);
-            break;
-        } catch (err) {
-            console.error('Login failed, retrying in 5s...', err.message);
-            await new Promise(r => setTimeout(r, 5000));
-        }
+    try {
+        await client.login(process.env.DISCORD_TOKEN);
+    } catch (err) {
+        console.error('Login failed, retrying in 5s...', err.message);
+        setTimeout(startBot, 5000);
     }
 };
 startBot();

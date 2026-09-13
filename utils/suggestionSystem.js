@@ -1,8 +1,8 @@
 // Dynamic V2 Suggestion System (Öneri Sistemi) - 100% matched to UI Screenshots & MONO emojis
 const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, ModalBuilder,
-    TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder, CheckboxBuilder,
-    LabelBuilder, MessageFlags
+    TextInputBuilder, TextInputStyle, ChannelSelectMenuBuilder,
+    MessageFlags
 } = require('discord.js');
 const { buildModBResponse, MONO_EMOJIS } = require('./uiBuilder');
 const { pool } = require('../db');
@@ -129,79 +129,125 @@ async function renderSuggestionAdminMenu(guildId) {
         title: 'Öneri Sistemi',
         textLines: [
             'Topluluğunun fikirlerini tek bir şık panelden topla; isteyen adını gösterir, isteyen anonim kalır. Öneriler oylanır, gerçek gönderen yalnızca gizli logda görünür.',
+            'Üyelerin sunucu için fikirlerini iletebileceği, diğer üyelerin oy verebileceği öneri sistemini buradan kurup yönetebilirsin.',
             '---SEPARATOR---',
             ...statusLines,
             '---SEPARATOR---',
-            '-# Önce kanalları ayarla, istersen panel metnini özelleştir ve ardından yayınla.'
+            isReady 
+                ? 'Sistem yayına hazır. Paneli göndermek için **Paneli Yayınla** butonuna bas.'
+                : 'Başlamak için önce **Kanallar** butonundan gerekli kanalları seç.'
         ],
-        actionRows: [row1, row2, row3]
+        actionRows: [row1, row2]
     });
 }
 
-// -------------------------------------------------------------
-// 2. Modals Builders (Exact match with Screenshots)
-// -------------------------------------------------------------
+// Sub-view: "Öneri Kanalları"
+async function renderSuggestionChannelsView(guildId) {
+    const setup = await getSuggestionSetup(guildId);
 
-// Screenshot 2: "Öneri Kanalları"
-function buildChannelsModal() {
-    const modal = new ModalBuilder().setCustomId('oneri_modal_channels').setTitle('Öneri Kanalları');
-    modal.addLabelComponents(
-        new LabelBuilder()
-            .setLabel('Öneri paneli kanalı *')
-            .setDescription('Üyelerin Öneri Yap butonunu göreceği kanal')
-            .setChannelSelectMenuComponent(new ChannelSelectMenuBuilder().setCustomId('panel_channel').setChannelTypes(ChannelType.GuildText).setRequired(true)),
-        new LabelBuilder()
-            .setLabel('Öneriler kanalı *')
-            .setDescription('Gönderilen önerilerin oy butonlarıyla yayınlanacağı kanal')
-            .setChannelSelectMenuComponent(new ChannelSelectMenuBuilder().setCustomId('suggestion_channel').setChannelTypes(ChannelType.GuildText).setRequired(true)),
-        new LabelBuilder()
-            .setLabel('Gizli öneri logu')
-            .setDescription('Anonim önerilerin gerçek gönderenini yetkililere gösterir; boş bırakılabilir')
-            .setChannelSelectMenuComponent(new ChannelSelectMenuBuilder().setCustomId('log_channel').setChannelTypes(ChannelType.GuildText).setRequired(false))
+    const rowPanel = new ActionRowBuilder().addComponents(
+        new ChannelSelectMenuBuilder()
+            .setCustomId('oneri_sel_panel_channel')
+            .setPlaceholder('Öneri paneli kanalı seçin')
+            .setChannelTypes(ChannelType.GuildText)
     );
-    return modal;
+
+    const rowSuggestion = new ActionRowBuilder().addComponents(
+        new ChannelSelectMenuBuilder()
+            .setCustomId('oneri_sel_suggestion_channel')
+            .setPlaceholder('Öneriler (oylama) kanalı seçin')
+            .setChannelTypes(ChannelType.GuildText)
+    );
+
+    const rowLog = new ActionRowBuilder().addComponents(
+        new ChannelSelectMenuBuilder()
+            .setCustomId('oneri_sel_log_channel')
+            .setPlaceholder('Gizli öneri log kanalı seçin (isteğe bağlı)')
+            .setChannelTypes(ChannelType.GuildText)
+    );
+
+    const rowBtns = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('oneri_admin_refresh').setLabel('Geri Dön').setStyle(ButtonStyle.Secondary).setEmoji(MONO_EMOJIS.arrow_left || '1530917536806469783')
+    );
+
+    const pChan = setup.panel_channel_id ? `<#${setup.panel_channel_id}>` : 'Seçilmedi';
+    const sChan = setup.suggestion_channel_id ? `<#${setup.suggestion_channel_id}>` : 'Seçilmedi';
+    const lChan = setup.log_channel_id ? `<#${setup.log_channel_id}>` : 'Kapalı';
+
+    return buildModBResponse({
+        title: 'Öneri Kanalları Ayarları',
+        textLines: [
+            'Aşağıdaki menülerden öneri panelinin ve gelen önerilerin yayınlanacağı kanalları belirleyin.',
+            '---SEPARATOR---',
+            `**Panel Kanalı:** ${pChan}`,
+            `**Öneriler Kanalı:** ${sChan}`,
+            `**Log Kanalı:** ${lChan}`
+        ],
+        actionRows: [rowPanel, rowSuggestion, rowLog, rowBtns]
+    });
 }
 
-// Screenshot 3: "Öneri Paneli Görünümü"
+// "Öneri Paneli Görünümü" Modal
 function buildLookModal(setup) {
     const modal = new ModalBuilder().setCustomId('oneri_modal_look').setTitle('Öneri Paneli Görünümü');
-    modal.addLabelComponents(
-        new LabelBuilder()
-            .setLabel('Panel başlığı')
-            .setDescription('Boş bırakırsan hazır başlık kullanılır')
-            .setTextInputComponent(new TextInputBuilder().setCustomId('panel_title').setStyle(TextInputStyle.Short).setValue(setup.panel_title || '').setRequired(false).setMaxLength(80)),
-        new LabelBuilder()
-            .setLabel('Panel açıklaması')
-            .setDescription('Üyelere ne tür fikirler beklediğini anlat; boş bırakırsan hazır metin kullanılır')
-            .setTextInputComponent(new TextInputBuilder().setCustomId('panel_description').setStyle(TextInputStyle.Paragraph).setValue(setup.panel_description || '').setRequired(false).setMaxLength(1000))
+    const titleInput = new TextInputBuilder()
+        .setCustomId('panel_title')
+        .setLabel('Panel Başlığı')
+        .setPlaceholder('Boş bırakırsan hazır başlık kullanılır')
+        .setStyle(TextInputStyle.Short)
+        .setValue(setup.panel_title || '')
+        .setRequired(false)
+        .setMaxLength(80);
+    const descInput = new TextInputBuilder()
+        .setCustomId('panel_description')
+        .setLabel('Panel Açıklaması')
+        .setPlaceholder('Üyelere ne tür fikirler beklediğinizi anlatın')
+        .setStyle(TextInputStyle.Paragraph)
+        .setValue(setup.panel_description || '')
+        .setRequired(false)
+        .setMaxLength(1000);
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(titleInput),
+        new ActionRowBuilder().addComponents(descInput)
     );
     return modal;
 }
 
-// Screenshot 4: "Öneri Gönderim Ayarları"
+// "Öneri Gönderim Ayarları" Modal
 function buildCooldownModal(setup) {
     const modal = new ModalBuilder().setCustomId('oneri_modal_cooldown').setTitle('Öneri Gönderim Ayarları');
-    modal.addLabelComponents(
-        new LabelBuilder()
-            .setLabel('İki öneri arasındaki süre (saniye) *')
-            .setDescription('0 beklemeyi kapatır; 0-86400 arasında tam sayı yaz')
-            .setTextInputComponent(new TextInputBuilder().setCustomId('cooldown_seconds').setStyle(TextInputStyle.Short).setValue(String(setup.cooldown_seconds !== undefined ? setup.cooldown_seconds : 30)).setRequired(true).setMaxLength(6))
-    );
+    const cooldownInput = new TextInputBuilder()
+        .setCustomId('cooldown_seconds')
+        .setLabel('İki öneri arasındaki süre (saniye)')
+        .setPlaceholder('0-86400 arasında bir tam sayı yazın')
+        .setStyle(TextInputStyle.Short)
+        .setValue(String(setup.cooldown_seconds !== undefined ? setup.cooldown_seconds : 30))
+        .setRequired(true)
+        .setMaxLength(6);
+    modal.addComponents(new ActionRowBuilder().addComponents(cooldownInput));
     return modal;
 }
 
-// Screenshot 1: "Önerini Paylaş"
+// "Önerini Paylaş" Modal
 function buildUserSubmitModal() {
     const modal = new ModalBuilder().setCustomId('oneri_modal_user_submit').setTitle('Önerini Paylaş');
-    modal.addLabelComponents(
-        new LabelBuilder()
-            .setLabel('Önerin *')
-            .setDescription('Neyi, neden ve nasıl değiştirmek istediğini anlat')
-            .setTextInputComponent(new TextInputBuilder().setCustomId('suggestion_text').setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(1500)),
-        new LabelBuilder()
-            .setLabel('Anonim gönder')
-            .setDescription('İşaretlersen yayınlanan öneride adın görünmez')
-            .setCheckboxComponent(new CheckboxBuilder().setCustomId('anonymous_check'))
+    const textInput = new TextInputBuilder()
+        .setCustomId('suggestion_text')
+        .setLabel('Öneriniz')
+        .setPlaceholder('Neyi, neden ve nasıl değiştirmek istediğinizi anlatın...')
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(true)
+        .setMaxLength(1500);
+    const anonInput = new TextInputBuilder()
+        .setCustomId('anonymous_text')
+        .setLabel('Anonim Gönderilsin mi? (Evet / Hayır)')
+        .setPlaceholder('Anonim olması için Evet yazın (varsayılan: Hayır)')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setMaxLength(10);
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(textInput),
+        new ActionRowBuilder().addComponents(anonInput)
     );
     return modal;
 }
@@ -219,16 +265,33 @@ async function handleSuggestionInteraction(interaction) {
         await interaction.update(menu);
     }
     else if (customId === 'oneri_admin_channels') {
-        await interaction.showModal(buildChannelsModal());
+        await interaction.deferUpdate();
+        const view = await renderSuggestionChannelsView(guildId);
+        await interaction.editReply(view);
     }
-    else if (customId === 'oneri_modal_channels') {
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
+    else if (customId === 'oneri_sel_panel_channel') {
+        await interaction.deferUpdate();
         const setup = await getSuggestionSetup(guildId);
-        setup.panel_channel_id = selectedChannelId(interaction, 'panel_channel');
-        setup.suggestion_channel_id = selectedChannelId(interaction, 'suggestion_channel');
-        setup.log_channel_id = selectedChannelId(interaction, 'log_channel');
+        setup.panel_channel_id = interaction.values[0];
         await saveSuggestionSetup(setup);
-        await interaction.editReply(await renderSuggestionAdminMenu(guildId));
+        const view = await renderSuggestionChannelsView(guildId);
+        await interaction.editReply(view);
+    }
+    else if (customId === 'oneri_sel_suggestion_channel') {
+        await interaction.deferUpdate();
+        const setup = await getSuggestionSetup(guildId);
+        setup.suggestion_channel_id = interaction.values[0];
+        await saveSuggestionSetup(setup);
+        const view = await renderSuggestionChannelsView(guildId);
+        await interaction.editReply(view);
+    }
+    else if (customId === 'oneri_sel_log_channel') {
+        await interaction.deferUpdate();
+        const setup = await getSuggestionSetup(guildId);
+        setup.log_channel_id = interaction.values[0];
+        await saveSuggestionSetup(setup);
+        const view = await renderSuggestionChannelsView(guildId);
+        await interaction.editReply(view);
     }
     else if (customId === 'oneri_admin_look') {
         const setup = await getSuggestionSetup(guildId);
@@ -338,19 +401,16 @@ async function handleUserSuggestionSubmit(interaction) {
 
     if (cooldownSec > 0 && lastTime && Date.now() < lastTime + cooldownMs) {
         const remaining = Math.ceil((lastTime + cooldownMs - Date.now()) / 1000);
-        return await interaction.reply({
-            content: `${getMonoEmoji('clock')} Çok hızlı öneri gönderiyorsunuz. Lütfen **${remaining} saniye** bekleyin.`,
-            flags: MessageFlags.Ephemeral
+        const waitPayload = buildModBResponse({
+            title: 'Lütfen Bekleyin',
+            textLines: [`${getMonoEmoji('clock')} Çok hızlı öneri gönderiyorsunuz. Lütfen **${remaining} saniye** bekleyin.`]
         });
+        waitPayload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+        return await interaction.reply(waitPayload);
     }
 
     const text = interaction.fields.getTextInputValue('suggestion_text')?.trim();
     let isAnon = false;
-    try {
-        if (interaction.fields.getCheckbox('anonymous_check') === true) {
-            isAnon = true;
-        }
-    } catch(e) {}
     try {
         const anonInput = interaction.fields.getTextInputValue('anonymous_text');
         if (anonInput && (anonInput.toLowerCase().includes('evet') || anonInput.toLowerCase().includes('yes') || anonInput.toLowerCase().includes('true') || anonInput.toLowerCase().includes('1'))) {
@@ -359,18 +419,22 @@ async function handleUserSuggestionSubmit(interaction) {
     } catch(e) {}
 
     if (!setup.suggestion_channel_id) {
-        return await interaction.reply({
-            content: 'Öneri yayın kanalı ayarlanmamış. Lütfen yetkililere bildirin.',
-            flags: MessageFlags.Ephemeral
+        const errPayload = buildModBResponse({
+            title: 'Ayar Eksik',
+            textLines: ['Öneri yayın kanalı henüz ayarlanmamış. Lütfen yetkililere bildirin.']
         });
+        errPayload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+        return await interaction.reply(errPayload);
     }
 
     const targetChannel = await guild.channels.fetch(setup.suggestion_channel_id).catch(() => null);
     if (!targetChannel) {
-        return await interaction.reply({
-            content: 'Öneri yayın kanalı bulunamadı.',
-            flags: MessageFlags.Ephemeral
+        const notFoundPayload = buildModBResponse({
+            title: 'Kanal Bulunamadı',
+            textLines: ['Öneri yayın kanalı sunucuda bulunamadı. Lütfen yetkililere bildirin.']
         });
+        notFoundPayload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+        return await interaction.reply(notFoundPayload);
     }
 
     if (cooldownSec > 0) {
@@ -452,14 +516,21 @@ async function handleUserSuggestionSubmit(interaction) {
             }
         }
 
-        await interaction.reply({
-            content: `${getMonoEmoji('check')} Öneriniz başarıyla yayınlandı!`,
-            flags: MessageFlags.Ephemeral
+        const successPayload = buildModBResponse({
+            title: 'Öneri Gönderildi',
+            textLines: [`${getMonoEmoji('check')} Öneriniz başarıyla yayınlandı!`]
         });
+        successPayload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+        await interaction.reply(successPayload);
 
     } catch(err) {
         console.error('Error submitting suggestion:', err);
-        await interaction.reply({ content: 'Öneri gönderilirken bir hata oluştu.', flags: MessageFlags.Ephemeral });
+        const failPayload = buildModBResponse({
+            title: 'İşlem Başarısız',
+            textLines: ['Öneri gönderilirken sistemsel bir hata oluştu.']
+        });
+        failPayload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+        await interaction.reply(failPayload).catch(() => {});
     } finally {
         if (conn) conn.release();
     }

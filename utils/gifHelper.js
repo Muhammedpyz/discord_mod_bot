@@ -8,7 +8,7 @@ async function getRandomTenorGif(searchTerm) {
       params: {
         q: searchTerm,
         key: apiKey,
-        client_key: "turklion_discord_bot",
+        client_key: "nyx_discord_bot",
         limit: 25,
         media_filter: "gif",
         contentfilter: "medium"

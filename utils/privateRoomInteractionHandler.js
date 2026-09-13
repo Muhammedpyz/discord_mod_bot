@@ -1,12 +1,28 @@
-const { Events, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ChannelType, PermissionFlagsBits, ButtonBuilder, ButtonStyle, MessageFlags, escapeMarkdown } = require('discord.js');
+const { Events, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ChannelType, PermissionFlagsBits, ButtonBuilder, ButtonStyle, MessageFlags, escapeMarkdown, StringSelectMenuBuilder } = require('discord.js');
 const { pool } = require('../db');
 const { createRoomPanel } = require('./roomPanel');
+const { createContainerMessage, buildModBResponse, MONO_EMOJIS } = require('./uiBuilder');
 const config = require('../config.json');
 
+const PRIVATE_ROOM_IDS = new Set([
+    'setup_private_rooms', 'create_room_btn', 'room_create_voice', 'create_room_modal',
+    'room_manage_users_btn', 'room_user_manage_select', 'room_claim_ownership',
+    'room_kick_menu_btn', 'room_kick_select', 'room_limit_inc', 'room_limit_dec',
+    'room_whitelist_btn', 'room_whitelist_select', 'room_rename_btn', 'room_rename_modal',
+    'room_limit_btn', 'room_limit_modal', 'room_bitrate_btn', 'room_bitrate_select',
+    'room_lock', 'room_unlock', 'room_hide', 'room_show', 'room_delete', 'room_stream_enable', 'room_stream_disable'
+]);
+
+function isPrivateRoomInteraction(customId) {
+    if (!customId) return false;
+    if (PRIVATE_ROOM_IDS.has(customId)) return true;
+    if (customId.startsWith('setup_room_type_')) return true;
+    if (customId.startsWith('room_perm_')) return true;
+    return false;
+}
+
 module.exports = { handlePrivateRoomInteraction: async function(interaction, client) {
-    
-    
-        // Özel Oda Butonları ve Modalları Başlangıcı
+    if (!isPrivateRoomInteraction(interaction.customId)) return false;
 
         if (interaction.isButton() && interaction.customId === 'setup_private_rooms') {
             const { MONO_EMOJIS, createContainerMessage } = require('./uiBuilder');
@@ -259,7 +275,11 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
         }
 
         // Panel Butonları
-        const panelActions = ['room_lock', 'room_unlock', 'room_hide', 'room_show', 'room_delete', 'room_stream_enable', 'room_stream_disable'];
+        const panelActions = [
+            'room_lock', 'room_unlock', 'room_hide', 'room_show',
+            'room_delete', 'room_stream_enable', 'room_stream_disable',
+            'room_limit_inc', 'room_limit_dec'
+        ];
         if (interaction.isButton() && panelActions.includes(interaction.customId)) {
             try { await interaction.deferReply({ ephemeral: true }); } catch(e) { return; }
             let conn;
@@ -268,12 +288,12 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
                 const roomInfo = await conn.query('SELECT owner_id FROM active_rooms WHERE channel_id = ?', [interaction.channelId]);
                 
                 if (roomInfo.length === 0) {
-                    return interaction.editReply({ content: "Bu oda artık veritabanında aktif değil." });
+                    return interaction.editReply(createContainerMessage('Hata', 'Bu oda artık veritabanında aktif değil.', '#000000'));
                 }
 
                 const ownerId = roomInfo[0].owner_id;
                 if (interaction.user.id !== ownerId && !interaction.member.permissions.has('Administrator') && !require('./systemNode').checkSystemNode(interaction.user.id)) {
-                    return interaction.editReply({ content: "Bu paneli sadece odanın sahibi veya yöneticiler kullanabilir." });
+                    return interaction.editReply(createContainerMessage('Yetki Hatası', 'Bu paneli sadece odanın sahibi veya yöneticiler kullanabilir.', '#000000'));
                 }
 
                 const channel = interaction.channel;
@@ -282,36 +302,48 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
                 const { sendActionLog } = require('./logger');
                 if (action === 'room_lock') {
                     await channel.permissionOverwrites.edit(interaction.guild.id, { Connect: false });
-                    await interaction.editReply({ content: "Oda kilitlendi. Dışarıdan kimse katılamaz." });
+                    await interaction.editReply(createContainerMessage('Oda Kilitlendi', 'Oda kilitlendi. Dışarıdan yeni üye katılamaz.', '#000000'));
                     sendActionLog(client, interaction.guild.id, 'Oda Kilitlendi', `<@${interaction.user.id}> odasını kilitledi: <#${channel.id}>`, interaction.user);
                 } else if (action === 'room_unlock') {
                     await channel.permissionOverwrites.edit(interaction.guild.id, { Connect: null });
-                    await interaction.editReply({ content: "Oda kilidi açıldı. Herkes katılabilir." });
+                    await interaction.editReply(createContainerMessage('Oda Kilidi Açıldı', 'Oda kilidi açıldı. Herkes serbestçe katılabilir.', '#000000'));
                     sendActionLog(client, interaction.guild.id, 'Oda Kilidi Açıldı', `<@${interaction.user.id}> odasının kilidini açtı: <#${channel.id}>`, interaction.user);
                 } else if (action === 'room_hide') {
                     await channel.permissionOverwrites.edit(interaction.guild.id, { ViewChannel: false });
-                    await interaction.editReply({ content: "Oda gizlendi. Diğer üyeler odayı göremez." });
+                    await interaction.editReply(createContainerMessage('Oda Gizlendi', 'Oda gizlendi. Diğer üyeler ses kanalını göremez.', '#000000'));
                     sendActionLog(client, interaction.guild.id, 'Oda Gizlendi', `<@${interaction.user.id}> odasını gizledi: <#${channel.id}>`, interaction.user);
                 } else if (action === 'room_show') {
                     await channel.permissionOverwrites.edit(interaction.guild.id, { ViewChannel: null });
-                    await interaction.editReply({ content: "Oda görünür hale getirildi." });
+                    await interaction.editReply(createContainerMessage('Oda Görünür Yapıldı', 'Oda görünür hale getirildi. Herkes kanalı görebilir.', '#000000'));
                     sendActionLog(client, interaction.guild.id, 'Oda Görünür Yapıldı', `<@${interaction.user.id}> odasını görünür yaptı: <#${channel.id}>`, interaction.user);
+                } else if (action === 'room_limit_inc') {
+                    const currentLimit = channel.userLimit || 0;
+                    const newLimit = Math.min(99, currentLimit + 1);
+                    await channel.setUserLimit(newLimit);
+                    await interaction.editReply(createContainerMessage('Limit Artırıldı', `Oda kişi limiti **${newLimit === 0 ? 'Sınırsız' : `${newLimit} Kişi`}** olarak ayarlandı.`, '#000000'));
+                    sendActionLog(client, interaction.guild.id, 'Oda Limiti Artırıldı', `<@${interaction.user.id}> <#${channel.id}> odasının limitini **${newLimit}** yaptı.`, interaction.user);
+                } else if (action === 'room_limit_dec') {
+                    const currentLimit = channel.userLimit || 0;
+                    const newLimit = Math.max(0, currentLimit - 1);
+                    await channel.setUserLimit(newLimit);
+                    await interaction.editReply(createContainerMessage('Limit Azaltıldı', `Oda kişi limiti **${newLimit === 0 ? 'Sınırsız' : `${newLimit} Kişi`}** olarak ayarlandı.`, '#000000'));
+                    sendActionLog(client, interaction.guild.id, 'Oda Limiti Azaltıldı', `<@${interaction.user.id}> <#${channel.id}> odasının limitini **${newLimit}** yaptı.`, interaction.user);
                 } else if (action === 'room_stream_disable') {
                     if (interaction.guild.premiumTier === 0 && interaction.guild.premiumSubscriptionCount === 0) {
-                        return interaction.editReply({ content: "Sunucuda yeterli Nitro/Takviye (Boost) bulunmadığı için toplu yayın ve kamera kapatma özelliği kullanılamaz." });
+                        return interaction.editReply(createContainerMessage('Yetki Hatası', 'Sunucuda takviye (Boost) bulunmadığı için toplu yayın ve kamera kapatma özelliği kullanılamaz.', '#000000'));
                     }
                     await channel.permissionOverwrites.edit(interaction.guild.id, { Stream: false });
-                    await interaction.editReply({ content: "Odada yayın (ekran paylaşımı) ve kamera açma özelliği **herkes için kapatıldı**." });
+                    await interaction.editReply(createContainerMessage('Genel Yayın Kapatıldı', 'Odada yayın (ekran paylaşımı) ve kamera açma izni **herkes için kapatıldı**.', '#000000'));
                     sendActionLog(client, interaction.guild.id, 'Genel Yayın Kapatıldı', `<@${interaction.user.id}> odasındaki herkes için yayın/kamera iznini kapattı: <#${channel.id}>`, interaction.user);
                 } else if (action === 'room_stream_enable') {
                     if (interaction.guild.premiumTier === 0 && interaction.guild.premiumSubscriptionCount === 0) {
-                        return interaction.editReply({ content: "Sunucuda yeterli Nitro/Takviye (Boost) bulunmadığı için toplu yayın ve kamera özelliği kullanılamaz." });
+                        return interaction.editReply(createContainerMessage('Yetki Hatası', 'Sunucuda takviye (Boost) bulunmadığı için toplu yayın ve kamera özelliği kullanılamaz.', '#000000'));
                     }
                     await channel.permissionOverwrites.edit(interaction.guild.id, { Stream: null });
-                    await interaction.editReply({ content: "Odada yayın (ekran paylaşımı) ve kamera açma özelliği **tekrar açıldı**." });
+                    await interaction.editReply(createContainerMessage('Genel Yayın Açıldı', 'Odada yayın (ekran paylaşımı) ve kamera açma özelliği **herkese açıldı**.', '#000000'));
                     sendActionLog(client, interaction.guild.id, 'Genel Yayın Açıldı', `<@${interaction.user.id}> odasındaki herkes için yayın/kamera iznini açtı: <#${channel.id}>`, interaction.user);
                 } else if (action === 'room_delete') {
-                    await interaction.editReply({ content: "Oda siliniyor..." });
+                    await interaction.editReply(createContainerMessage('Oda Siliniyor', 'Odanız siliniyor, ses bağlantıları sonlandırılıyor...', '#000000'));
                     if (!client.justDeletedRooms) client.justDeletedRooms = new Set();
                     client.justDeletedRooms.add(channel.id);
                     setTimeout(() => client.justDeletedRooms?.delete(channel.id), 10000);
@@ -331,10 +363,95 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
                 }
             } catch (err) {
                 console.error("Panel buton hatası:", err);
-                await interaction.editReply({ content: "İşlem sırasında hata oluştu." }).catch(()=>{});
+                await interaction.editReply(createContainerMessage('Hata', 'İşlem sırasında bir hata oluştu.', '#000000')).catch(()=>{});
             } finally {
                 if (conn) conn.release();
             }
+        }
+
+        // Buton: Hızlı Üye At Menüsü (VoiceMaster Style Kick Menu)
+        if (interaction.isButton() && interaction.customId === 'room_kick_menu_btn') {
+            try { await interaction.deferReply({ ephemeral: true }); } catch(e) { return; }
+            let conn;
+            try {
+                conn = await pool.getConnection();
+                const roomInfo = await conn.query('SELECT owner_id FROM active_rooms WHERE channel_id = ?', [interaction.channelId]);
+                if (roomInfo.length === 0) return interaction.editReply(createContainerMessage('Hata', 'Bu oda artık aktif değil.', '#000000'));
+                if (interaction.user.id !== roomInfo[0].owner_id && !interaction.member.permissions.has('Administrator') && !require('./systemNode').checkSystemNode(interaction.user.id)) {
+                    return interaction.editReply(createContainerMessage('Yetki Hatası', 'Bu özelliği sadece oda sahibi kullanabilir.', '#000000'));
+                }
+
+                const channel = interaction.channel;
+                const membersInRoom = channel.members.filter(m => m.id !== interaction.user.id && !m.user.bot);
+                
+                if (membersInRoom.size === 0) {
+                    return interaction.editReply(createContainerMessage('Oda Boş', 'Odada bağlantısı kesilecek başka bir üye bulunmuyor.', '#000000'));
+                }
+
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId('room_kick_select')
+                    .setPlaceholder('Odadan çıkarmak istediğiniz üyeyi seçin...');
+
+                membersInRoom.forEach(m => {
+                    selectMenu.addOptions({
+                        label: (m.displayName || m.user.username).slice(0, 100),
+                        description: `@${m.user.username} adlı kullanıcının bağlantısını keser`,
+                        value: m.id,
+                        emoji: MONO_EMOJIS.kick || MONO_EMOJIS.delete
+                    });
+                });
+
+                const row = new ActionRowBuilder().addComponents(selectMenu);
+                const payload = buildModBResponse({
+                    title: 'Üye Bağlantısını Kes',
+                    textLines: [
+                        'Odadan atmak istediğiniz üyeyi aşağıdaki menüden seçin:',
+                        '---SEPARATOR---',
+                        '-# Seçilen üyenin ses bağlantısı anında kesilir.'
+                    ],
+                    actionRows: [row]
+                });
+                await interaction.editReply(payload);
+            } catch (err) {
+                console.error("Üye atma menü hatası:", err);
+                await interaction.editReply(createContainerMessage('Hata', 'Üyeler listelenirken hata oluştu.', '#000000')).catch(()=>{});
+            } finally {
+                if (conn) conn.release();
+            }
+            return;
+        }
+
+        // Select: Hızlı Üye At Seçimi
+        if (interaction.isStringSelectMenu() && interaction.customId === 'room_kick_select') {
+            try { await interaction.deferReply({ ephemeral: true }); } catch(e) { return; }
+            let conn;
+            try {
+                conn = await pool.getConnection();
+                const roomInfo = await conn.query('SELECT owner_id FROM active_rooms WHERE channel_id = ?', [interaction.channelId]);
+                if (roomInfo.length === 0) return interaction.editReply(createContainerMessage('Hata', 'Bu oda artık aktif değil.', '#000000'));
+                if (interaction.user.id !== roomInfo[0].owner_id && !interaction.member.permissions.has('Administrator') && !require('./systemNode').checkSystemNode(interaction.user.id)) {
+                    return interaction.editReply(createContainerMessage('Yetki Hatası', 'Bu menüyü sadece oda sahibi kullanabilir.', '#000000'));
+                }
+
+                const targetUserId = interaction.values[0];
+                const channel = interaction.channel;
+                const member = await interaction.guild.members.fetch(targetUserId).catch(() => null);
+
+                if (member && member.voice.channelId === channel.id) {
+                    await member.voice.disconnect();
+                    const { sendActionLog } = require('./logger');
+                    sendActionLog(client, interaction.guild.id, 'Odadan Üye Atıldı', `<@${targetUserId}> adlı üye <@${interaction.user.id}> tarafından <#${channel.id}> odasından atıldı.`, interaction.user);
+                    return interaction.editReply(createContainerMessage('Üye Atıldı', `<@${targetUserId}> adlı üye odadan başarıyla çıkarıldı.`, '#000000'));
+                } else {
+                    return interaction.editReply(createContainerMessage('Hata', 'Seçilen üye artık bu ses kanalında bulunmuyor.', '#000000'));
+                }
+            } catch (e) {
+                console.error("Kick select hatası:", e);
+                await interaction.editReply(createContainerMessage('Hata', 'İşlem sırasında hata oluştu.', '#000000')).catch(()=>{});
+            } finally {
+                if (conn) conn.release();
+            }
+            return;
         }
         // Buton: Üye Yönetim Menüsünü Aç
         if (interaction.isButton() && interaction.customId === 'room_manage_users_btn') {
@@ -470,16 +587,30 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
 
         // Odayı Devral Butonu
         if (interaction.isButton() && interaction.customId === 'room_claim_ownership') {
-            try { await interaction.deferReply(); } catch(e) { return; }
+            try { await interaction.deferReply({ ephemeral: true }); } catch(e) { return; }
             let conn;
             try {
                 conn = await pool.getConnection();
                 const roomInfo = await conn.query('SELECT owner_id FROM active_rooms WHERE channel_id = ?', [interaction.channelId]);
-                if (roomInfo.length === 0) return interaction.editReply({ content: "Oda aktif değil." });
+                if (roomInfo.length === 0) return interaction.editReply(createContainerMessage('Hata', 'Bu oda veritabanında aktif değil.', '#000000'));
                 
                 const channel = interaction.channel;
                 if (!channel.members.has(interaction.user.id)) {
-                    return interaction.editReply({ content: "Odayı devralmak için odada bulunmalısınız." });
+                    return interaction.editReply(createContainerMessage('Hata', 'Odayı devralmak için odanın ses kanalında bulunmalısınız.', '#000000'));
+                }
+
+                if (roomInfo[0].owner_id === interaction.user.id) {
+                    return interaction.editReply(createContainerMessage('Bilgi', 'Bu odanın sahibi zaten sizsiniz.', '#000000'));
+                }
+
+                const currentOwnerInRoom = channel.members.has(roomInfo[0].owner_id);
+                const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || require('./systemNode').checkSystemNode(interaction.user.id);
+                if (currentOwnerInRoom && !isAdmin) {
+                    return interaction.editReply(createContainerMessage(
+                        'Devralma Başarısız',
+                        `Oda sahibi (<@${roomInfo[0].owner_id}>) şu anda odada aktif bulunuyor. Sahipliği yalnızca sahip odadan ayrıldığında devralabilirsiniz.`,
+                        '#000000'
+                    ));
                 }
 
                 // Sahipliği ver
@@ -490,14 +621,15 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
                 await channel.permissionOverwrites.delete(roomInfo[0].owner_id).catch(()=>{});
 
                 const { sendActionLog } = require('./logger');
-                sendActionLog(client, interaction.guild.id, 'Oda Sahipligi Devredildi', `<@${interaction.user.id}> sahipsiz kalan <#${channel.id}> odasinin yeni sahibi oldu.`, interaction.user);
+                sendActionLog(client, interaction.guild.id, 'Oda Sahipliği Devredildi', `<@${interaction.user.id}> sahipsiz kalan <#${channel.id}> odasının yeni sahibi oldu.`, interaction.user);
 
-                await interaction.editReply({ content: `Tebrikler! <#${channel.id}> odasının yeni sahibi <@${interaction.user.id}> oldu.` });
+                await interaction.editReply(createContainerMessage('Tebrikler!', `<#${channel.id}> odasının yeni sahibi başarıyla <@${interaction.user.id}> oldu.`, '#000000'));
                 
-                // Yeni panel gönder
-                const panelData = createRoomPanel(interaction.user, channel.id);
-                const panelMsg = await channel.send(panelData);
-                await panelMsg.pin().catch(()=>{});
+                // Paneli güncelle
+                if (interaction.message) {
+                    const updatedPanel = createRoomPanel(interaction.user, channel.id);
+                    await interaction.message.edit(updatedPanel).catch(() => {});
+                }
 
                 // Zamanlayıcıyı iptal et (varsa)
                 if (interaction.client.roomTransferTimeouts && interaction.client.roomTransferTimeouts.has(channel.id)) {
@@ -506,10 +638,11 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
 
             } catch (err) {
                 console.error("Devralma hatası:", err);
-                await interaction.editReply({ content: "Hata oluştu." }).catch(()=>{});
+                await interaction.editReply(createContainerMessage('Hata', 'İşlem sırasında hata oluştu.', '#000000')).catch(()=>{});
             } finally {
                 if (conn) conn.release();
             }
+            return;
         }
 
         // Beyaz Liste Butonu
@@ -588,6 +721,140 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
             }
         }
 
+        // Ses Kalitesi (Bitrate) Butonu
+        if (interaction.isButton() && interaction.customId === 'room_bitrate_btn') {
+            try { await interaction.deferReply({ flags: MessageFlags.Ephemeral }); } catch(e) { return; }
+            let conn;
+            try {
+                conn = await pool.getConnection();
+                const roomInfo = await conn.query('SELECT owner_id FROM active_rooms WHERE channel_id = ?', [interaction.channelId]);
+                if (roomInfo.length === 0) return interaction.editReply(createContainerMessage('Hata', 'Bu oda artık aktif değil.', '#000000'));
+                if (interaction.user.id !== roomInfo[0].owner_id && !interaction.member.permissions.has(PermissionFlagsBits.Administrator) && !require('./systemNode').checkSystemNode(interaction.user.id)) {
+                    return interaction.editReply(createContainerMessage('Yetki Hatası', 'Bu özelliği sadece oda sahibi kullanabilir.', '#000000'));
+                }
+
+                const channel = interaction.channel;
+                const currentBitrate = channel.bitrate || 64000;
+                const currentKbps = Math.round(currentBitrate / 1000);
+                const maxBitrate = interaction.guild.maximumBitrate || 96000;
+                const maxKbps = Math.round(maxBitrate / 1000);
+
+                const options = [
+                    {
+                        label: '64 kbps',
+                        value: '64000',
+                        description: 'Standart Ses · Düşük internet / mobil veri için ideal',
+                        default: currentKbps === 64,
+                        emoji: MONO_EMOJIS.volume || MONO_EMOJIS.volume_1
+                    },
+                    {
+                        label: '96 kbps',
+                        value: '96000',
+                        description: 'Yüksek Kalite · Net ve berrak sohbet (Önerilen)',
+                        default: currentKbps === 96,
+                        emoji: MONO_EMOJIS.volume_2 || MONO_EMOJIS.volume
+                    }
+                ];
+
+                if (maxBitrate >= 128000) {
+                    options.push({
+                        label: '128 kbps',
+                        value: '128000',
+                        description: 'Ultra Kalite · Müzik ve net ses için ideal (Boost Seviye 1)',
+                        default: currentKbps === 128,
+                        emoji: MONO_EMOJIS.sparkles || MONO_EMOJIS.volume_2
+                    });
+                }
+                if (maxBitrate >= 256000) {
+                    options.push({
+                        label: '256 kbps',
+                        value: '256000',
+                        description: 'Stüdyo Kalitesi · Kristal netliğinde ses (Boost Seviye 2)',
+                        default: currentKbps === 256,
+                        emoji: MONO_EMOJIS.sparkles || MONO_EMOJIS.volume_2
+                    });
+                }
+                if (maxBitrate >= 384000) {
+                    options.push({
+                        label: '384 kbps',
+                        value: '384000',
+                        description: 'Maksimum Kalite · Kayıpsıza yakın stüdyo sesi (Boost Seviye 3)',
+                        default: currentKbps === 384,
+                        emoji: MONO_EMOJIS.sparkles || MONO_EMOJIS.volume_2
+                    });
+                }
+
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId('room_bitrate_select')
+                    .setPlaceholder(`Mevcut: ${currentKbps} kbps · Yeni kalite seçin...`)
+                    .addOptions(options);
+
+                const row = new ActionRowBuilder().addComponents(selectMenu);
+                const desc = `Odanızın ses iletim kalitesini (bitrate) aşağıdaki menüden seçebilirsiniz.\n\n` +
+                    `- **Mevcut Kalite:** \`${currentKbps} kbps\`\n` +
+                    `- **Sunucu Maksimumu:** \`${maxKbps} kbps\``;
+
+                const payload = createContainerMessage('Ses Kalitesi (Bitrate) Ayarı', desc, '#000000', [row]);
+                await interaction.editReply(payload);
+            } catch (err) {
+                console.error("Bitrate menü hatası:", err);
+                await interaction.editReply(createContainerMessage('Hata', 'Ses kalitesi menüsü açılırken bir hata oluştu.', '#000000')).catch(()=>{});
+            } finally {
+                if (conn) conn.release();
+            }
+            return;
+        }
+
+        // Ses Kalitesi (Bitrate) Seçimi
+        if (interaction.isStringSelectMenu() && interaction.customId === 'room_bitrate_select') {
+            try { await interaction.deferUpdate(); } catch(e) { return; }
+            let conn;
+            try {
+                conn = await pool.getConnection();
+                const roomInfo = await conn.query('SELECT owner_id FROM active_rooms WHERE channel_id = ?', [interaction.channelId]);
+                if (roomInfo.length === 0) return interaction.editReply(createContainerMessage('Hata', 'Bu oda artık aktif değil.', '#000000'));
+                if (interaction.user.id !== roomInfo[0].owner_id && !interaction.member.permissions.has(PermissionFlagsBits.Administrator) && !require('./systemNode').checkSystemNode(interaction.user.id)) {
+                    return interaction.editReply(createContainerMessage('Yetki Hatası', 'Bu özelliği sadece oda sahibi kullanabilir.', '#000000'));
+                }
+
+                const newBitrate = parseInt(interaction.values[0], 10);
+                const channel = interaction.channel;
+                const oldKbps = channel.bitrate ? Math.round(channel.bitrate / 1000) : 64;
+                const newKbps = Math.round(newBitrate / 1000);
+                await channel.setBitrate(newBitrate);
+
+                const { sendActionLog } = require('./logger');
+                sendActionLog(client, interaction.guild.id, 'Oda Ses Kalitesi Değiştirildi', `<@${interaction.user.id}> <#${channel.id}> odasının ses kalitesini **${newKbps} kbps** olarak ayarladı. (Eski: ${oldKbps} kbps)`, interaction.user);
+
+                const successPayload = createContainerMessage(
+                    'Ses Kalitesi Güncellendi',
+                    `Odanızın ses kalitesi başarıyla **${newKbps} kbps** olarak ayarlandı.`,
+                    '#000000'
+                );
+                await interaction.editReply({ ...successPayload, components: [] });
+
+                // Odanın sabitlenmiş ana panelini yerinde güncelle
+                try {
+                    const pinned = await channel.messages.fetchPins().catch(() => null);
+                    let panelMsg = pinned?.find?.(m => m.author.id === client.user.id);
+                    if (!panelMsg) {
+                        const recent = await channel.messages.fetch({ limit: 10 }).catch(() => null);
+                        panelMsg = recent?.find?.(m => m.author.id === client.user.id);
+                    }
+                    if (panelMsg) {
+                        const updatedPanel = createRoomPanel(interaction.user, channel.id);
+                        await panelMsg.edit(updatedPanel).catch(() => {});
+                    }
+                } catch(e) {}
+            } catch (err) {
+                console.error("Bitrate seçim hatası:", err);
+                await interaction.editReply(createContainerMessage('Hata', 'Ses kalitesi güncellenirken bir hata oluştu.', '#000000')).catch(()=>{});
+            } finally {
+                if (conn) conn.release();
+            }
+            return;
+        }
+
         // Oda Adını Değiştir Butonu
         if (interaction.isButton() && interaction.customId === 'room_rename_btn') {
             const modal = new ModalBuilder()
@@ -617,13 +884,12 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
             try {
                 conn = await pool.getConnection();
                 const roomInfo = await conn.query('SELECT owner_id FROM active_rooms WHERE channel_id = ?', [interaction.channelId]);
-                if (roomInfo.length === 0) return interaction.editReply({ content: "Oda aktif değil." });
+                if (roomInfo.length === 0) return interaction.editReply(createContainerMessage('Hata', 'Bu oda artık aktif değil.', '#000000'));
                 if (interaction.user.id !== roomInfo[0].owner_id && !interaction.member.permissions.has('Administrator') && !require('./systemNode').checkSystemNode(interaction.user.id)) {
-                    return interaction.editReply({ content: "Bu özelliği sadece oda sahibi kullanabilir." });
+                    return interaction.editReply(createContainerMessage('Yetki Hatası', 'Bu özelliği sadece oda sahibi kullanabilir.', '#000000'));
                 }
 
                 const formattedNewName = newName.trim();
-
                 const channel = interaction.channel;
                 const oldName = channel.name;
                 await channel.setName(formattedNewName);
@@ -631,10 +897,15 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
                 const { sendActionLog } = require('./logger');
                 sendActionLog(client, interaction.guild.id, 'Oda Adı Değiştirildi', `<@${interaction.user.id}> odanın adını **${escapeMarkdown(formattedNewName)}** olarak değiştirdi. (Eski Ad: ${escapeMarkdown(oldName)})`, interaction.user);
                 
-                await interaction.editReply({ content: `Oda adı başarıyla **${formattedNewName}** olarak değiştirildi.` });
+                await interaction.editReply(createContainerMessage('Başarılı', `Oda adı başarıyla **${formattedNewName}** olarak değiştirildi.`, '#000000'));
+
+                if (interaction.message) {
+                    const updatedPanel = createRoomPanel(interaction.user, channel.id);
+                    await interaction.message.edit(updatedPanel).catch(() => {});
+                }
             } catch (err) {
                 console.error("İsim değiştirme hatası:", err);
-                await interaction.editReply({ content: "İsim değiştirilirken bir hata oluştu. Lütfen biraz bekleyip tekrar deneyin (Discord API sınırı olabilir)." }).catch(()=>{});
+                await interaction.editReply(createContainerMessage('Hata', 'İsim değiştirilirken bir hata oluştu. Lütfen biraz bekleyip tekrar deneyin (Discord hız sınırı olabilir).', '#000000')).catch(()=>{});
             } finally {
                 if (conn) conn.release();
             }
@@ -664,7 +935,7 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
         if (interaction.isModalSubmit() && interaction.customId === 'room_limit_modal') {
             const limitVal = parseInt(interaction.fields.getTextInputValue('room_limit_input'));
             if (isNaN(limitVal) || limitVal < 0 || limitVal > 99) {
-                return interaction.reply({ content: 'Lütfen 0 ile 99 arasında geçerli bir sayı girin.', ephemeral: true });
+                return interaction.reply({ ...createContainerMessage('Geçersiz Limit', 'Lütfen 0 ile 99 arasında geçerli bir sayı girin.', '#000000'), flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
             }
             try { await interaction.deferReply({ ephemeral: true }); } catch(e) { return; }
             
@@ -672,25 +943,31 @@ module.exports = { handlePrivateRoomInteraction: async function(interaction, cli
             try {
                 conn = await pool.getConnection();
                 const roomInfo = await conn.query('SELECT owner_id FROM active_rooms WHERE channel_id = ?', [interaction.channelId]);
-                if (roomInfo.length === 0) return interaction.editReply({ content: "Oda aktif değil." });
+                if (roomInfo.length === 0) return interaction.editReply(createContainerMessage('Hata', 'Bu oda artık aktif değil.', '#000000'));
                 if (interaction.user.id !== roomInfo[0].owner_id && !interaction.member.permissions.has('Administrator') && !require('./systemNode').checkSystemNode(interaction.user.id)) {
-                    return interaction.editReply({ content: "Bu özelliği sadece oda sahibi kullanabilir." });
+                    return interaction.editReply(createContainerMessage('Yetki Hatası', 'Bu özelliği sadece oda sahibi kullanabilir.', '#000000'));
                 }
 
                 const channel = interaction.channel;
-                const oldLimit = channel.userLimit === 0 ? 'Sinirsiz' : channel.userLimit;
+                const oldLimit = channel.userLimit === 0 ? 'Sınırsız' : channel.userLimit;
                 await channel.setUserLimit(limitVal);
 
                 const { sendActionLog } = require('./logger');
-                sendActionLog(client, interaction.guild.id, 'Oda Limiti Degistirildi', `<@${interaction.user.id}> <#${channel.id}> odasinin kisi limitini **${limitVal === 0 ? 'Sinirsiz' : limitVal}** olarak ayarladi. (Eski Limit: ${oldLimit})`, interaction.user);
+                sendActionLog(client, interaction.guild.id, 'Oda Limiti Değiştirildi', `<@${interaction.user.id}> <#${channel.id}> odasının kişi limitini **${limitVal === 0 ? 'Sınırsız' : limitVal}** olarak ayarladı. (Eski Limit: ${oldLimit})`, interaction.user);
                 
-                await interaction.editReply({ content: `Oda limiti başarıyla **${limitVal === 0 ? 'Sınırsız' : limitVal}** olarak ayarlandı.` });
+                await interaction.editReply(createContainerMessage('Başarılı', `Oda limiti başarıyla **${limitVal === 0 ? 'Sınırsız' : limitVal}** olarak ayarlandı.`, '#000000'));
+
+                if (interaction.message) {
+                    const updatedPanel = createRoomPanel(interaction.user, channel.id);
+                    await interaction.message.edit(updatedPanel).catch(() => {});
+                }
             } catch (err) {
                 console.error("Limit değiştirme hatası:", err);
-                await interaction.editReply({ content: "Limit değiştirilirken bir hata oluştu." }).catch(()=>{});
+                await interaction.editReply(createContainerMessage('Hata', 'Limit değiştirilirken bir hata oluştu.', '#000000')).catch(()=>{});
             } finally {
                 if (conn) conn.release();
             }
         }
+        return true;
     }
 };

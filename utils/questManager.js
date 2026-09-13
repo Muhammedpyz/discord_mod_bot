@@ -27,7 +27,7 @@ function getTodayDateStr() {
 
 function getDailySeed(userId, dateStr) {
     let hash = 0;
-    const str = `${userId}_${dateStr}_turklion_proc_quests_v2`;
+    const str = `${userId}_${dateStr}_nyx_proc_quests_v2`;
     for (let i = 0; i < str.length; i++) {
         hash = (hash << 5) - hash + str.charCodeAt(i);
         hash |= 0;

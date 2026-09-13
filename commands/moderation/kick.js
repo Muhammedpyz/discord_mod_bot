@@ -51,6 +51,7 @@ module.exports = {
                     'INSERT INTO mutes (guild_id, user_id, moderator_id, action_type, expires_at, reason) VALUES (?, ?, ?, ?, NULL, ?)',
                     [interaction.guild.id, targetUser.id, interaction.user.id, 'kick', reason]
                 );
+                try { require('../../utils/cacheEvents').dataChanged('moderation_action', interaction.guild.id); } catch {}
             } catch(e) {
                 console.error('Kick DB log hatası:', e);
             } finally {
@@ -76,11 +77,7 @@ module.exports = {
 
         } catch (error) {
             console.error('Kick hatası:', error);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Kullanıcı atilirken sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            } else {
-                await interaction.reply({ content: 'Kullanıcı atilirken sistemsel bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
+            throw error;
         }
     }
 };

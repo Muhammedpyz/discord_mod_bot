@@ -91,6 +91,7 @@ module.exports = {
                     'INSERT INTO mutes (guild_id, user_id, moderator_id, action_type, expires_at, reason) VALUES (?, ?, ?, ?, NULL, ?)',
                     [interaction.guild.id, targetUser.id, interaction.user.id, 'ban', reason]
                 );
+                try { require('../../utils/cacheEvents').dataChanged('moderation_action', interaction.guild.id); } catch {}
 
                 const payload = createContainerMessage(
                     `${EMOJIS.ban} Kullanıcı Yasaklandı`,
@@ -118,11 +119,7 @@ module.exports = {
             }
         } catch (error) {
             console.error('Ban hatası:', error);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'İşlem sırasında bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            } else {
-                await interaction.editReply({ content: 'İşlem sırasında bir hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
+            throw error;
         }
     }
 };

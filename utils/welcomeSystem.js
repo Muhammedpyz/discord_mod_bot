@@ -5,10 +5,19 @@ const {
     ContainerBuilder,
     TextDisplayBuilder,
     SeparatorBuilder,
+    ChannelSelectMenuBuilder,
+    StringSelectMenuBuilder,
+    ChannelType,
     MessageFlags
 } = require('discord.js');
 const { getWelcomeConfig } = require('../db');
 const { MONO_EMOJIS } = require('./uiBuilder');
+
+function getMonoEmoji(name) {
+    const id = MONO_EMOJIS[name];
+    if (!id) return '';
+    return `<:mono:${id}>`;
+}
 
 /**
  * Formats invite duration/expiration
@@ -207,8 +216,228 @@ async function buildWelcomeMainPanel(guildId, guild = null) {
     };
 }
 
+/**
+ * Sub-View: Karşılama Ayarları Ekranı
+ */
+async function buildWelcomeSetupView(guildId) {
+    const config = await getWelcomeConfig(guildId) || {};
+    const channelText = config.welcome_channel_id ? `<#${config.welcome_channel_id}>` : '`kapalı`';
+    const msgSnippet = config.welcome_message ? (config.welcome_message.length > 80 ? config.welcome_message.substring(0, 77) + '...' : config.welcome_message) : '`{user} sunucumuza hoş geldin!`';
+    const dmSnippet = config.welcome_dm_message ? (config.welcome_dm_message.length > 80 ? config.welcome_dm_message.substring(0, 77) + '...' : config.welcome_dm_message) : '`kapalı`';
+
+    const container = new ContainerBuilder();
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `## <:mono:${MONO_EMOJIS.sparkles || '1537767885978607716'}> Karşılama Ayarları\n\n` +
+            `Aşağıdaki menüden kanalı seçebilir, karşılama mesajını veya DM metnini düzenleyebilirsin.`
+        )
+    );
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `- **Mevcut Kanal ›** ${channelText}\n` +
+            `- **Karşılama Mesajı ›** ${msgSnippet}\n` +
+            `- **DM Mesajı ›** ${dmSnippet}`
+        )
+    );
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`-# ${getMonoEmoji('info')} Kanalı kapatmak için "Kanalı Kapat" butonunu kullanabilirsin.`)
+    );
+
+    const rowChan = new ActionRowBuilder().addComponents(
+        new ChannelSelectMenuBuilder()
+            .setCustomId('welcome_sel_channel')
+            .setPlaceholder('Karşılama Kanalı Seçin...')
+            .setChannelTypes(ChannelType.GuildText)
+    );
+
+    const rowBtns = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('welcome_btn_msg_modal')
+            .setLabel('Karşılama Mesajı')
+            .setEmoji(MONO_EMOJIS.pencil || MONO_EMOJIS.edit_2 || MONO_EMOJIS.settings)
+            .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+            .setCustomId('welcome_btn_dm_modal')
+            .setLabel('DM Mesajı')
+            .setEmoji(MONO_EMOJIS.mail || MONO_EMOJIS.message)
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('welcome_btn_disable_channel')
+            .setLabel('Kanalı Kapat')
+            .setEmoji(MONO_EMOJIS.delete || MONO_EMOJIS.cross)
+            .setStyle(ButtonStyle.Danger)
+            .setDisabled(!config.welcome_channel_id),
+        new ButtonBuilder()
+            .setCustomId('welcome_btn_home')
+            .setLabel('Ana Menüye Dön')
+            .setEmoji(MONO_EMOJIS.arrow_left || MONO_EMOJIS.previous)
+            .setStyle(ButtonStyle.Secondary)
+    );
+
+    return {
+        flags: MessageFlags.IsComponentsV2,
+        components: [container, rowChan, rowBtns]
+    };
+}
+
+/**
+ * Sub-View: Uğurlama Ayarları Ekranı
+ */
+async function buildGoodbyeSetupView(guildId) {
+    const config = await getWelcomeConfig(guildId) || {};
+    const channelText = config.goodbye_channel_id ? `<#${config.goodbye_channel_id}>` : '`kapalı`';
+    const msgSnippet = config.goodbye_message ? (config.goodbye_message.length > 80 ? config.goodbye_message.substring(0, 77) + '...' : config.goodbye_message) : '`{user} sunucumuzdan ayrıldı.`';
+
+    const container = new ContainerBuilder();
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `## <:mono:${MONO_EMOJIS.user_minus || '1537768136084951140'}> Uğurlama Ayarları\n\n` +
+            `Sunucudan ayrılan üyeler için uğurlama kanalını ve veda mesajını buradan yapılandırabilirsin.`
+        )
+    );
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `- **Mevcut Kanal ›** ${channelText}\n` +
+            `- **Uğurlama Mesajı ›** ${msgSnippet}`
+        )
+    );
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`-# ${getMonoEmoji('info')} Uğurlama bildirimini kapatmak için "Kanalı Kapat" butonunu kullanabilirsin.`)
+    );
+
+    const rowChan = new ActionRowBuilder().addComponents(
+        new ChannelSelectMenuBuilder()
+            .setCustomId('goodbye_sel_channel')
+            .setPlaceholder('Uğurlama Kanalı Seçin...')
+            .setChannelTypes(ChannelType.GuildText)
+    );
+
+    const rowBtns = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('goodbye_btn_msg_modal')
+            .setLabel('Uğurlama Mesajı')
+            .setEmoji(MONO_EMOJIS.pencil || MONO_EMOJIS.edit_2 || MONO_EMOJIS.settings)
+            .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+            .setCustomId('goodbye_btn_disable_channel')
+            .setLabel('Kanalı Kapat')
+            .setEmoji(MONO_EMOJIS.delete || MONO_EMOJIS.cross)
+            .setStyle(ButtonStyle.Danger)
+            .setDisabled(!config.goodbye_channel_id),
+        new ButtonBuilder()
+            .setCustomId('welcome_btn_home')
+            .setLabel('Ana Menüye Dön')
+            .setEmoji(MONO_EMOJIS.arrow_left || MONO_EMOJIS.previous)
+            .setStyle(ButtonStyle.Secondary)
+    );
+
+    return {
+        flags: MessageFlags.IsComponentsV2,
+        components: [container, rowChan, rowBtns]
+    };
+}
+
+/**
+ * Sub-View: Görünüm & Biçim Ayarları Ekranı
+ */
+async function buildWelcomeViewSettings(guildId) {
+    const config = await getWelcomeConfig(guildId) || {};
+
+    let formatName = 'Kutulu Kart';
+    let currentFormatVal = 'format_card';
+    if (config.welcome_gen_image) {
+        formatName = 'Görsel Kartlı (welcome.png)';
+        currentFormatVal = 'format_image';
+    } else if (config.welcome_plain_text) {
+        formatName = 'Düz Metin (Kutusuz)';
+        currentFormatVal = 'format_text';
+    }
+
+    const showTitle = config.welcome_show_title !== false && config.welcome_show_title !== 0;
+    const titleText = config.welcome_title ? `\`${config.welcome_title}\`` : '`Varsayılan ("Hoş Geldin, {user}!")`';
+
+    const container = new ContainerBuilder();
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `## <:mono:${MONO_EMOJIS.image || '1537767802751164486'}> Karşılama Görünüm & Biçim Ayarları\n\n` +
+            `Mesajların kanalda nasıl görüneceğini aşağıdaki seçeneklerden yönetebilirsiniz.`
+        )
+    );
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `- **Mesaj Biçimi ›** \`${formatName}\`\n` +
+            `- **Kutu Başlığı Durumu ›** \`${showTitle ? 'Açık' : 'Kapalı'}\`\n` +
+            `- **Özel Başlık Metni ›** ${titleText}`
+        )
+    );
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`-# ${getMonoEmoji('info')} Görsel kart açıldığında kullanıcının avatarı ve sunucu bilgisiyle özel resim üretilir.`)
+    );
+
+    const rowFormat = new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId('welcome_sel_format')
+            .setPlaceholder('Karşılama Formatı Seçin...')
+            .addOptions([
+                {
+                    label: 'Görsel Kartlı (Önerilen)',
+                    value: 'format_image',
+                    description: 'Avatarlı, rozetli özel welcome.png görseli çizer',
+                    default: currentFormatVal === 'format_image',
+                    emoji: MONO_EMOJIS.image || MONO_EMOJIS.sparkles
+                },
+                {
+                    label: 'Kutulu Kart',
+                    value: 'format_card',
+                    description: 'Components V2 modern koyu kutulu mesaj',
+                    default: currentFormatVal === 'format_card',
+                    emoji: MONO_EMOJIS.ticket || MONO_EMOJIS.folder
+                },
+                {
+                    label: 'Düz Metin',
+                    value: 'format_text',
+                    description: 'Kutu veya görsel olmadan sade metin mesajı',
+                    default: currentFormatVal === 'format_text',
+                    emoji: MONO_EMOJIS.mail || MONO_EMOJIS.message
+                }
+            ])
+    );
+
+    const rowBtns = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('welcome_btn_title_modal')
+            .setLabel('Başlık Metni')
+            .setEmoji(MONO_EMOJIS.pencil || MONO_EMOJIS.edit_2 || MONO_EMOJIS.settings)
+            .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+            .setCustomId('welcome_btn_toggle_title')
+            .setLabel(showTitle ? 'Başlığı Kapat' : 'Başlığı Aç')
+            .setEmoji(showTitle ? (MONO_EMOJIS.delete || MONO_EMOJIS.cross) : (MONO_EMOJIS.check || MONO_EMOJIS.verify))
+            .setStyle(showTitle ? ButtonStyle.Secondary : ButtonStyle.Success),
+        new ButtonBuilder()
+            .setCustomId('welcome_btn_home')
+            .setLabel('Ana Menüye Dön')
+            .setEmoji(MONO_EMOJIS.arrow_left || MONO_EMOJIS.previous)
+            .setStyle(ButtonStyle.Secondary)
+    );
+
+    return {
+        flags: MessageFlags.IsComponentsV2,
+        components: [container, rowFormat, rowBtns]
+    };
+}
+
 module.exports = {
     buildWelcomeMainPanel,
+    buildWelcomeSetupView,
+    buildGoodbyeSetupView,
+    buildWelcomeViewSettings,
     parseWelcomePlaceholders,
     formatInviteDuration
 };

@@ -59,6 +59,18 @@ module.exports = {
                             'INSERT INTO mutes (guild_id, user_id, moderator_id, action_type, expires_at, reason) VALUES (?, ?, ?, ?, NULL, ?)',
                             [guildId, targetId, executorId, actionType, reason]
                         );
+
+                        try {
+                            const { broadcastEvent } = require('../utils/eventBus');
+                            broadcastEvent('audit_log', {
+                                guild_id: guildId,
+                                user_id: targetId,
+                                moderator_id: executorId,
+                                action_type: actionType,
+                                reason
+                            });
+                        } catch (e) {}
+                        try { require('../utils/cacheEvents').dataChanged('moderation_action', guildId); } catch {}
                     } catch (dbErr) {
                         console.error('Audit log DB insert error:', dbErr);
                     } finally {

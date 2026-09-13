@@ -112,7 +112,7 @@ function renderAutorolePanel(guild, config) {
 
     // 3. Footer
     container.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent('-# ℹ️ Sunucuya katılan yeni üyeler ve botlar belirlenen rolleri otomatik olarak alır.')
+        new TextDisplayBuilder().setContent(`-# ${getMonoEmoji('info')} Sunucuya katılan yeni üyeler ve botlar belirlenen rolleri otomatik olarak alır.`)
     );
 
     // 4. Action Buttons (Kurulum, Aç/Kapat, Sıfırla)
@@ -161,21 +161,21 @@ function renderAutoroleSetupView(config) {
     const rowUser = new ActionRowBuilder().addComponents(
         new RoleSelectMenuBuilder()
             .setCustomId('autorole_sel_user_role')
-            .setPlaceholder(config && config.user_role_id ? '👤 Kullanıcı Rolü Ayarlandı (Değiştir)' : '👤 1. Kullanıcı Rolünü Seçin')
+            .setPlaceholder(config && config.user_role_id ? 'Kullanıcı Rolü Ayarlandı (Değiştir)' : '1. Kullanıcı Rolünü Seçin')
     );
 
     // Dropdown 2: Bot Rolü
     const rowBot = new ActionRowBuilder().addComponents(
         new RoleSelectMenuBuilder()
             .setCustomId('autorole_sel_bot_role')
-            .setPlaceholder(config && config.bot_role_id ? '🤖 Bot Rolü Ayarlandı (Değiştir)' : '🤖 2. Bot Rolünü Seçin')
+            .setPlaceholder(config && config.bot_role_id ? 'Bot Rolü Ayarlandı (Değiştir)' : '2. Bot Rolünü Seçin')
     );
 
     // Dropdown 3: Bildirim Kanalı
     const rowChannel = new ActionRowBuilder().addComponents(
         new ChannelSelectMenuBuilder()
             .setCustomId('autorole_sel_channel')
-            .setPlaceholder(config && config.channel_id ? '📢 Bildirim Kanalı Ayarlandı (Değiştir)' : '📢 3. Bildirim Kanalını Seçin')
+            .setPlaceholder(config && config.channel_id ? 'Bildirim Kanalı Ayarlandı (Değiştir)' : '3. Bildirim Kanalını Seçin')
             .addChannelTypes(ChannelType.GuildText)
     );
 

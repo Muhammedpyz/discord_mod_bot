@@ -1,5 +1,5 @@
 const { pool } = require('../db');
-const { createContainerMessage } = require('./uiBuilder');
+const { createContainerMessage, MONO_EMOJIS } = require('./uiBuilder');
 
 const raidCache = new Map();
 
@@ -36,8 +36,9 @@ async function handleAntiRaid(guild, member, client) {
                 if (logRows.length > 0 && logRows[0].log_system_channel_id) {
                     const channel = guild.channels.cache.get(logRows[0].log_system_channel_id);
                     if (channel) {
+                        const eWarn = MONO_EMOJIS.warning ? `<:mono:${MONO_EMOJIS.warning}>` : '';
                         const payload = createContainerMessage(
-                            '⚠️ ANTİ-RAİD TETİKLENDİ ⚠️',
+                            `${eWarn} ANTİ-RAİD TETİKLENDİ ${eWarn}`.trim(),
                             `Sunucuya son **${config.time_window} saniyede ${config.limit_count} üye** katıldığı için Anti-Raid koruması devreye girdi!\n\n**Olası bir bot saldırısı önlendi.** @everyone rolünün mesaj gönderme yetkisi gecici olarak kapatıldı.`,
                             '#ff0000'
                         );

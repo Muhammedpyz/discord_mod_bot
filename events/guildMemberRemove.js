@@ -28,27 +28,24 @@ module.exports = {
                 WHERE user_id = ? AND guild_id = ?
             `, [member.id, member.guild.id]);
             
-            const ticketRows = await conn.query('SELECT channel_id FROM tickets WHERE guild_id = ? AND owner_id = ? AND status = "open"', [member.guild.id, member.id]);
+            const ticketRows = await conn.query('SELECT * FROM tickets WHERE guild_id = ? AND owner_id = ? AND status = "open"', [member.guild.id, member.id]);
             if (ticketRows.length > 0) {
-                const { closeTicketChannel } = require('../utils/ticketManager');
+                const { refreshRoomMessageInPlace } = require('../utils/ticketSystem');
                 for (const row of ticketRows) {
+                    await conn.query("UPDATE tickets SET status = 'closed', closed_at = NOW(), closed_by = ?, close_reason = 'Üye sunucudan ayrıldı.' WHERE id = ?", [client.user.id, row.id]);
                     const ticketChannel = member.guild.channels.cache.get(row.channel_id);
                     if (ticketChannel) {
                         try {
-                            const fakeInteraction = {
-                                guild: member.guild,
-                                channel: ticketChannel,
-                                user: client.user,
-                                member: member.guild.members.cache.get(client.user.id),
-                                reply: async (obj) => { await ticketChannel.send(obj).catch(()=>{}); },
-                                followUp: async (obj) => { await ticketChannel.send(obj).catch(()=>{}); },
-                                replied: false,
-                                deferred: false
-                            };
-                            await ticketChannel.send({ content: `**Sistem Bildirimi:** Bilet sahibi sunucudan ayrıldığı için bu bilet otomatik olarak kapatılıyor...` }).catch(()=>{});
-                            await closeTicketChannel(fakeInteraction);
+                            await refreshRoomMessageInPlace(ticketChannel, {
+                                status: 'Kapalı',
+                                closedBy: client.user.id,
+                                closeReason: 'Üye sunucudan ayrıldı.'
+                            });
+                            setTimeout(async () => {
+                                await ticketChannel.delete().catch(() => {});
+                            }, 5000);
                         } catch (e) {
-                            console.error("Yetim ticket kapatma hatası:", e);
+                            console.error("Yetim ticket kapatma hatası:", e.message);
                         }
                     }
                 }
@@ -150,6 +147,14 @@ module.exports = {
             }
         } catch (goodbyeErr) {
             console.error("Goodbye dispatch error:", goodbyeErr);
+        }
+
+        // Sayaç güncelle (üye ayrıldı)
+        try {
+            const { updateSayac } = require('../utils/kayitHandler');
+            if (member.guild) await updateSayac(member.guild).catch(() => {});
+        } catch (e) {
+            console.error('[Sayaç hook]:', e.message);
         }
     }
 };

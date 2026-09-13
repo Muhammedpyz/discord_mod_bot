@@ -64,11 +64,11 @@ module.exports = {
                 const bonus = Number(row.bonus_count || 0);
 
                 if (rank === 1) {
-                    listLines.push(`🥇 **1. Sıra** › <@${row.inviter_id}>\n» **${total}** Davet (${reg} aktif · ${left} ayrılan${bonus > 0 ? ` · ${bonus} bonus` : ''})`);
+                    listLines.push(`${getMonoEmoji('crown')} **1. Sıra** › <@${row.inviter_id}>\n» **${total}** Davet (${reg} aktif · ${left} ayrılan${bonus > 0 ? ` · ${bonus} bonus` : ''})`);
                 } else if (rank === 2) {
-                    listLines.push(`🥈 **2. Sıra** › <@${row.inviter_id}>\n» **${total}** Davet (${reg} aktif · ${left} ayrılan)`);
+                    listLines.push(`${getMonoEmoji('medal')} **2. Sıra** › <@${row.inviter_id}>\n» **${total}** Davet (${reg} aktif · ${left} ayrılan)`);
                 } else if (rank === 3) {
-                    listLines.push(`🥉 **3. Sıra** › <@${row.inviter_id}>\n» **${total}** Davet (${reg} aktif · ${left} ayrılan)`);
+                    listLines.push(`${getMonoEmoji('award')} **3. Sıra** › <@${row.inviter_id}>\n» **${total}** Davet (${reg} aktif · ${left} ayrılan)`);
                 } else {
                     listLines.push(`**#${rank}** › <@${row.inviter_id}> — **${total}** Davet (${reg} aktif)`);
                 }

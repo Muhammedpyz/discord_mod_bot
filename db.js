@@ -1,3 +1,5 @@
+BigInt.prototype.toJSON = function() { return Number(this) <= Number.MAX_SAFE_INTEGER ? Number(this) : this.toString(); };
+
 const mariadb = require('mariadb');
 require('dotenv').config();
 
@@ -54,6 +56,15 @@ async function initDB() {
                 guild_id VARCHAR(25) PRIMARY KEY,
                 embed_color VARCHAR(10) DEFAULT '#2B2D31',
                 log_level VARCHAR(20) DEFAULT 'all'
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS developer_profile (
+                user_id VARCHAR(30) PRIMARY KEY,
+                bio TEXT,
+                custom_title VARCHAR(100),
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `);
 
@@ -586,15 +597,24 @@ async function initDB() {
         await conn.query(`
             CREATE TABLE IF NOT EXISTS reminders (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                guild_id VARCHAR(25) NOT NULL,
-                user_id VARCHAR(25) NOT NULL,
-                channel_id VARCHAR(25) NOT NULL,
-                reminder_text TEXT NOT NULL,
+                guild_id VARCHAR(32) NOT NULL,
+                user_id VARCHAR(32) NOT NULL,
+                channel_id VARCHAR(32) NOT NULL,
+                message TEXT NOT NULL,
                 remind_at TIMESTAMP NOT NULL,
-                is_sent BOOLEAN DEFAULT FALSE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                is_dm BOOLEAN DEFAULT FALSE,
+                recurring ENUM('none','daily','weekly') DEFAULT 'none',
+                sent BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_reminders_time (remind_at)
             )
         `);
+        try {
+            await conn.query(`ALTER TABLE reminders ADD COLUMN sent BOOLEAN DEFAULT FALSE`);
+        } catch(e) {}
+        try {
+            await conn.query(`ALTER TABLE reminders ADD COLUMN message TEXT`);
+        } catch(e) {}
 
         // --- MUSIC SYSTEM TABLES ---
         await conn.query(`
@@ -799,6 +819,10 @@ async function initDB() {
         try { await conn.query('ALTER TABLE guild_giveaways ADD COLUMN IF NOT EXISTS min_boost_tier INT DEFAULT NULL'); } catch (e) {}
         try { await conn.query('ALTER TABLE guild_giveaways ADD COLUMN IF NOT EXISTS entries_closed TINYINT DEFAULT 0'); } catch (e) {}
         try { await conn.query('ALTER TABLE guild_giveaways ADD COLUMN IF NOT EXISTS image_url VARCHAR(500) DEFAULT NULL'); } catch (e) {}
+        try { await conn.query('ALTER TABLE guild_giveaways ADD COLUMN IF NOT EXISTS min_messages INT DEFAULT NULL'); } catch (e) {}
+        try { await conn.query('ALTER TABLE guild_giveaways ADD COLUMN IF NOT EXISTS min_voice_minutes INT DEFAULT NULL'); } catch (e) {}
+        try { await conn.query('ALTER TABLE guild_giveaways ADD COLUMN IF NOT EXISTS min_invites INT DEFAULT NULL'); } catch (e) {}
+        try { await conn.query('ALTER TABLE tickets ADD COLUMN IF NOT EXISTS message_id VARCHAR(32) DEFAULT NULL'); } catch (e) {}
 
         await conn.query(`
             CREATE TABLE IF NOT EXISTS guild_giveaway_settings (
@@ -988,7 +1012,506 @@ async function initDB() {
                 INDEX idx_user_date (user_id, quest_date)
             )
         `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS user_playlists (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(32) NOT NULL,
+                playlist_name VARCHAR(64) NOT NULL,
+                tracks LONGTEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_user_playlist (user_id, playlist_name),
+                INDEX idx_user (user_id)
+            )
+        `);
         // ---------------------------------------
+
+        // --- REACTION ROLES (TEPKİ ROLLERİ) TABLOLARI ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS reaction_role_panels (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                channel_id VARCHAR(32) NOT NULL,
+                message_id VARCHAR(32) DEFAULT NULL,
+                title VARCHAR(255) NOT NULL,
+                description TEXT,
+                mode ENUM('multiple','single') DEFAULT 'multiple',
+                created_by VARCHAR(32) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_guild (guild_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS reaction_role_options (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                panel_id INT NOT NULL,
+                role_id VARCHAR(32) NOT NULL,
+                label VARCHAR(100) NOT NULL,
+                emoji VARCHAR(64) DEFAULT NULL,
+                style VARCHAR(20) DEFAULT 'Primary',
+                description VARCHAR(100) DEFAULT NULL,
+                requires_role_id VARCHAR(32) DEFAULT NULL,
+                max_uses INT DEFAULT NULL,
+                current_uses INT DEFAULT 0,
+                FOREIGN KEY (panel_id) REFERENCES reaction_role_panels(id) ON DELETE CASCADE
+            )
+        `);
+
+        // Rol Paketleri (Tek butonla birden fazla rol verilmesi)
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS reaction_role_packs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                option_id INT NOT NULL,
+                role_id VARCHAR(32) NOT NULL,
+                FOREIGN KEY (option_id) REFERENCES reaction_role_options(id) ON DELETE CASCADE
+            )
+        `);
+
+        // --- POLLS (ANKET) TABLOLARI ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS polls (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                channel_id VARCHAR(32) NOT NULL,
+                message_id VARCHAR(32) DEFAULT NULL,
+                question VARCHAR(255) NOT NULL,
+                multiple_choice BOOLEAN DEFAULT FALSE,
+                anonymous BOOLEAN DEFAULT FALSE,
+                ends_at TIMESTAMP NULL,
+                created_by VARCHAR(32) NOT NULL,
+                status ENUM('active','closed') DEFAULT 'active',
+                INDEX idx_poll_guild (guild_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS poll_options (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                poll_id INT NOT NULL,
+                label VARCHAR(100) NOT NULL,
+                emoji VARCHAR(64) DEFAULT NULL,
+                order_index INT DEFAULT 0,
+                FOREIGN KEY (poll_id) REFERENCES polls(id) ON DELETE CASCADE
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS poll_votes (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                poll_id INT NOT NULL,
+                option_id INT NOT NULL,
+                user_id VARCHAR(32) NOT NULL,
+                voted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (poll_id) REFERENCES polls(id) ON DELETE CASCADE,
+                FOREIGN KEY (option_id) REFERENCES poll_options(id) ON DELETE CASCADE
+            )
+        `);
+
+        // --- BIRTHDAYS (DOĞUM GÜNÜ) TABLOLARI ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS user_birthdays (
+                guild_id VARCHAR(32) NOT NULL,
+                user_id VARCHAR(32) NOT NULL,
+                day INT NOT NULL,
+                month INT NOT NULL,
+                year INT DEFAULT NULL,
+                announced_year INT DEFAULT NULL,
+                PRIMARY KEY (guild_id, user_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS birthday_config (
+                guild_id VARCHAR(32) PRIMARY KEY,
+                channel_id VARCHAR(32) DEFAULT NULL,
+                message_template TEXT,
+                temp_role_id VARCHAR(32) DEFAULT NULL,
+                server_timezone VARCHAR(50) DEFAULT 'Europe/Istanbul'
+            )
+        `);
+
+        // --- ECONOMY (EKONOMİ) TABLOLARI ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS economy_users (
+                guild_id VARCHAR(32) NOT NULL,
+                user_id VARCHAR(32) NOT NULL,
+                balance BIGINT DEFAULT 0,
+                bank_balance BIGINT DEFAULT 0,
+                last_daily TIMESTAMP NULL,
+                last_weekly TIMESTAMP NULL,
+                daily_streak INT DEFAULT 0,
+                PRIMARY KEY (guild_id, user_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS economy_transactions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                from_user VARCHAR(32) DEFAULT NULL,
+                to_user VARCHAR(32) DEFAULT NULL,
+                amount BIGINT NOT NULL,
+                type ENUM('daily','weekly','transfer','shop_purchase','message_reward','admin_adjust') NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_eco_trans (guild_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS economy_shop_items (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                name VARCHAR(100) NOT NULL,
+                description TEXT,
+                price BIGINT NOT NULL,
+                role_id VARCHAR(32) DEFAULT NULL,
+                stock INT DEFAULT NULL,
+                item_type ENUM('role','item') DEFAULT 'role',
+                INDEX idx_eco_shop (guild_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS economy_inventory (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                user_id VARCHAR(32) NOT NULL,
+                item_id INT NOT NULL,
+                quantity INT DEFAULT 1,
+                FOREIGN KEY (item_id) REFERENCES economy_shop_items(id) ON DELETE CASCADE
+            )
+        `);
+
+        // --- SOCIAL ALERTS (SOSYAL MEDYA BİLDİRİMLERİ) TABLOLARI ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS social_subscriptions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                platform ENUM('youtube','twitch','kick') NOT NULL,
+                channel_identifier VARCHAR(100) NOT NULL,
+                discord_channel_id VARCHAR(32) NOT NULL,
+                message_template TEXT,
+                last_seen_id VARCHAR(100) DEFAULT NULL,
+                is_currently_live BOOLEAN DEFAULT FALSE,
+                INDEX idx_social_guild (guild_id)
+            )
+        `);
+
+        // --- STARBOARD (YILDIZ PANOSU) TABLOLARI ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS starboard_config (
+                guild_id VARCHAR(32) PRIMARY KEY,
+                channel_id VARCHAR(32) NOT NULL,
+                emoji VARCHAR(64) DEFAULT '⭐',
+                threshold INT DEFAULT 3,
+                self_star_allowed BOOLEAN DEFAULT FALSE
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS starboard_entries (
+                guild_id VARCHAR(32) NOT NULL,
+                original_message_id VARCHAR(32) NOT NULL,
+                starboard_message_id VARCHAR(32) NOT NULL,
+                star_count INT DEFAULT 0,
+                PRIMARY KEY (guild_id, original_message_id)
+            )
+        `);
+
+        // --- REMINDERS (HATIRLATICILAR) TABLOSU ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS reminders (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                user_id VARCHAR(32) NOT NULL,
+                channel_id VARCHAR(32) NOT NULL,
+                message TEXT NOT NULL,
+                remind_at TIMESTAMP NOT NULL,
+                is_dm BOOLEAN DEFAULT FALSE,
+                recurring ENUM('none','daily','weekly') DEFAULT 'none',
+                sent BOOLEAN DEFAULT FALSE,
+                INDEX idx_reminders_time (remind_at)
+            )
+        `);
+
+        // --- CUSTOM COMMANDS (ÖZEL KOMUTLAR) TABLOLARI ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS custom_commands (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                trigger_word VARCHAR(100) NOT NULL,
+                response_text TEXT NOT NULL,
+                reply_type ENUM('plain','embed') DEFAULT 'plain',
+                created_by VARCHAR(32) NOT NULL,
+                INDEX idx_cc_guild (guild_id)
+            )
+        `);
+
+        // --- AI CHATBOT (YAPAY ZEKA) TABLOLARI ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS ai_config (
+                guild_id VARCHAR(32) PRIMARY KEY,
+                ai_channel_id VARCHAR(32) DEFAULT NULL,
+                personality ENUM('friendly','sarcastic','professional','gamer') DEFAULT 'friendly',
+                is_active BOOLEAN DEFAULT FALSE
+            )
+        `);
+
+        // --- AFK SISTEMI TABLOSU ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS user_afk (
+                user_id VARCHAR(32) PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                reason VARCHAR(255) DEFAULT 'Belirtilmedi',
+                timestamp BIGINT NOT NULL
+            )
+        `);
+
+        // --- STICKY MESSAGES (YAPIŞKAN MESAJLAR) TABLOSU ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS sticky_messages (
+                channel_id VARCHAR(32) PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                message_id VARCHAR(32) DEFAULT NULL,
+                content TEXT NOT NULL
+            )
+        `);
+
+        // --- V2 TAM TEŞEKKÜL MIGRATION (Achievements + sosyal live_msg + indexler) ---
+        // NOT: AI sistemi istenmediği için AI tablosu/kolonu YOKTUR.
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS achievement_definitions (
+                code VARCHAR(50) PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                description TEXT NOT NULL,
+                emoji VARCHAR(64) DEFAULT 'trophy',
+                requirement_type VARCHAR(30) NOT NULL,
+                requirement_value INT NOT NULL,
+                reward_coins INT DEFAULT 0
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS user_achievements (
+                guild_id VARCHAR(32) NOT NULL,
+                user_id VARCHAR(32) NOT NULL,
+                achievement_code VARCHAR(50) NOT NULL,
+                unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (guild_id, user_id, achievement_code)
+            )
+        `);
+
+        try { await conn.query("ALTER TABLE social_subscriptions ADD COLUMN live_message_id VARCHAR(32) DEFAULT NULL"); } catch (e) {}
+        try { await conn.query("ALTER TABLE custom_commands ADD COLUMN button_label VARCHAR(80) DEFAULT NULL"); } catch (e) {}
+        try { await conn.query("ALTER TABLE custom_commands ADD COLUMN button_url VARCHAR(255) DEFAULT NULL"); } catch (e) {}
+        try { await conn.query("CREATE INDEX idx_poll_votes ON poll_votes (poll_id, user_id)"); } catch (e) {}
+        try { await conn.query("CREATE INDEX idx_eco_users ON economy_users (guild_id)"); } catch (e) {}
+        try { await conn.query("CREATE INDEX idx_rr_panels ON reaction_role_panels (guild_id)"); } catch (e) {}
+        try { await conn.query("CREATE INDEX idx_birth ON user_birthdays (day, month)"); } catch (e) {}
+
+        // Sabit başarım tanımları (idempotent seed — emoji kolonunda SADECE MONO_EMOJIS anahtarı)
+        const _achSeeds = [
+            ['ilk_adim','İlk Adım','İlk mesajını gönder', 'tick','messages',1,50],
+            ['muhabbetci','Muhabbetçi','100 mesaj gönder', 'message_square','messages',100,200],
+            ['fenomen','Fenomen','1000 mesaj gönder', 'star','messages',1000,1000],
+            ['birikimci','Birikimci','10.000 Jeton biriktir (nakit+banka)', 'coins','balance',10000,300],
+            ['zengin','Zengin','100.000 Jeton biriktir', 'trophy','balance',100000,1500],
+            ['sadakat','Sadakat','7 gün günlük ödül serisi yap', 'flame','daily_streak',7,500],
+            ['secmen','Seçmen','Bir ankette oy kullan', 'vote','poll_votes',1,50],
+            ['demokrat','Demokrat','10 ankette oy kullan', 'crown','poll_votes',10,300],
+            ['rol_avcisi','Rol Avcısı','Buton panelle 5 farklı rol al', 'medal','roles',5,250],
+            ['hatirlatici','Hatırlatıcı','5 hatırlatıcı kur', 'bell','reminders',5,150],
+            ['oyuncu','Oyuncu','Herhangi bir oyunda ilk ödülünü kazan', 'gamepad','games',1,100],
+            ['davetci','Davetçi','Sunucuya 1 üye davet et', 'invite','invites',1,150]
+        ];
+        for (const a of _achSeeds) {
+            await conn.query(
+                "INSERT IGNORE INTO achievement_definitions (code, name, description, emoji, requirement_type, requirement_value, reward_coins) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                a
+            ).catch(() => {});
+        }
+
+        // --- ALL-IN-ONE MIGRATION v2 (kayıt, doğrulama, sayaç, etkinlik, kurallar, geri-sayım, tanıtım, oy, tempban) ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS kayitlar (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                user_id VARCHAR(32) NOT NULL,
+                admin_id VARCHAR(32) NOT NULL,
+                isim VARCHAR(50) NOT NULL,
+                yas INT DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_kayit_guild (guild_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS kayit_config (
+                guild_id VARCHAR(32) PRIMARY KEY,
+                kayitsiz_role_id VARCHAR(32) DEFAULT NULL,
+                erkek_role_id VARCHAR(32) DEFAULT NULL,
+                kiz_role_id VARCHAR(32) DEFAULT NULL,
+                yetkili_role_id VARCHAR(32) DEFAULT NULL,
+                log_channel_id VARCHAR(32) DEFAULT NULL
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS dogrulama_config (
+                guild_id VARCHAR(32) PRIMARY KEY,
+                channel_id VARCHAR(32) DEFAULT NULL,
+                message_id VARCHAR(32) DEFAULT NULL,
+                role_id VARCHAR(32) DEFAULT NULL,
+                is_active BOOLEAN DEFAULT FALSE
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS sayac_config (
+                guild_id VARCHAR(32) PRIMARY KEY,
+                channel_id VARCHAR(32) NOT NULL,
+                hedef INT DEFAULT 1000,
+                sablon VARCHAR(100) DEFAULT 'Uye: {sayi}/{hedef}'
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS etkinlikler (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                channel_id VARCHAR(32) NOT NULL,
+                message_id VARCHAR(32) DEFAULT NULL,
+                baslik VARCHAR(100) NOT NULL,
+                aciklama TEXT,
+                zaman VARCHAR(100) DEFAULT NULL,
+                olusturan VARCHAR(32) NOT NULL,
+                status VARCHAR(20) DEFAULT 'acik',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_etk_guild (guild_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS etkinlik_katilim (
+                etkinlik_id INT NOT NULL,
+                user_id VARCHAR(32) NOT NULL,
+                durum ENUM('evet','hayir','belki') NOT NULL,
+                PRIMARY KEY (etkinlik_id, user_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS kurallar_config (
+                guild_id VARCHAR(32) PRIMARY KEY,
+                channel_id VARCHAR(32) NOT NULL,
+                message_id VARCHAR(32) DEFAULT NULL,
+                metin TEXT NOT NULL,
+                rol_id VARCHAR(32) DEFAULT NULL
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS geri_sayim (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(32) NOT NULL,
+                channel_id VARCHAR(32) NOT NULL,
+                message_id VARCHAR(32) DEFAULT NULL,
+                baslik VARCHAR(100) NOT NULL,
+                bitis BIGINT NOT NULL,
+                status VARCHAR(20) DEFAULT 'aktif',
+                INDEX idx_geri_time (status, bitis)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS tanitim_config (
+                guild_id VARCHAR(32) PRIMARY KEY,
+                channel_id VARCHAR(32) NOT NULL,
+                cooldown_hours INT DEFAULT 6
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS tanitim_log (
+                guild_id VARCHAR(32) NOT NULL,
+                user_id VARCHAR(32) NOT NULL,
+                last_at BIGINT NOT NULL,
+                PRIMARY KEY (guild_id, user_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS oy_config (
+                guild_id VARCHAR(32) PRIMARY KEY,
+                vote_url VARCHAR(255) DEFAULT NULL,
+                odul INT DEFAULT 200
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS oy_odul (
+                guild_id VARCHAR(32) NOT NULL,
+                user_id VARCHAR(32) NOT NULL,
+                last_claim BIGINT NOT NULL,
+                PRIMARY KEY (guild_id, user_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS tempbans (
+                guild_id VARCHAR(32) NOT NULL,
+                user_id VARCHAR(32) NOT NULL,
+                expires_at BIGINT NOT NULL,
+                sebep TEXT,
+                PRIMARY KEY (guild_id, user_id)
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS aile (
+                user_id VARCHAR(32) PRIMARY KEY,
+                partner_id VARCHAR(32) DEFAULT NULL,
+                parent_id VARCHAR(32) DEFAULT NULL
+            )
+        `);
+
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS notlar (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(32) NOT NULL,
+                baslik VARCHAR(100) NOT NULL,
+                icerik TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_not_user (user_id)
+            )
+        `);
+
+        // --- GLOBAL EKONOMİ (OwO tarzı: tüm sunucularda tek cüzdan) ---
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS global_wallet (
+                user_id VARCHAR(32) PRIMARY KEY,
+                balance BIGINT DEFAULT 0,
+                bank_balance BIGINT DEFAULT 0,
+                last_daily TIMESTAMP NULL,
+                last_weekly TIMESTAMP NULL,
+                daily_streak INT DEFAULT 0
+            )
+        `);
+
+        // Tek seferlik migrasyon: eski sunucu-bazlı bakiyeler globale toplanır (sadece tablo boşsa)
+        try {
+            const cnt = await conn.query('SELECT COUNT(*) as c FROM global_wallet');
+            if (Number(cnt[0]?.c || 0) === 0) {
+                await conn.query(`
+                    INSERT IGNORE INTO global_wallet (user_id, balance, bank_balance)
+                    SELECT user_id, SUM(balance), SUM(bank_balance) FROM economy_users GROUP BY user_id
+                `);
+            }
+        } catch (e) {
+            console.error('[Migrasyon] global_wallet:', e.message);
+        }
 
         // İlk açılışta config'i cache'le
         const rows = await conn.query('SELECT * FROM guild_config');
@@ -1004,19 +1527,21 @@ async function initDB() {
     }
 }
 
-// Memory Cache
+// Memory Cache with 5s TTL to guarantee instant multi-process live sync
+const CACHE_TTL = 5000;
 const guildConfigCache = new Map();
 
 async function getGuildConfig(guildId) {
-    if (guildConfigCache.has(guildId)) {
-        return guildConfigCache.get(guildId);
+    const cached = guildConfigCache.get(guildId);
+    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+        return cached.data;
     }
     let conn;
     try {
         conn = await pool.getConnection();
         const rows = await conn.query('SELECT * FROM guild_config WHERE guild_id = ?', [guildId]);
         if (rows.length > 0) {
-            guildConfigCache.set(guildId, rows[0]);
+            guildConfigCache.set(guildId, { data: rows[0], timestamp: Date.now() });
             return rows[0];
         }
         return null;
@@ -1029,21 +1554,32 @@ async function getGuildConfig(guildId) {
 }
 
 function updateConfigCache(guildId, key, value) {
-    let config = guildConfigCache.get(guildId) || {};
+    let cached = guildConfigCache.get(guildId);
+    let config = (cached && cached.data) ? cached.data : {};
     config[key] = value;
-    guildConfigCache.set(guildId, config);
+    guildConfigCache.set(guildId, { data: config, timestamp: Date.now() });
+}
+
+function updateGuildConfigCache(guildId, configData) {
+    guildConfigCache.set(guildId, { data: configData, timestamp: Date.now() });
+}
+
+function clearGuildConfigCache(guildId) {
+    guildConfigCache.delete(guildId);
 }
 
 const filteredWordsCache = new Map();
 
 async function getFilteredWords(guildId) {
-    if (filteredWordsCache.has(guildId)) {
-        return filteredWordsCache.get(guildId);
+    const cached = filteredWordsCache.get(guildId);
+    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+        return cached.data;
     }
     try {
         const rows = await pool.query('SELECT word, match_type, action FROM filtered_words WHERE guild_id = ?', [guildId]);
-        filteredWordsCache.set(guildId, rows || []);
-        return rows || [];
+        const data = rows || [];
+        filteredWordsCache.set(guildId, { data, timestamp: Date.now() });
+        return data;
     } catch (e) {
         console.error("Cache fetch error:", e);
         return [];
@@ -1051,27 +1587,24 @@ async function getFilteredWords(guildId) {
 }
 
 function updateFilteredWordsCache(guildId, words) {
-    filteredWordsCache.set(guildId, words);
+    filteredWordsCache.set(guildId, { data: words, timestamp: Date.now() });
 }
 
 function clearFilteredWordsCache(guildId) {
     filteredWordsCache.delete(guildId);
 }
 
-function updateGuildConfigCache(guildId, configData) {
-    guildConfigCache.set(guildId, configData);
-}
-
 const guildSetupCache = new Map();
 
 async function getGuildSetup(guildId) {
-    if (guildSetupCache.has(guildId)) return guildSetupCache.get(guildId);
+    const cached = guildSetupCache.get(guildId);
+    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) return cached.data;
     let conn;
     try {
         conn = await pool.getConnection();
         const rows = await conn.query('SELECT * FROM guild_setup WHERE guild_id = ?', [guildId]);
         if (rows.length > 0) {
-            guildSetupCache.set(guildId, rows[0]);
+            guildSetupCache.set(guildId, { data: rows[0], timestamp: Date.now() });
             return rows[0];
         }
         return null;
@@ -1083,20 +1616,25 @@ async function getGuildSetup(guildId) {
 }
 
 function updateGuildSetupCache(guildId, setupData) {
-    guildSetupCache.set(guildId, setupData);
+    guildSetupCache.set(guildId, { data: setupData, timestamp: Date.now() });
+}
+
+function clearGuildSetupCache(guildId) {
+    guildSetupCache.delete(guildId);
 }
 
 const automodConfigCache = new Map();
 
 async function getAutoModConfig(guildId) {
-    if (automodConfigCache.has(guildId)) return automodConfigCache.get(guildId);
+    const cached = automodConfigCache.get(guildId);
+    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) return cached.data;
     let conn;
     try {
         conn = await pool.getConnection();
         const rows = await conn.query('SELECT * FROM automod_config WHERE guild_id = ?', [guildId]);
         if (rows.length > 0) {
             const data = rows[0];
-            automodConfigCache.set(guildId, data);
+            automodConfigCache.set(guildId, { data, timestamp: Date.now() });
             return data;
         }
         const defaultCfg = {
@@ -1119,7 +1657,7 @@ async function getAutoModConfig(guildId) {
             'INSERT INTO automod_config (guild_id, anti_swear, custom_words_enabled, anti_invite, anti_link, caps_percent, mention_limit, spam_limit, punishment_type, mute_duration, dm_notify) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [guildId, 0, 0, 0, 0, 0, 0, '0', 'delete', 10, 1]
         ).catch(() => {});
-        automodConfigCache.set(guildId, defaultCfg);
+        automodConfigCache.set(guildId, { data: defaultCfg, timestamp: Date.now() });
         return defaultCfg;
     } catch (e) {
         return null;
@@ -1129,21 +1667,26 @@ async function getAutoModConfig(guildId) {
 }
 
 function updateAutoModConfigCache(guildId, data) {
-    automodConfigCache.set(guildId, data);
+    automodConfigCache.set(guildId, { data, timestamp: Date.now() });
+}
+
+function clearAutoModConfigCache(guildId) {
+    automodConfigCache.delete(guildId);
 }
 
 const welcomeConfigCache = new Map();
 
 async function getWelcomeConfig(guildId) {
-    if (welcomeConfigCache.has(guildId)) {
-        return welcomeConfigCache.get(guildId);
+    const cached = welcomeConfigCache.get(guildId);
+    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+        return cached.data;
     }
     let conn;
     try {
         conn = await pool.getConnection();
         const rows = await conn.query('SELECT * FROM welcome_config WHERE guild_id = ?', [guildId]);
         if (rows.length > 0) {
-            welcomeConfigCache.set(guildId, rows[0]);
+            welcomeConfigCache.set(guildId, { data: rows[0], timestamp: Date.now() });
             return rows[0];
         }
         const defaultCfg = {
@@ -1166,7 +1709,7 @@ async function getWelcomeConfig(guildId) {
             'INSERT INTO welcome_config (guild_id, welcome_message, goodbye_message, welcome_show_title, goodbye_show_title, welcome_gen_image, goodbye_gen_image, welcome_plain_text, goodbye_plain_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [guildId, defaultCfg.welcome_message, defaultCfg.goodbye_message, 1, 1, 0, 0, 0, 0]
         ).catch(() => {});
-        welcomeConfigCache.set(guildId, defaultCfg);
+        welcomeConfigCache.set(guildId, { data: defaultCfg, timestamp: Date.now() });
         return defaultCfg;
     } catch (e) {
         return null;
@@ -1176,7 +1719,7 @@ async function getWelcomeConfig(guildId) {
 }
 
 function updateWelcomeConfigCache(guildId, data) {
-    welcomeConfigCache.set(guildId, data);
+    welcomeConfigCache.set(guildId, { data, timestamp: Date.now() });
 }
 
 function clearWelcomeConfigCache(guildId) {
@@ -1186,8 +1729,9 @@ function clearWelcomeConfigCache(guildId) {
 const logStateCache = new Map();
 
 async function getCompleteGuildLogState(guildId) {
-    if (logStateCache.has(guildId)) {
-        return logStateCache.get(guildId);
+    const cached = logStateCache.get(guildId);
+    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+        return cached.data;
     }
     let conn;
     try {
@@ -1229,7 +1773,7 @@ async function getCompleteGuildLogState(guildId) {
             ignoreBots
         };
 
-        logStateCache.set(guildId, state);
+        logStateCache.set(guildId, { data: state, timestamp: Date.now() });
         return state;
     } catch (e) {
         console.error('getCompleteGuildLogState error:', e);
@@ -1507,8 +2051,9 @@ async function setAntiNukeConfig(guildId, data) {
                 guild_id, is_enabled, punishment, log_channel_id,
                 channel_delete_limit, channel_create_limit, role_delete_limit,
                 role_create_limit, ban_limit, kick_limit, bot_add_action, webhook_action,
-                anti_bot_add, anti_webhook, anti_integration, anti_unban
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                anti_bot_add, anti_webhook, anti_integration, anti_unban,
+                anti_server_update, anti_everyone_admin
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 is_enabled = VALUES(is_enabled),
                 punishment = VALUES(punishment),
@@ -1524,13 +2069,16 @@ async function setAntiNukeConfig(guildId, data) {
                 anti_bot_add = VALUES(anti_bot_add),
                 anti_webhook = VALUES(anti_webhook),
                 anti_integration = VALUES(anti_integration),
-                anti_unban = VALUES(anti_unban)
+                anti_unban = VALUES(anti_unban),
+                anti_server_update = VALUES(anti_server_update),
+                anti_everyone_admin = VALUES(anti_everyone_admin)
         `, [
             guildId, data.is_enabled ?? true, data.punishment || 'strip_roles', data.log_channel_id || null,
             data.channel_delete_limit || 3, data.channel_create_limit || 3, data.role_delete_limit || 3,
             data.role_create_limit || 3, data.ban_limit || 4, data.kick_limit || 4,
             data.bot_add_action || 'kick', data.webhook_action || 'delete',
-            data.anti_bot_add ?? true, data.anti_webhook ?? true, data.anti_integration ?? true, data.anti_unban ?? true
+            data.anti_bot_add ?? true, data.anti_webhook ?? true, data.anti_integration ?? true, data.anti_unban ?? true,
+            data.anti_server_update ?? true, data.anti_everyone_admin ?? true
         ]);
         return true;
     } finally {
@@ -1929,12 +2477,16 @@ async function createGiveaway(data) {
         await conn.query(`
             INSERT INTO guild_giveaways (
                 message_id, channel_id, guild_id, prize, description,
-                winner_count, required_role_id, host_id, ends_at, status, participants, winners, show_parts, image_url
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', '[]', '[]', ?, ?)
+                winner_count, required_role_id, host_id, ends_at, status, participants, winners, show_parts, image_url,
+                is_drop, paused, remaining_time_ms, exempt_roles, min_account_age_days, min_membership_days, min_boost_tier,
+                min_messages, min_voice_minutes, min_invites
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', '[]', '[]', ?, ?, ?, 0, NULL, ?, ?, ?, ?, ?, ?, ?)
         `, [
             data.message_id, data.channel_id, data.guild_id, data.prize, data.description || null,
             data.winner_count || 1, data.required_role_id || null, data.host_id, data.ends_at, data.show_parts !== false,
-            data.image_url || null
+            data.image_url || null, data.is_drop ? 1 : 0,
+            JSON.stringify(data.exempt_roles || []), data.min_account_age_days || null, data.min_membership_days || null, data.min_boost_tier || null,
+            data.min_messages || null, data.min_voice_minutes || null, data.min_invites || null
         ]);
         return true;
     } finally {
@@ -1953,6 +2505,9 @@ async function getGiveaway(messageId) {
         try { gw.winners = JSON.parse(gw.winners || '[]'); } catch (e) { gw.winners = []; }
         try { gw.exempt_roles = JSON.parse(gw.exempt_roles || '[]'); } catch (e) { gw.exempt_roles = []; }
         gw.entries_closed = !!gw.entries_closed;
+        gw.is_drop = !!gw.is_drop;
+        gw.paused = !!gw.paused;
+        gw.remaining_time_ms = gw.remaining_time_ms ? Number(gw.remaining_time_ms) : null;
         return gw;
     } finally {
         if (conn) conn.release();
@@ -1963,10 +2518,15 @@ async function getActiveGiveaways() {
     let conn;
     try {
         conn = await pool.getConnection();
-        const rows = await conn.query("SELECT * FROM guild_giveaways WHERE status = 'active'");
+        const rows = await conn.query("SELECT * FROM guild_giveaways WHERE status = 'active' OR status = 'paused'");
         return rows.map(gw => {
             try { gw.participants = JSON.parse(gw.participants || '[]'); } catch (e) { gw.participants = []; }
             try { gw.winners = JSON.parse(gw.winners || '[]'); } catch (e) { gw.winners = []; }
+            try { gw.exempt_roles = JSON.parse(gw.exempt_roles || '[]'); } catch (e) { gw.exempt_roles = []; }
+            gw.entries_closed = !!gw.entries_closed;
+            gw.is_drop = !!gw.is_drop;
+            gw.paused = !!gw.paused;
+            gw.remaining_time_ms = gw.remaining_time_ms ? Number(gw.remaining_time_ms) : null;
             return gw;
         });
     } finally {
@@ -1982,8 +2542,79 @@ async function getGuildGiveaways(guildId) {
         return rows.map(gw => {
             try { gw.participants = JSON.parse(gw.participants || '[]'); } catch (e) { gw.participants = []; }
             try { gw.winners = JSON.parse(gw.winners || '[]'); } catch (e) { gw.winners = []; }
+            try { gw.exempt_roles = JSON.parse(gw.exempt_roles || '[]'); } catch (e) { gw.exempt_roles = []; }
+            gw.entries_closed = !!gw.entries_closed;
+            gw.is_drop = !!gw.is_drop;
+            gw.paused = !!gw.paused;
+            gw.remaining_time_ms = gw.remaining_time_ms ? Number(gw.remaining_time_ms) : null;
             return gw;
         });
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function pauseGiveaway(messageId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT ends_at, status FROM guild_giveaways WHERE message_id = ?', [messageId]);
+        if (rows.length === 0) return { error: 'Çekiliş bulunamadı.' };
+        if (rows[0].status !== 'active') return { error: 'Sadece aktif çekilişler duraklatılabilir.' };
+        const remainingMs = Math.max(1000, Number(rows[0].ends_at) - Date.now());
+        await conn.query("UPDATE guild_giveaways SET status = 'paused', paused = 1, remaining_time_ms = ? WHERE message_id = ?", [remainingMs, messageId]);
+        return { success: true, remainingMs };
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function resumeGiveaway(messageId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT remaining_time_ms, status FROM guild_giveaways WHERE message_id = ?', [messageId]);
+        if (rows.length === 0) return { error: 'Çekiliş bulunamadı.' };
+        if (rows[0].status !== 'paused') return { error: 'Sadece duraklatılmış çekilişler devam ettirilebilir.' };
+        const remainingMs = Number(rows[0].remaining_time_ms) || 60000;
+        const newEndsAt = Date.now() + remainingMs;
+        await conn.query("UPDATE guild_giveaways SET status = 'active', paused = 0, ends_at = ?, remaining_time_ms = NULL WHERE message_id = ?", [newEndsAt, messageId]);
+        return { success: true, endsAt: newEndsAt };
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function editGiveaway(messageId, updates) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT * FROM guild_giveaways WHERE message_id = ?', [messageId]);
+        if (rows.length === 0) return { error: 'Çekiliş bulunamadı.' };
+        const current = rows[0];
+        
+        let newEndsAt = Number(current.ends_at);
+        let newRemainingMs = current.remaining_time_ms ? Number(current.remaining_time_ms) : null;
+        
+        if (updates.extraTimeMs && updates.extraTimeMs > 0) {
+            if (current.status === 'paused' && newRemainingMs) {
+                newRemainingMs += updates.extraTimeMs;
+            } else {
+                newEndsAt += updates.extraTimeMs;
+            }
+        }
+        
+        const newPrize = updates.prize || current.prize;
+        const newWinnerCount = updates.winnerCount ? Math.max(1, Math.min(50, updates.winnerCount)) : current.winner_count;
+        const newDesc = updates.description !== undefined ? updates.description : current.description;
+
+        await conn.query(`
+            UPDATE guild_giveaways 
+            SET prize = ?, winner_count = ?, description = ?, ends_at = ?, remaining_time_ms = ?
+            WHERE message_id = ?
+        `, [newPrize, newWinnerCount, newDesc, newEndsAt, newRemainingMs, messageId]);
+
+        return { success: true, prize: newPrize, winnerCount: newWinnerCount, endsAt: newEndsAt };
     } finally {
         if (conn) conn.release();
     }
@@ -2180,7 +2811,10 @@ async function setGiveawayConditions(messageId, data) {
                 exempt_roles = ?,
                 min_account_age_days = ?,
                 min_membership_days = ?,
-                min_boost_tier = ?
+                min_boost_tier = ?,
+                min_messages = ?,
+                min_voice_minutes = ?,
+                min_invites = ?
             WHERE message_id = ?
         `, [
             data.required_role_id ?? null,
@@ -2188,6 +2822,9 @@ async function setGiveawayConditions(messageId, data) {
             data.min_account_age_days ?? null,
             data.min_membership_days ?? null,
             data.min_boost_tier ?? null,
+            data.min_messages ?? null,
+            data.min_voice_minutes ?? null,
+            data.min_invites ?? null,
             messageId
         ]);
         return true;
@@ -2776,19 +3413,96 @@ async function unlinkMCAccount(discordId) {
     }
 }
 
+// --- KİŞİSEL ÇALMA LİSTELERİ (USER PLAYLISTS) ---
+async function getUserPlaylists(userId) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT playlist_name, tracks, updated_at FROM user_playlists WHERE user_id = ? ORDER BY updated_at DESC', [userId]);
+        return (rows || []).map(r => ({
+            name: r.playlist_name,
+            tracks: typeof r.tracks === 'string' ? JSON.parse(r.tracks || '[]') : (r.tracks || []),
+            updated_at: r.updated_at
+        }));
+    } catch(e) {
+        console.error('[DB] getUserPlaylists error:', e.message);
+        return [];
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function getUserPlaylist(userId, playlistName) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query('SELECT playlist_name, tracks, updated_at FROM user_playlists WHERE user_id = ? AND playlist_name = ?', [userId, playlistName]);
+        if (!rows || !rows.length) return null;
+        return {
+            name: rows[0].playlist_name,
+            tracks: typeof rows[0].tracks === 'string' ? JSON.parse(rows[0].tracks || '[]') : (rows[0].tracks || []),
+            updated_at: rows[0].updated_at
+        };
+    } catch(e) {
+        console.error('[DB] getUserPlaylist error:', e.message);
+        return null;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function saveUserPlaylist(userId, playlistName, tracks = []) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query(`
+            INSERT INTO user_playlists (user_id, playlist_name, tracks)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE tracks = VALUES(tracks)
+        `, [userId, playlistName, JSON.stringify(tracks)]);
+        return true;
+    } catch(e) {
+        console.error('[DB] saveUserPlaylist error:', e.message);
+        return false;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+async function deleteUserPlaylist(userId, playlistName) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const res = await conn.query('DELETE FROM user_playlists WHERE user_id = ? AND playlist_name = ?', [userId, playlistName]);
+        return (res.affectedRows || 0) > 0;
+    } catch(e) {
+        console.error('[DB] deleteUserPlaylist error:', e.message);
+        return false;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
 module.exports = {
     pool,
     initDB,
+    getUserPlaylists,
+    getUserPlaylist,
+    saveUserPlaylist,
+    deleteUserPlaylist,
     getGuildConfig,
     updateConfigCache,
     updateGuildConfigCache,
+    clearGuildConfigCache,
     getGuildSetup,
     updateGuildSetupCache, 
+    clearGuildSetupCache,
     getFilteredWords, 
     updateFilteredWordsCache,
     clearFilteredWordsCache,
     getAutoModConfig,
     updateAutoModConfigCache,
+    clearAutoModConfigCache,
     getWelcomeConfig,
     updateWelcomeConfigCache,
     clearWelcomeConfigCache,
@@ -2824,6 +3538,9 @@ module.exports = {
     getGiveawaySettings,
     setGiveawaySettings,
     createGiveaway,
+    pauseGiveaway,
+    resumeGiveaway,
+    editGiveaway,
     setGiveawayConditions,
     setGiveawayEntriesClosed,
     setGiveawayImage,

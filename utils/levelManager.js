@@ -105,7 +105,7 @@ async function checkAndApplyLevelUp(client, guild, member, oldXP, newXP, levelCf
         // Bildirimi Gönder
         if (levelCfg.enabled) {
             const annType = levelCfg.announcement_type || 'channel';
-            const annText = `<:mono:${MONO_EMOJIS.crown || '1530918952711094272'}> Tebrikler <@${member.id}>! Seviye atladın ve **${newStats.level}. Seviye** oldun! 🎉`;
+            const annText = `<:mono:${MONO_EMOJIS.crown || '1530918952711094272'}> Tebrikler <@${member.id}>! Seviye atladın ve **${newStats.level}. Seviye** oldun! <:mono:${MONO_EMOJIS.party_popper || '1548248461206487072'}>`;
             const payload = createContainerMessage(
                 `Seviye Atlandı!`,
                 annText,
@@ -113,15 +113,23 @@ async function checkAndApplyLevelUp(client, guild, member, oldXP, newXP, levelCf
             );
 
             try {
+                // Chat'i boğmaması için mesajları gönderip 10 saniye sonra siliyoruz!
+                let sentMsg = null;
                 if (annType === 'dm') {
                     await member.send(payload).catch(() => {});
                 } else if (annType === 'current' && currentChannel) {
-                    await currentChannel.send(payload).catch(() => {});
+                    sentMsg = await currentChannel.send(payload).catch(() => {});
                 } else if (annType === 'channel' && levelCfg.announcement_channel_id) {
                     const ch = guild.channels.cache.get(levelCfg.announcement_channel_id);
-                    if (ch) await ch.send(payload).catch(() => {});
+                    if (ch) sentMsg = await ch.send(payload).catch(() => {});
                 } else if (currentChannel) {
-                    await currentChannel.send(payload).catch(() => {});
+                    sentMsg = await currentChannel.send(payload).catch(() => {});
+                }
+                
+                if (sentMsg) {
+                    setTimeout(() => {
+                        sentMsg.delete().catch(() => {});
+                    }, 10000);
                 }
             } catch (e) {
                 console.error('[LevelUp Notice Error]:', e.message);

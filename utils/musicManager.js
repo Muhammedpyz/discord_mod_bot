@@ -185,7 +185,13 @@ function initMusicManager(client) {
     const nodes = [
         {
             name: "Kasawa-Main",
-            url: "lava2.kasawa.pro:2334",
+            url: process.env.LAVALINK_HOST ? `${process.env.LAVALINK_HOST}:${process.env.LAVALINK_PORT || 2333}` : "lava2.kasawa.pro:2334",
+            auth: process.env.LAVALINK_AUTH || "youshallnotpass",
+            secure: process.env.LAVALINK_SECURE === 'true' || false
+        },
+        {
+            name: "Lavalink-Backup",
+            url: "lavalink.jirayu.net:13592",
             auth: "youshallnotpass",
             secure: false
         }
@@ -259,21 +265,26 @@ function initMusicManager(client) {
         const config = await db.getMusicConfig(player.guildId).catch(() => null);
         player.is247 = config ? !!config.is_247_enabled : false;
 
-        if (player.nowPlayingMessageId) {
-            try {
-                const oldMsg = await channel.messages.fetch(player.nowPlayingMessageId).catch(() => null);
-                if (oldMsg) {
-                    await oldMsg.delete().catch(() => {});
-                }
-            } catch (e) {}
-        }
-
         if (player.guildId && track.requester) {
             db.addMusicHistory(player.guildId, track.requester.id || track.requester, track.title, track.uri).catch(() => {});
         }
 
+        player.data.set('lastTrack', track);
+
+        const payload = buildNowPlayingPayload(player, track);
+
+        if (player.nowPlayingMessageId) {
+            try {
+                const oldMsg = await channel.messages.fetch(player.nowPlayingMessageId).catch(() => null);
+                if (oldMsg) {
+                    await oldMsg.edit(payload).catch(() => null);
+                    startProgressUpdater(client, player);
+                    return;
+                }
+            } catch (e) {}
+        }
+
         try {
-            const payload = buildNowPlayingPayload(player, track);
             const msg = await channel.send(payload).catch(() => null);
             if (msg) {
                 player.nowPlayingMessageId = msg.id;
@@ -286,6 +297,27 @@ function initMusicManager(client) {
 
     manager.on('playerEmpty', async (player) => {
         clearProgressUpdater(player);
+
+        // Smart Autoplay Algoritması (Kuyruk bittiğinde otomatik benzer parça çal)
+        if (player.data.get('autoplay') && player.data.get('lastTrack')) {
+            const lastTrack = player.data.get('lastTrack');
+            try {
+                const query = `${lastTrack.author || ''} ${lastTrack.title || ''}`.trim();
+                const searchRes = await manager.search(query, { requester: client.user });
+                if (searchRes && searchRes.tracks && searchRes.tracks.length > 0) {
+                    const nextTrack = searchRes.tracks.find(t => t.uri !== lastTrack.uri) || searchRes.tracks[0];
+                    if (nextTrack) {
+                        player.queue.add(nextTrack);
+                        if (!player.playing && !player.paused) {
+                            await player.play();
+                            return;
+                        }
+                    }
+                }
+            } catch(e) {
+                console.error('[Autoplay Hatası]:', e);
+            }
+        }
 
         if (!player.textId) return;
         const channel = client.channels.cache.get(player.textId);

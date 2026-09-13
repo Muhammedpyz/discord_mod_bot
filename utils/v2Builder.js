@@ -12,7 +12,7 @@ const MONO_EMOJIS = {
 /**
  * Builds Discord Components V2 payload with top banner (Type 12 MediaGallery)
  */
-function createV2Container({ title, description, fields = [], actionRows = [], bannerUrl = DEFAULT_BANNER_URL, showBrand = true, footer = 'turklion.net' }) {
+function createV2Container({ title, description, fields = [], actionRows = [], bannerUrl = DEFAULT_BANNER_URL, showBrand = true, footer = 'Nyx Bot' }) {
     const containerComponents = [];
 
     // 1. Üst Banner Görseli (İptal edildi, kullanıcı her yerden kaldırılmasını istedi)
@@ -59,9 +59,9 @@ function createV2Container({ title, description, fields = [], actionRows = [], b
                 accessory: {
                     type: 2,
                     style: 5,
-                    label: "turklion.net",
+                    label: "Nyx Bot",
                     emoji: { id: MONO_EMOJIS.web },
-                    url: "https://turklion.net"
+                    url: "https://nyx.bot"
                 }
             },
             {
@@ -77,7 +77,7 @@ function createV2Container({ title, description, fields = [], actionRows = [], b
                     style: 5,
                     label: "Instagram",
                     emoji: { id: MONO_EMOJIS.instagram },
-                    url: "https://instagram.com/turklion"
+                    url: "https://instagram.com/nyxbot"
                 }
             },
             {
@@ -93,7 +93,7 @@ function createV2Container({ title, description, fields = [], actionRows = [], b
                     style: 5,
                     label: "YouTube",
                     emoji: { id: MONO_EMOJIS.youtube },
-                    url: "https://youtube.com/@turklion"
+                    url: "https://youtube.com/@nyxbot"
                 }
             },
             {
@@ -109,7 +109,7 @@ function createV2Container({ title, description, fields = [], actionRows = [], b
                     style: 5,
                     label: "Kick",
                     emoji: { id: MONO_EMOJIS.kickgg },
-                    url: "https://kick.com/turklion"
+                    url: "https://kick.com/nyxbot"
                 }
             }
         ];

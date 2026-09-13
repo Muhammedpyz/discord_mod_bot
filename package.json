@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Tests passed\" && exit 0"
+    "test": "node --test backend/security.test.js"
   },
   "keywords": [],
   "author": "",
@@ -15,16 +15,23 @@
     "@flytri/lyrics-finder": "^1.0.7",
     "@marsaud/smb2": "^0.18.0",
     "@resvg/resvg-js": "^2.6.2",
-    "discord-html-transcripts": "^3.2.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "discord-html-transcripts": "^3.3.0",
     "discord.js": "^14.27.0",
     "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
     "ioredis": "^5.11.1",
-    "jimp": "^0.22.12",
+    "jimp": "^1.6.1",
     "js-yaml": "^5.3.0",
+    "jsonwebtoken": "^9.0.3",
     "kazagumo": "^3.4.3",
     "kazagumo-spotify": "^2.1.1",
     "mariadb": "^3.5.3",
     "shoukaku": "^4.3.0",
-    "ssh2": "^1.17.0"
+    "ssh2": "^1.17.0",
+    "undici": "^6.28.1"
   }
 }

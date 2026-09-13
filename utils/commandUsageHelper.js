@@ -71,7 +71,7 @@ function buildWrongUsageContainer(commandData, prefix = '/', detailMessage = nul
 
     // 3. Footer
     container.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent('-# ℹ️ Bu bilgilendirme sohbet kirliliğini önlemek için 10 saniye içinde otomatik silinecektir.')
+        new TextDisplayBuilder().setContent(`-# ${getMonoEmoji('info')} Bu bilgilendirme sohbet kirliliğini önlemek için 10 saniye içinde otomatik silinecektir.`)
     );
 
     return {

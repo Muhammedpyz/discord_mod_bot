@@ -13,7 +13,9 @@ function getMonoEmoji(name) {
     return `<:mono:${id}>`;
 }
 
+let prefixTableEnsured = false;
 async function ensurePrefixTable() {
+    if (prefixTableEnsured) return;
     let conn;
     try {
         conn = await pool.getConnection();
@@ -29,6 +31,7 @@ async function ensurePrefixTable() {
         try {
             await conn.query(`ALTER TABLE guild_prefixes ADD COLUMN is_main BOOLEAN DEFAULT FALSE`);
         } catch (e) {}
+        prefixTableEnsured = true;
     } catch (err) {
         console.error('ensurePrefixTable error:', err);
     } finally {

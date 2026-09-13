@@ -61,7 +61,7 @@ async function applyVanity(guild, member, config, client) {
     if (isNewAdopter && config.channel_id) {
         const channel = guild.channels.cache.get(config.channel_id);
         if (channel) {
-            const defaultMsg = `{user.mention} durumuna **{vanity}** ekleyerek özel durum rolü kazandı! Teşekkürler! 🎉`;
+            const defaultMsg = `{user.mention} durumuna **{vanity}** ekleyerek özel durum rolü kazandı! Teşekkürler! <:mono:${MONO_EMOJIS.party_popper || '1548248461206487072'}>`;
             const rawMsg = config.message || defaultMsg;
             const formatted = rawMsg
                 .replace(/\{user\.mention\}|\{user\}/g, `<@${member.id}>`)
@@ -270,7 +270,7 @@ async function handleSecurityPanelInteraction(interaction, client) {
         const input = new TextInputBuilder()
             .setCustomId('vanity_text_input')
             .setLabel('Durumda Aranacak Metin / Link')
-            .setPlaceholder('Örn: .gg/turklion veya turklion.net')
+            .setPlaceholder('Örn: .gg/nyx veya nyx.bot')
             .setValue(cfg.vanity_string || '')
             .setStyle(TextInputStyle.Short)
             .setMaxLength(60)

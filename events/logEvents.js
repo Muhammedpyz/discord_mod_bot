@@ -10,6 +10,10 @@ const channelDeleteDebounce = new Map();
 const roleCreateDebounce = new Map();
 const roleDeleteDebounce = new Map();
 
+const eLogCheck = MONO_EMOJIS.check ? `<:mono:${MONO_EMOJIS.check}>` : '';
+const eLogCross = MONO_EMOJIS.cross ? `<:mono:${MONO_EMOJIS.cross}>` : '';
+const eLogReset = MONO_EMOJIS.refresh ? `<:mono:${MONO_EMOJIS.refresh}>` : '•';
+
 // Kanal türünü okunabilir Türkçe'ye çevirir
 function channelTypeToTurkish(type) {
     const map = {
@@ -44,8 +48,8 @@ function getChannelPermissionDiff(oldChannel, newChannel) {
 
         if (!oldOw) {
             // Yeni hedef izni eklendi
-            const allowed = newOw.allow.toArray().map(p => `✅ **${PERMISSION_NAMES_TR[p] || p}:** \`İzin Verildi\``);
-            const denied = newOw.deny.toArray().map(p => `❌ **${PERMISSION_NAMES_TR[p] || p}:** \`Engellendi\``);
+            const allowed = newOw.allow.toArray().map(p => `${eLogCheck} **${PERMISSION_NAMES_TR[p] || p}:** \`İzin Verildi\``);
+            const denied = newOw.deny.toArray().map(p => `${eLogCross} **${PERMISSION_NAMES_TR[p] || p}:** \`Engellendi\``);
             const list = [...allowed, ...denied].join('\n');
             diffs.push({
                 name: `Özel İzin Tanımlandı: ${targetName}`,
@@ -63,24 +67,24 @@ function getChannelPermissionDiff(oldChannel, newChannel) {
             // İzin Verilenler (Allow)
             for (const p of newAllowed) {
                 if (!oldAllowed.includes(p)) {
-                    changes.push(`✅ **${PERMISSION_NAMES_TR[p] || p}:** \`İzin Verildi\``);
+                    changes.push(`${eLogCheck} **${PERMISSION_NAMES_TR[p] || p}:** \`İzin Verildi\``);
                 }
             }
             // İzin Kaldırılanlar (Deny)
             for (const p of newDenied) {
                 if (!oldDenied.includes(p)) {
-                    changes.push(`❌ **${PERMISSION_NAMES_TR[p] || p}:** \`Engellendi / Kapatıldı\``);
+                    changes.push(`${eLogCross} **${PERMISSION_NAMES_TR[p] || p}:** \`Engellendi / Kapatıldı\``);
                 }
             }
             // Nötre Çekilenler (Sıfırlananlar)
             for (const p of oldAllowed) {
                 if (!newAllowed.includes(p) && !newDenied.includes(p)) {
-                    changes.push(`⚪ **${PERMISSION_NAMES_TR[p] || p}:** \`Varsayılana Sıfırlandı (Nötr)\``);
+                    changes.push(`${eLogReset} **${PERMISSION_NAMES_TR[p] || p}:** \`Varsayılana Sıfırlandı (Nötr)\``);
                 }
             }
             for (const p of oldDenied) {
                 if (!newAllowed.includes(p) && !newDenied.includes(p)) {
-                    changes.push(`⚪ **${PERMISSION_NAMES_TR[p] || p}:** \`Varsayılana Sıfırlandı (Nötr)\``);
+                    changes.push(`${eLogReset} **${PERMISSION_NAMES_TR[p] || p}:** \`Varsayılana Sıfırlandı (Nötr)\``);
                 }
             }
 
@@ -117,8 +121,8 @@ function getRolePermissionDiff(oldRole, newRole) {
     const oldPerms = oldRole.permissions.toArray();
     const newPerms = newRole.permissions.toArray();
 
-    const added = newPerms.filter(p => !oldPerms.includes(p)).map(p => `✅ **${PERMISSION_NAMES_TR[p] || p}:** \`Yetki Verildi\``);
-    const removed = oldPerms.filter(p => !newPerms.includes(p)).map(p => `❌ **${PERMISSION_NAMES_TR[p] || p}:** \`Yetki Alındı\``);
+    const added = newPerms.filter(p => !oldPerms.includes(p)).map(p => `${eLogCheck} **${PERMISSION_NAMES_TR[p] || p}:** \`Yetki Verildi\``);
+    const removed = oldPerms.filter(p => !newPerms.includes(p)).map(p => `${eLogCross} **${PERMISSION_NAMES_TR[p] || p}:** \`Yetki Alındı\``);
 
     const changes = [...added, ...removed];
     if (changes.length === 0) return null;

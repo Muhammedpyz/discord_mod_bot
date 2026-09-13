@@ -1,6 +1,6 @@
 /**
  * Ultra-Premium 1:1 Native Discord Dark Theme HTML Transcript Generator
- * TurkLion Network Special Edition
+ * Nyx Special Edition
  */
 
 function escapeHtml(str) {
@@ -101,7 +101,7 @@ function formatBytes(bytes, decimals = 2) {
 }
 
 async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketData, groupWindowMs = 300000 }) {
-    const guildName = escapeHtml(guild ? guild.name : 'TurkLion Network');
+    const guildName = escapeHtml(guild ? guild.name : 'Nyx Community');
     const guildIcon = guild && guild.iconURL ? guild.iconURL({ size: 128, extension: 'png' }) : 'https://cdn.discordapp.com/embed/avatars/0.png';
     const channelName = escapeHtml(channel ? channel.name : 'destek-ticket');
     
@@ -401,7 +401,7 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
         }
 
         if (msg.is_pinned) {
-            editedBadge += ' <span style="color: #ed4245; font-size: 0.8em; margin-left: 6px; font-weight: bold; background: rgba(237, 66, 69, 0.1); padding: 2px 4px; border-radius: 4px;">📌 SABİTLENDİ</span>';
+            editedBadge += ' <span style="color: #ed4245; font-size: 0.8em; margin-left: 6px; font-weight: bold; background: rgba(237, 66, 69, 0.1); padding: 2px 4px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>SABİTLENDİ</span>';
         }
 
         if (isGrouped) {
@@ -1167,7 +1167,7 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
     </main>
 
     <footer class="discord-footer">
-        <p>TurkLion Network &copy; 2026 - Lisanslı Güvenlik & Destek Transcript Sistemi</p>
+        <p>Nyx Community &copy; 2026 - Lisanslı Güvenlik & Destek Transcript Sistemi</p>
     </footer>
 </body>
 </html>`;
@@ -1175,7 +1175,7 @@ async function generateDiscordTranscriptHtml({ guild, channel, messages, ticketD
 
 function generateDiscordTranscriptText({ guild, channel, messages, ticketData }) {
     const channelName = channel ? channel.name : 'destek';
-    const guildName = guild ? guild.name : 'TurkLion Network';
+    const guildName = guild ? guild.name : 'Nyx Community';
     const ticketId = ticketData ? ticketData.id : 'DETAY';
     const ticketOwner = ticketData ? ticketData.owner_tag : 'Kullanıcı';
     const ticketCategory = ticketData ? (ticketData.category || 'Genel') : 'Genel';
@@ -1183,7 +1183,7 @@ function generateDiscordTranscriptText({ guild, channel, messages, ticketData })
     const ticketDate = ticketData ? new Date(ticketData.opened_at).toLocaleString('tr-TR') : 'Bilinmiyor';
 
     let txt = '='.repeat(80) + '\n';
-    txt += `                       TURKLION NETWORK DETAYLI BİLET TRANSCRİPTİ\n`;
+    txt += `                       NYX COMMUNITY DETAYLI BİLET TRANSCRİPTİ\n`;
     txt += '='.repeat(80) + '\n';
     txt += `Bilet Kodu    : #${ticketId}\n`;
     txt += `Kanal Adı     : #${channelName}\n`;
@@ -1258,7 +1258,7 @@ function generateDiscordTranscriptText({ guild, channel, messages, ticketData })
     }
 
     txt += '='.repeat(80) + '\n';
-    txt += `TurkLion Network Security & Audit System © 2026 - Lisanslı Transcript Dökümü\n`;
+    txt += `Nyx Community Security & Audit System © 2026 - Lisanslı Transcript Dökümü\n`;
     txt += '='.repeat(80) + '\n';
 
     return txt;

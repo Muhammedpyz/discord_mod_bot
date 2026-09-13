@@ -100,6 +100,17 @@ module.exports = {
                 return await interaction.editReply(empty);
             }
 
+            const hasConnectedNode = client.manager && client.manager.shoukaku && Array.from(client.manager.shoukaku.nodes.values()).some(n => n.state === 1);
+            if (!hasConnectedNode) {
+                const nodeErr = createContainerMessage(
+                    `<:mono:${MONO_EMOJIS.cross || '1530917536806469783'}> Müzik Sunucusu Çevrimdışı`,
+                    'Müzik sunucusuna (Lavalink) şu anda ulaşılamıyor veya yeniden bağlanıyor. Lütfen daha sonra tekrar deneyin.',
+                    '#ED4245'
+                );
+                nodeErr.flags = MessageFlags.IsComponentsV2;
+                return await interaction.editReply(nodeErr);
+            }
+
             let activePlayer = player;
             if (!activePlayer) {
                 activePlayer = await client.manager.createPlayer({

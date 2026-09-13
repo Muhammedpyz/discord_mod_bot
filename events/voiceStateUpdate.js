@@ -200,7 +200,7 @@ module.exports = {
 
                     sendVoiceLog(client, guildId, 'Özel Oda Oluşturuldu', `<@${member.id}> ses kanalına girerek yeni özel oda oluşturdu: <#${newChannel.id}>`, member.user, `room:${newChannel.id}`);
                 } else if (isMove) {
-                    sendVoiceLog(client, guildId, 'Kanal Değiştirdi', `<@${newState.member.id}> ses kanalını değiştirdi: <#${oldState.channelId}> ➔ <#${newState.channelId}>`, newState.member.user, scopeKey);
+                    sendVoiceLog(client, guildId, 'Kanal Değiştirdi', `<@${newState.member.id}> ses kanalını değiştirdi: <#${oldState.channelId}> -> <#${newState.channelId}>`, newState.member.user, scopeKey);
                 } else {
                     sendVoiceLog(client, guildId, 'Kanala Katıldı', `<@${newState.member.id}> ses kanalına katıldı: ${channelMention}`, newState.member.user, scopeKey);
                 }

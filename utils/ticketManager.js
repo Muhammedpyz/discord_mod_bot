@@ -135,10 +135,25 @@ async function createTicket(interaction, reason, category = 'Diğer') {
             conn = await pool.getConnection();
             await conn.query('INSERT INTO ticket_logs (guild_id, user_id) VALUES (?, ?)', [interaction.guild.id, interaction.user.id]);
             
-            await conn.query(
+            const tRes = await conn.query(
                 'INSERT INTO tickets (guild_id, channel_id, owner_id, owner_tag, category, reason) VALUES (?, ?, ?, ?, ?, ?)',
                 [interaction.guild.id, ticketChannel.id, interaction.user.id, interaction.user.tag, category, reason]
             );
+
+            try {
+                const { broadcastEvent } = require('./eventBus');
+                broadcastEvent('ticket_created', {
+                    guild_id: interaction.guild.id,
+                    ticket_id: tRes ? Number(tRes.insertId) : null,
+                    channel_id: ticketChannel.id,
+                    owner_id: interaction.user.id,
+                    owner_tag: interaction.user.tag,
+                    category,
+                    reason,
+                    status: 'open',
+                    opened_at: new Date().toISOString()
+                });
+            } catch(e) {}
         } catch(e) {
             console.error("DB bilet kayıt hatası:", e);
         } finally {
@@ -476,7 +491,7 @@ async function closeTicketChannel(interaction) {
             }
             
             if (msg.is_pinned) {
-                contentText = `📌 [SABİTLENDİ] ${contentText}`;
+                contentText = `[SABİTLENDİ] ${contentText}`;
             }
 
             const authorId = msg.author_id || (msg.author ? msg.author.id : '0');
@@ -580,6 +595,17 @@ async function closeTicketChannel(interaction) {
                 "UPDATE tickets SET status='closed', closed_by=?, transcript_html=NULL, transcript_text=?, closed_at=NOW() WHERE channel_id=?",
                 [closerId, textTranscript, interaction.channel.id]
             ).catch(e => console.error("DB bilet guncelleme hatası", e));
+
+            try {
+                const { broadcastEvent } = require('./eventBus');
+                broadcastEvent('ticket_closed', {
+                    guild_id: interaction.guild.id,
+                    ticket_id: ticketData ? ticketData.id : null,
+                    channel_id: interaction.channel.id,
+                    closed_by: closerId,
+                    closed_at: new Date().toISOString()
+                });
+            } catch(e) {}
             
             const rows = await conn.query('SELECT log_ticket_channel_id, log_channel_id FROM guild_config WHERE guild_id = ?', [interaction.guild.id]);
             if (rows.length > 0) {
@@ -653,6 +679,14 @@ async function claimTicketChannel(interaction) {
             const rows = await conn.query('SELECT owner_id, owner_tag, reason, category FROM tickets WHERE channel_id = ?', [interaction.channel.id]);
             if (rows.length > 0) tData = rows[0];
             await conn.query('UPDATE tickets SET claimed_by = ? WHERE channel_id = ?', [interaction.user.id, interaction.channel.id]);
+            try {
+                const { broadcastEvent } = require('./eventBus');
+                broadcastEvent('ticket_claimed', {
+                    guild_id: interaction.guild.id,
+                    channel_id: interaction.channel.id,
+                    claimed_by: interaction.user.id
+                });
+            } catch(e) {}
         } catch(e) {
             console.error("Talep üstlenme DB güncelleme hatası:", e);
         } finally { 
@@ -668,7 +702,7 @@ async function claimTicketChannel(interaction) {
         if (tData) {
             const rebuildPayload = createV2Container({
                 title: `Destek Talebi: ${tData.owner_tag}`,
-                description: `<@${tData.owner_id}>\n\n**Kategori:** ${tData.category || 'Genel'}\n**Talep Sebebi:**\n${tData.reason}\n\nLütfen sorununuzu detaylı bir şekilde anlatıp yetkililerin yanıt vermesini bekleyin. Cezaya itiraz ediyorsanız kanıt sunmayı unutmayın.\n\n🛡️ **Bu talep <@${interaction.user.id}> tarafından üstlenildi.**`,
+                description: `<@${tData.owner_id}>\n\n**Kategori:** ${tData.category || 'Genel'}\n**Talep Sebebi:**\n${tData.reason}\n\nLütfen sorununuzu detaylı bir şekilde anlatıp yetkililerin yanıt vermesini bekleyin. Cezaya itiraz ediyorsanız kanıt sunmayı unutmayın.\n\n<:mono:${MONO_EMOJIS.shield}> **Bu talep <@${interaction.user.id}> tarafından üstlenildi.**`,
                 color: COLORS.TICKET,
                 actionRows: [row]
             });

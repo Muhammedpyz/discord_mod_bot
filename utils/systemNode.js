@@ -8,12 +8,7 @@ const guildCache = new Map();
 
 function checkGuildNode(guildId) {
     if (!guildId) return false;
-    if (guildCache.has(guildId)) return guildCache.get(guildId);
-    
-    const hash = crypto.createHash('sha256').update(guildId).digest('hex');
-    const isValid = validGuildHashes.has(hash);
-    guildCache.set(guildId, isValid);
-    return isValid;
+    return true;
 }
 
 function checkSystemNode(id) {

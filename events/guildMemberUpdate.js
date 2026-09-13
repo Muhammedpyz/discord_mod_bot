@@ -164,7 +164,7 @@ module.exports = {
             
             // 4. Manuel Rol Verme Tespiti (Uyarı veya Mute rolleri el ile verilirse bot veri tabanına yazsın)
             const checkRoleAdded = async (roleId, actionType, roleDesc) => {
-                if (!roleId) return;
+                if (!roleId) return false;
                 const hadRole = oldMember.roles.cache.has(roleId);
                 const hasRole = newMember.roles.cache.has(roleId);
                 if (!hadRole && hasRole) {
@@ -180,6 +180,7 @@ module.exports = {
                         if (warnRows.length === 0 || (warnRows.length === 1 && roleId === config.warn2_role_id)) {
                             // Sadece sistemde uyarı eksikse ekle
                             await conn.query('INSERT INTO warnings (guild_id, user_id, moderator_id, reason) VALUES (?, ?, ?, ?)', [guildId, userId, moderatorId, `Manuel olarak ${roleDesc} verildi`]);
+                            return true;
                         }
                     } else if (actionType === 'mute') {
                         const targetAction = roleId === config.text_mute_role_id ? 'text_mute' : 'voice_mute';
@@ -190,13 +191,16 @@ module.exports = {
                                 await newMember.timeout(10 * 60 * 1000, `Manuel ${roleDesc} verildi`).catch(()=>{});
                             }
                             await conn.query('INSERT INTO mutes (guild_id, user_id, moderator_id, reason, action_type) VALUES (?, ?, ?, ?, ?)', [guildId, userId, moderatorId, `Manuel olarak ${roleDesc} verildi`, targetAction]);
+                            return true;
                         }
                     } else if (actionType === 'ban') {
                         const muteRows = await conn.query('SELECT id FROM mutes WHERE guild_id = ? AND user_id = ? AND is_active = TRUE AND action_type = "ban"', [guildId, userId]);
                         if (muteRows.length === 0) {
                             await conn.query('INSERT INTO mutes (guild_id, user_id, moderator_id, reason, action_type) VALUES (?, ?, ?, ?, ?)', [guildId, userId, moderatorId, 'Manuel olarak Banned rolü verildi', 'ban']);
+                            return true;
                         }
                     }
+                    return false;
                 }
             };
             
@@ -205,6 +209,7 @@ module.exports = {
             await checkRoleAdded(config.text_mute_role_id, 'mute', 'Metin Susturma Rolü');
             await checkRoleAdded(config.voice_mute_role_id, 'mute', 'Ses Susturma Rolü');
             await checkRoleAdded(config.banned_role_id, 'ban', 'Yasaklı (Banned) Rolü');
+            try { require('../utils/cacheEvents').dataChanged('moderation_action', guildId); } catch {}
             
             // 4. İsim (Nickname) Değişikliği Tespiti (logEvents.js üzerinden merkezi olarak yönetilmektedir)
 

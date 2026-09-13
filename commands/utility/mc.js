@@ -7,7 +7,7 @@ const https = require('https');
 function fetchJson(url) {
     return new Promise(resolve => {
         const req = https.get(url, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (DiscordBot-Nyx/2.0; +https://turklion.net)' },
+            headers: { 'User-Agent': 'Mozilla/5.0 (DiscordBot-Nyx/2.0)' },
             timeout: 5000
         }, res => {
             let data = '';

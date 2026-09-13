@@ -14,7 +14,9 @@ function getMonoEmoji(name) {
     return `<:mono:${id}>`;
 }
 
+let staffTableEnsured = false;
 async function ensureStaffPanelTable() {
+    if (staffTableEnsured) return;
     let conn;
     try {
         conn = await pool.getConnection();
@@ -30,6 +32,7 @@ async function ensureStaffPanelTable() {
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
         `);
+        staffTableEnsured = true;
     } catch (err) {
         console.error('ensureStaffPanelTable error:', err);
     } finally {

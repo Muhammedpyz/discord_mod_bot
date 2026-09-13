@@ -66,6 +66,11 @@ async function buildAutoModMainPanel(guildId) {
     const mentionStatus = (config.mention_limit > 0) ? `\`${config.mention_limit} etiket\`` : '`kapalı`';
     const spamStatus = (config.spam_limit && config.spam_limit !== '0') ? `\`${config.spam_limit}\`` : '`kapalı`';
     const mediaStatus = (mediaCount > 0) ? `\`${mediaCount} kanal\`` : '`kapalı`';
+    const zalgoStatus = (config.anti_zalgo !== false && config.anti_zalgo !== 0) ? '`açık`' : '`kapalı`';
+    const emojiStatus = (config.emoji_limit > 0) ? `\`${config.emoji_limit} emoji\`` : '`kapalı`';
+    const lineStatus = (config.line_limit > 0) ? `\`${config.line_limit} satır\`` : '`kapalı`';
+    const repeatStatus = (config.repeat_limit > 0) ? `\`${config.repeat_limit} harf\`` : '`kapalı`';
+    const crossSpamStatus = (config.cross_spam_enabled !== false && config.cross_spam_enabled !== 0) ? '`açık`' : '`kapalı`';
 
     let activeFilterCount = 0;
     if (config.anti_swear) activeFilterCount++;
@@ -76,23 +81,28 @@ async function buildAutoModMainPanel(guildId) {
     if (config.mention_limit > 0) activeFilterCount++;
     if (config.spam_limit && config.spam_limit !== '0') activeFilterCount++;
     if (mediaCount > 0) activeFilterCount++;
+    if (config.anti_zalgo !== false && config.anti_zalgo !== 0) activeFilterCount++;
+    if (config.emoji_limit > 0) activeFilterCount++;
+    if (config.line_limit > 0) activeFilterCount++;
+    if (config.repeat_limit > 0) activeFilterCount++;
+    if (config.cross_spam_enabled !== false && config.cross_spam_enabled !== 0) activeFilterCount++;
 
     let punishLabel = 'Mesaj silindi';
-    if (config.punishment_type === 'warn') punishLabel = 'Mesaj silindi + Uyarı';
+    if (config.punishment_type === 'warn') punishLabel = 'Mesaj silindi + Uyarı (Kademeli İzole)';
     else if (config.punishment_type === 'mute') punishLabel = `Mesaj silindi + Susturuldu (${config.mute_duration || 10} dk)`;
 
     const container = new ContainerBuilder();
 
     // 1. Başlık
     container.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`### <:mono:${MONO_EMOJIS.shield || '1530917506867400775'}> AutoMod`)
+        new TextDisplayBuilder().setContent(`### <:mono:${MONO_EMOJIS.shield || '1531753006708822076'}> AutoMod`)
     );
 
     // 2. Açıklama
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
             "Mesajları otomatik denetle. Her filtre **ayrı ayrı** açılır; muaf rol ve kanal belirleyebilirsin.\n" +
-            "**Mesajları Yönet** yetkisi olanlar tüm filtrelerden muaftır."
+            "İhlaller doğrudan sunucu izole ve uyarı sistemine (1. Uyarı -> 2. Uyarı -> 3. Uyarı/Banlısın Rolü) bağlanır."
         )
     );
 
@@ -106,7 +116,12 @@ async function buildAutoModMainPanel(guildId) {
         `- **Bağlantı engeli** › ${linkStatus}\n` +
         `- **Büyük harf** › ${capsStatus}\n` +
         `- **Toplu etiket** › ${mentionStatus}\n` +
-        `- **Spam** › ${spamStatus}\n` +
+        `- **Spam sınırı** › ${spamStatus}\n` +
+        `- **Çapraz kanal raid** › ${crossSpamStatus}\n` +
+        `- **Aşırı emoji baskını** › ${emojiStatus}\n` +
+        `- **Satır atlama flood** › ${lineStatus}\n` +
+        `- **Harf uzatma flood** › ${repeatStatus}\n` +
+        `- **Zalgo bozuk metin** › ${zalgoStatus}\n` +
         `- **Medya kanalları** › ${mediaStatus}\n` +
         `- **Koruma kalkanı** › ${shieldEnabled ? '`açık`' : '`kapalı`'}`;
 
@@ -117,7 +132,7 @@ async function buildAutoModMainPanel(guildId) {
     // 4. Alt Durum Notu
     const footerStatus = activeFilterCount === 0
         ? `-# Henüz hiçbir filtre açılmamış.\n-# İhlal Cezası: **${punishLabel}**`
-        : `-# Aktif Filtre Sayısı: **${activeFilterCount}/8**\n-# İhlal Cezası: **${punishLabel}**`;
+        : `-# Aktif Filtre Sayısı: **${activeFilterCount}/13**\n-# İhlal Cezası: **${punishLabel}**`;
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(footerStatus));
 
@@ -127,12 +142,17 @@ async function buildAutoModMainPanel(guildId) {
             .setCustomId('automod_filters_btn')
             .setLabel('Filtreler')
             .setStyle(ButtonStyle.Primary)
-            .setEmoji(MONO_EMOJIS.shield || '1530917506867400775'),
+            .setEmoji(MONO_EMOJIS.shield || '1531753006708822076'),
         new ButtonBuilder()
             .setCustomId('automod_words_btn')
             .setLabel('Kelimeler')
             .setStyle(ButtonStyle.Primary)
-            .setEmoji(MONO_EMOJIS.message_square || '1537768184851996702')
+            .setEmoji(MONO_EMOJIS.message_square || '1548248949549436998'),
+        new ButtonBuilder()
+            .setCustomId('automod_antinuke_btn')
+            .setLabel('Koruma Kalkanı')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji(MONO_EMOJIS.shield || '1531753006708822076')
     );
 
     const row2 = new ActionRowBuilder().addComponents(
@@ -140,39 +160,40 @@ async function buildAutoModMainPanel(guildId) {
             .setCustomId('automod_media_btn')
             .setLabel('Medya Kanalları')
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji(MONO_EMOJIS.images || '1537767777778143232'),
-        new ButtonBuilder()
-            .setCustomId('automod_roles_btn')
-            .setLabel('Ceza Rolleri')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji(MONO_EMOJIS.shield || '1530917506867400775')
-    );
-
-    const row3 = new ActionRowBuilder().addComponents(
+            .setEmoji(MONO_EMOJIS.image || '1548248313529114705'),
         new ButtonBuilder()
             .setCustomId('automod_exempt_btn')
             .setLabel('Muafiyetler')
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji(MONO_EMOJIS.user || '1537768132062486558'),
+            .setEmoji(MONO_EMOJIS.users || '1542629930108588153'),
         new ButtonBuilder()
             .setCustomId('automod_punish_btn')
-            .setLabel('Ceza')
+            .setLabel('İhlal Cezası')
             .setStyle(ButtonStyle.Danger)
-            .setEmoji(MONO_EMOJIS.warning || '1530917524609175562')
+            .setEmoji(MONO_EMOJIS.warning || '1531752996768186428')
     );
 
-    const row4 = new ActionRowBuilder().addComponents(
+    const row3 = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-            .setCustomId('automod_antinuke_btn')
-            .setLabel('Koruma Kalkanı (Anti-Nuke)')
+            .setCustomId('automod_flood_btn')
+            .setLabel('Sohbet Kalkanı')
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji(MONO_EMOJIS.siren || '1548248916875546756'),
+        new ButtonBuilder()
+            .setCustomId('automod_links_btn')
+            .setLabel('İzinli Siteler')
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji(MONO_EMOJIS.shield || '1530917506867400775')
+            .setEmoji(MONO_EMOJIS.link || '1542629903134883880'),
+        new ButtonBuilder()
+            .setCustomId('automod_roles_btn')
+            .setLabel('Ceza Rolleri')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji(MONO_EMOJIS.user_round_check || '1548248784503578634')
     );
 
     container.addActionRowComponents(row1);
     container.addActionRowComponents(row2);
     container.addActionRowComponents(row3);
-    container.addActionRowComponents(row4);
 
     return {
         flags: MessageFlags.IsComponentsV2,
@@ -225,6 +246,8 @@ async function buildAntiNukePanel(guildId) {
     const antiWebhookStatus = anConfig.anti_webhook !== false ? '`açık`' : '`kapalı`';
     const antiIntegrationStatus = anConfig.anti_integration !== false ? '`açık`' : '`kapalı`';
     const antiUnbanStatus = anConfig.anti_unban !== false ? '`açık`' : '`kapalı`';
+    const antiServerStatus = anConfig.anti_server_update !== false ? '`açık`' : '`kapalı`';
+    const antiEveryoneStatus = anConfig.anti_everyone_admin !== false ? '`açık`' : '`kapalı`';
 
     const container = new ContainerBuilder();
 
@@ -235,7 +258,7 @@ async function buildAntiNukePanel(guildId) {
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
             "Sunucunu baskınlardan ve yetkili saldırılarından korur.\n" +
-            "Ultra Hızlı HTTP/2 REST Motoru ile seri kanal/rol silme, izinsiz bot, webhook, entegrasyon ve unban işlemleri anında engellenir."
+            "Ultra Hızlı HTTP/2 REST Motoru ile seri kanal/rol silme, izinsiz bot, webhook, entegrasyon, sunucu bilgisi ve unban işlemleri anında engellenir."
         )
     );
 
@@ -249,7 +272,9 @@ async function buildAntiNukePanel(guildId) {
         `- **Anti-Bot Add** › ${antiBotStatus}\n` +
         `- **Anti-Webhook** › ${antiWebhookStatus}\n` +
         `- **Anti-Integration** › ${antiIntegrationStatus}\n` +
-        `- **Anti-Unban (Re-Ban)** › ${antiUnbanStatus}\n\n` +
+        `- **Anti-Unban (Re-Ban)** › ${antiUnbanStatus}\n` +
+        `- **Anti-Sunucu Güncelleme** › ${antiServerStatus}\n` +
+        `- **Anti-Everyone Admin** › ${antiEveryoneStatus}\n\n` +
         `**Eşik Limitleri:**\n` +
         `- **Kanal silme/açma** › \`${limits.channel_delete_limit}\` / \`${limits.channel_create_limit}/10sn\`\n` +
         `- **Rol silme/açma** › \`${limits.role_delete_limit}\` / \`${limits.role_create_limit}/10sn\`\n` +

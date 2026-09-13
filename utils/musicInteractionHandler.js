@@ -31,30 +31,39 @@ async function handleMusicButton(interaction) {
     const now = Date.now();
     const userCooldown = cooldowns.get(user.id) || 0;
     if (now - userCooldown < 1500) {
-        await interaction.reply({
-            content: `<:white_info:${APP_EMOJIS.white_info}> Lütfen butonlara bu kadar hızlı basmayın, biraz bekleyin.`,
-            flags: MessageFlags.Ephemeral
-        }).catch(() => {});
+        const payload = createContainerMessage(
+            'Yavaşlayın',
+            'Lütfen butonlara bu kadar hızlı basmayın, biraz bekleyin.',
+            '#FEE75C'
+        );
+        payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+        await interaction.reply(payload).catch(() => {});
         return true;
     }
     cooldowns.set(user.id, now);
 
     // 2. Aktif Müzik Kontrolü
     if (!player || (!player.queue.current && interaction.customId !== 'music_stop')) {
-        await interaction.reply({
-            content: `<:white_cross:${APP_EMOJIS.white_cross}> Şu an çalan bir müzik bulunmuyor.`,
-            flags: MessageFlags.Ephemeral
-        }).catch(() => {});
+        const payload = createContainerMessage(
+            'Müzik Yok',
+            'Şu an çalan bir müzik bulunmuyor.',
+            '#ED4245'
+        );
+        payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+        await interaction.reply(payload).catch(() => {});
         return true;
     }
 
     // 3. Ses Kanalı Kontrolü (Yalnızca botla aynı ses odasındakiler)
     const voiceChannel = member.voice.channel;
     if (!voiceChannel || voiceChannel.id !== player.voiceId) {
-        await interaction.reply({
-            content: `<:white_cross:${APP_EMOJIS.white_cross}> Bu butonları kullanabilmek için bot ile **aynı ses kanalında** olmalısınız!`,
-            flags: MessageFlags.Ephemeral
-        }).catch(() => {});
+        const payload = createContainerMessage(
+            'Aynı Kanalda Değilsiniz',
+            'Bu butonları kullanabilmek için bot ile **aynı ses kanalında** olmalısınız!',
+            '#ED4245'
+        );
+        payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+        await interaction.reply(payload).catch(() => {});
         return true;
     }
 
@@ -67,10 +76,13 @@ async function handleMusicButton(interaction) {
     switch (interaction.customId) {
         case 'music_pause_resume': {
             if (!isOwnerOrStaff && listenersCount > 2) {
-                await interaction.reply({
-                    content: `<:white_cross:${APP_EMOJIS.white_cross}> Müziği duraklatmak/devam ettirmek için şarkıyı açan kişi (<@${currentTrack.requester?.id || currentTrack.requester}>) veya **DJ / Yetkili** olmalısınız.`,
-                    flags: MessageFlags.Ephemeral
-                }).catch(() => {});
+                const payload = createContainerMessage(
+                    'Yetkisiz İşlem',
+                    `Müziği duraklatmak/devam ettirmek için şarkıyı açan kişi (<@${currentTrack.requester?.id || currentTrack.requester}>) veya **DJ / Yetkili** olmalısınız.`,
+                    '#ED4245'
+                );
+                payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+                await interaction.reply(payload).catch(() => {});
                 return true;
             }
 
@@ -83,10 +95,13 @@ async function handleMusicButton(interaction) {
 
         case 'music_skip': {
             if (player.queue.length === 0) {
-                await interaction.reply({
-                    content: `<:white_info:${APP_EMOJIS.white_info}> Sırada geçilecek başka bir şarkı bulunmuyor! Müziği sonlandırmak isterseniz **Durdur & Çık** butonunu kullanabilirsiniz.`,
-                    flags: MessageFlags.Ephemeral
-                }).catch(() => {});
+                const payload = createContainerMessage(
+                    'Sıra Boş',
+                    'Sırada geçilecek başka bir şarkı bulunmuyor! Müziği sonlandırmak isterseniz **Durdur & Çık** butonunu kullanabilirsiniz.',
+                    '#FEE75C'
+                );
+                payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+                await interaction.reply(payload).catch(() => {});
                 return true;
             }
 
@@ -100,10 +115,13 @@ async function handleMusicButton(interaction) {
             if (!player.skipVotes) player.skipVotes = new Set();
 
             if (player.skipVotes.has(user.id)) {
-                await interaction.reply({
-                    content: `<:white_info:${APP_EMOJIS.white_info}> Zaten bu şarkıyı geçmek için oy kullandınız!`,
-                    flags: MessageFlags.Ephemeral
-                }).catch(() => {});
+                const payload = createContainerMessage(
+                    'Oy Kullanıldı',
+                    'Zaten bu şarkıyı geçmek için oy kullandınız!',
+                    '#FEE75C'
+                );
+                payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+                await interaction.reply(payload).catch(() => {});
                 return true;
             }
 
@@ -116,20 +134,26 @@ async function handleMusicButton(interaction) {
                 player.skipVotes.clear();
                 player.skip();
             } else {
-                await interaction.reply({
-                    content: `<:white_tick:${APP_EMOJIS.white_tick}> Şarkıyı geçmek için oy verdiniz! (\`${currentVotes}/${requiredVotes}\` oy - Geçmek için ${requiredVotes - currentVotes} oy daha gerekli).`,
-                    flags: MessageFlags.Ephemeral
-                }).catch(() => {});
+                const payload = createContainerMessage(
+                    'Geçme Oyu Alındı',
+                    `Şarkıyı geçmek için oy verdiniz! (\`${currentVotes}/${requiredVotes}\` oy - Geçmek için ${requiredVotes - currentVotes} oy daha gerekli).`,
+                    '#57F287'
+                );
+                payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+                await interaction.reply(payload).catch(() => {});
             }
             break;
         }
 
         case 'music_loop': {
             if (!isOwnerOrStaff && listenersCount > 2) {
-                await interaction.reply({
-                    content: `<:white_cross:${APP_EMOJIS.white_cross}> Döngü modunu değiştirmek için şarkıyı açan kişi (<@${currentTrack.requester?.id || currentTrack.requester}>) veya **DJ / Yetkili** olmalısınız.`,
-                    flags: MessageFlags.Ephemeral
-                }).catch(() => {});
+                const payload = createContainerMessage(
+                    'Yetkisiz İşlem',
+                    `Döngü modunu değiştirmek için şarkıyı açan kişi (<@${currentTrack.requester?.id || currentTrack.requester}>) veya **DJ / Yetkili** olmalısınız.`,
+                    '#ED4245'
+                );
+                payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+                await interaction.reply(payload).catch(() => {});
                 return true;
             }
 
@@ -157,29 +181,36 @@ async function handleMusicButton(interaction) {
                     track.thumbnail,
                     track.length
                 );
-                await interaction.reply({
-                    content: added 
-                        ? `<:heart4:${APP_EMOJIS.heart4}> **${track.title}** favori şarkılarına eklendi!`
-                        : `<:white_tick:${APP_EMOJIS.white_tick}> Bu şarkı zaten favorilerinde bulunuyor.`,
-                    flags: MessageFlags.Ephemeral
-                }).catch(() => {});
+                const desc = added 
+                    ? `**${track.title}** favori şarkılarına eklendi!`
+                    : 'Bu şarkı zaten favorilerinde bulunuyor.';
+                const payload = createContainerMessage(
+                    added ? 'Favorilere Eklendi' : 'Zaten Favorilerde',
+                    desc,
+                    added ? '#ED4245' : '#57F287'
+                );
+                payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+                await interaction.reply(payload).catch(() => {});
             }
             break;
         }
 
         case 'music_stop': {
             if (!isOwnerOrStaff && listenersCount > 1) {
-                await interaction.reply({
-                    content: `<:white_cross:${APP_EMOJIS.white_cross}> Müziği tamamen durdurup botu kanaldan çıkarmak için şarkıyı açan kişi (<@${currentTrack?.requester?.id || currentTrack?.requester}>) veya **Yetkili** olmalısınız.`,
-                    flags: MessageFlags.Ephemeral
-                }).catch(() => {});
+                const payload = createContainerMessage(
+                    'Yetkisiz İşlem',
+                    `Müziği tamamen durdurup botu kanaldan çıkarmak için şarkıyı açan kişi (<@${currentTrack?.requester?.id || currentTrack?.requester}>) veya **Yetkili** olmalısınız.`,
+                    '#ED4245'
+                );
+                payload.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+                await interaction.reply(payload).catch(() => {});
                 return true;
             }
 
             await interaction.deferUpdate().catch(() => {});
             player.destroy();
             const stopPayload = createContainerMessage(
-                `<:white_musicnote:${APP_EMOJIS.white_musicnote}> Müzik Durduruldu`,
+                `<:mono:${MONO_EMOJIS.music}> Müzik Durduruldu`,
                 `<@${user.id}> tarafından müzik tamamen durduruldu ve ses kanalından ayrıldım.`,
                 '#2B2D31'
             );

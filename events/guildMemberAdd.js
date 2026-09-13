@@ -185,10 +185,14 @@ module.exports = {
                     ON DUPLICATE KEY UPDATE inviter_id = ?, invite_code = ?, is_fake = ?, joined_at = NOW()
                 `, [member.guild.id, member.id, inviter, inviteCode, isSuspicious, inviter, inviteCode, isSuspicious]);
 
-                // Seviye Sistemi: Davet Eden Kullanıcıya Bonus XP
+                // Seviye Sistemi: Davet Eden Kullanıcıya Bonus XP + Global Coin + Davetçi başarımı
                 if (!isSuspicious) {
                     const { processInviteXP } = require('../utils/levelManager');
                     processInviteXP(member.guild, inviter).catch(e => console.error('[Invite XP Error]:', e.message));
+                    try {
+                        require('../utils/globalEco').addBalance(inviter, 100).catch(() => {});
+                        require('../utils/achievements').trackDavet(member.guild.id, inviter).catch(() => {});
+                    } catch {}
                 }
             }
         } catch (err) {
@@ -439,6 +443,18 @@ module.exports = {
             }
         } catch (welcomeErr) {
             console.error("Welcome dispatch error:", welcomeErr);
+        }
+
+        // Kayıt sistemi: yeni üyeye kayıtsız rolü + sayaç güncelle
+        try {
+            const { updateSayac } = require('../utils/kayitHandler');
+            await updateSayac(member.guild).catch(() => {});
+            const kRows = await pool.query('SELECT kayitsiz_role_id FROM kayit_config WHERE guild_id = ?', [member.guild.id]).catch(() => []);
+            if (kRows.length > 0 && kRows[0].kayitsiz_role_id && !member.user.bot) {
+                await member.roles.add(kRows[0].kayitsiz_role_id, 'Otomatik kayıtsız rolü').catch(() => {});
+            }
+        } catch (e) {
+            console.error('[Kayıt/Sayaç hook]:', e.message);
         }
     }
 };

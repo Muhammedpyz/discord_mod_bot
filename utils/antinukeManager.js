@@ -215,17 +215,40 @@ async function handleAntiNukeAuditEntry(entry, guild) {
             break;
         }
 
-        // 5. TEHLİKELİ ROL YETKİSİ YÜKSELTME
+        // 5. TEHLİKELİ ROL YETKİSİ YÜKSELTME / @EVERYONE ADMIN KORUMASI
         case AuditLogEvent.RoleUpdate: {
-            const permChange = entry.changes?.find(c => c.key === 'permissions');
-            if (permChange) {
-                const newPerms = new PermissionFlagsBits(BigInt(permChange.new || 0));
-                const isEscalation = newPerms.has(PermissionFlagsBits.Administrator) ||
-                                     newPerms.has(PermissionFlagsBits.ManageGuild) ||
-                                     newPerms.has(PermissionFlagsBits.BanMembers) ||
-                                     newPerms.has(PermissionFlagsBits.ManageRoles);
-                if (isEscalation) {
-                    await executePunishment(guild, executorId, 'Tehlikeli Yetki Yükseltme', 'İzinsiz olarak role yönetici/ban/rol düzenleme yetkisi verdi.', antinukeConfig);
+            if (antinukeConfig.anti_everyone_admin !== false) {
+                const permChange = entry.changes?.find(c => c.key === 'permissions');
+                if (permChange) {
+                    const newPerms = new PermissionFlagsBits(BigInt(permChange.new || 0));
+                    const isDangerous = newPerms.has(PermissionFlagsBits.Administrator) ||
+                                         newPerms.has(PermissionFlagsBits.ManageGuild) ||
+                                         newPerms.has(PermissionFlagsBits.BanMembers) ||
+                                         newPerms.has(PermissionFlagsBits.ManageRoles);
+                    
+                    const isEveryoneRole = entry.targetId === guild.id;
+
+                    if (isDangerous) {
+                        // Yetkiyi anında geri al
+                        try {
+                            const targetRole = guild.roles.cache.get(entry.targetId) || await guild.roles.fetch(entry.targetId).catch(() => null);
+                            if (targetRole && targetRole.editable) {
+                                const oldBits = permChange.old ? BigInt(permChange.old) : (targetRole.permissions.bitfield & ~PermissionFlagsBits.Administrator & ~PermissionFlagsBits.ManageGuild & ~PermissionFlagsBits.ManageRoles);
+                                await targetRole.setPermissions(oldBits, 'Anti-Nuke: Yetkisiz tehlikeli izin değişikliği derhal geri alındı.').catch(() => {});
+                            }
+                        } catch (revertErr) {
+                            console.error('[Anti-Nuke] Rol izin geri alma hatası:', revertErr.message);
+                        }
+
+                        const targetRoleText = isEveryoneRole ? '@everyone' : `<@&${entry.targetId}>`;
+                        await executePunishment(
+                            guild,
+                            executorId,
+                            isEveryoneRole ? 'Anti-Everyone Yetki Koruması' : 'Tehlikeli Yetki Yükseltme',
+                            `İzinsiz olarak ${targetRoleText} rolüne kritik yönetim yetkisi verildi. Yetkiler anında geri alındı.`,
+                            antinukeConfig
+                        );
+                    }
                 }
             }
             break;
@@ -304,11 +327,42 @@ async function handleAntiNukeAuditEntry(entry, guild) {
             break;
         }
 
-        // 13. SUNUCU ADI / VANITY / ICON DEĞİŞTİRME
+        // 13. SUNUCU ADI / VANITY / ICON DEĞİŞTİRME (SUNUCU GÜNCELLEME KORUMASI)
         case AuditLogEvent.GuildUpdate: {
-            const limit = 2;
-            if (checkRateLimit(guild.id, executorId, 'guild_update', limit, 15)) {
-                await executePunishment(guild, executorId, 'Seri Sunucu Bilgisi Değiştirme', 'Sunucu ayarlarını (İsim, İkon, Vanity URL vb.) izinsiz değiştirdi.', antinukeConfig);
+            if (antinukeConfig.anti_server_update !== false) {
+                let revertedDetails = [];
+                try {
+                    const nameChange = entry.changes?.find(c => c.key === 'name');
+                    if (nameChange && nameChange.old) {
+                        await guild.setName(nameChange.old, 'Anti-Nuke: İzinsiz sunucu adı değişikliği geri alındı.').catch(() => {});
+                        revertedDetails.push(`İsim "${nameChange.new}" -> "${nameChange.old}"`);
+                    }
+
+                    const verificationChange = entry.changes?.find(c => c.key === 'verification_level');
+                    if (verificationChange && verificationChange.old !== undefined) {
+                        await guild.setVerificationLevel(verificationChange.old, 'Anti-Nuke: Doğrulama seviyesi geri alındı.').catch(() => {});
+                        revertedDetails.push('Doğrulama seviyesi');
+                    }
+
+                    const defaultNotifsChange = entry.changes?.find(c => c.key === 'default_message_notifications');
+                    if (defaultNotifsChange && defaultNotifsChange.old !== undefined) {
+                        await guild.setDefaultMessageNotifications(defaultNotifsChange.old, 'Anti-Nuke: Bildirim ayarı geri alındı.').catch(() => {});
+                        revertedDetails.push('Bildirim ayarı');
+                    }
+                } catch (revertErr) {
+                    console.error('[Anti-Nuke] Sunucu bilgisi geri alma hatası:', revertErr.message);
+                }
+
+                const detailMsg = revertedDetails.length > 0
+                    ? `İzinsiz sunucu ayarları değiştirildi: ${revertedDetails.join(', ')}. Değişiklikler geri alındı.`
+                    : 'Sunucu ayarlarını (İsim, İkon, Güvenlik vb.) izinsiz değiştirdi.';
+
+                await executePunishment(guild, executorId, 'İzinsiz Sunucu Bilgisi Değiştirme (Anti-Server-Update)', detailMsg, antinukeConfig);
+            } else {
+                const limit = 2;
+                if (checkRateLimit(guild.id, executorId, 'guild_update', limit, 15)) {
+                    await executePunishment(guild, executorId, 'Seri Sunucu Bilgisi Değiştirme', 'Sunucu ayarlarını (İsim, İkon, Vanity URL vb.) izinsiz değiştirdi.', antinukeConfig);
+                }
             }
             break;
         }

@@ -363,13 +363,13 @@ async function handleRickroll(interaction) {
     if (isRickroll) {
         await interaction.editReply(createV2Container({
             title: 'Rickroll Tespit Edildi!',
-            description: `⚠️ Uyarı! Bu link bir rickroll içeriyor!\n\n${url}`,
+            description: `<:mono:${MONO_EMOJIS.warning}> Uyarı! Bu link bir rickroll içeriyor!\n\n${url}`,
             color: COLORS.ERROR
         }));
     } else {
         await interaction.editReply(createV2Container({
             title: 'Temiz Link',
-            description: `✅ Bu link güvenli görünüyor (bilinen bir rickroll değil).\n\n${url}`,
+            description: `<:mono:${MONO_EMOJIS.check}> Bu link güvenli görünüyor (bilinen bir rickroll değil).\n\n${url}`,
             color: COLORS.SUCCESS
         }));
     }

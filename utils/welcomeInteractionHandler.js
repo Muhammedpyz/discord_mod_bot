@@ -1,63 +1,31 @@
 const {
-    Routes,
     MessageFlags,
     ContainerBuilder,
     TextDisplayBuilder,
     SeparatorBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle,
     AttachmentBuilder
 } = require('discord.js');
 const { pool, getWelcomeConfig, updateWelcomeConfigCache } = require('../db');
-const { buildWelcomeMainPanel, parseWelcomePlaceholders } = require('./welcomeSystem');
+const {
+    buildWelcomeMainPanel,
+    buildWelcomeSetupView,
+    buildGoodbyeSetupView,
+    buildWelcomeViewSettings,
+    parseWelcomePlaceholders
+} = require('./welcomeSystem');
 const { generateWelcomeCard } = require('./welcomeCardGenerator');
 const { checkSystemNode } = require('./systemNode');
-const { MONO_EMOJIS } = require('./uiBuilder');
+const { MONO_EMOJIS, createContainerMessage } = require('./uiBuilder');
 const config = require('../config.json');
 
-function extractModalValues(interaction) {
-    const values = {};
-    const rawComponents = (interaction.data && interaction.data.components) || interaction.components || [];
-    
-    function traverse(comps) {
-        if (!comps || !Array.isArray(comps)) return;
-        for (const c of comps) {
-            if (c.component) traverse([c.component]);
-            if (c.components) traverse(c.components);
-
-            const id = c.customId || c.custom_id;
-            if (id) {
-                if (c.values !== undefined) {
-                    values[id] = c.values;
-                } else if (c.value !== undefined) {
-                    values[id] = c.value;
-                }
-            }
-        }
-    }
-
-    traverse(rawComponents);
-
-    if (interaction.fields && interaction.fields.fields) {
-        for (const [key, field] of interaction.fields.fields.entries()) {
-            if (values[key] === undefined) {
-                values[key] = field.value !== undefined ? field.value : field.values;
-            }
-        }
-    }
-
-    return values;
-}
-
-async function showRawModal(interaction, client, modalData) {
-    return await client.rest.post(Routes.interactionCallback(interaction.id, interaction.token), {
-        body: {
-            type: 9, // InteractionResponseType.Modal
-            data: modalData
-        }
-    });
-}
-
 /**
- * Handles all button and modal interactions for the Welcome system
+ * Handles all button, select menu and modal interactions for the Welcome system
  */
 async function handleWelcomeInteraction(interaction, client) {
     const { customId, guildId } = interaction;
@@ -70,237 +38,358 @@ async function handleWelcomeInteraction(interaction, client) {
         return true;
     }
 
-    // 1. Karşılama Ayarları Modalını Aç
+    // =========================================================================
+    // 1. SUB-VIEW GEÇİŞLERİ (NAVIGATION)
+    // =========================================================================
+
+    // Karşılama Ayarları Ekranına Geç
     if (customId === 'welcome_btn_setup') {
-        const cfg = await getWelcomeConfig(guildId) || {};
-
-        const modalData = {
-            title: 'Karşılama Ayarları',
-            custom_id: 'modal_welcome_setup',
-            components: [
-                {
-                    type: 18,
-                    label: 'Kanal',
-                    description: 'Boş bırakırsan bu sistem kapanır.',
-                    required: false,
-                    component: {
-                        type: 8,
-                        custom_id: 'welcome_channel',
-                        channel_types: [0], // GuildText
-                        placeholder: 'Seçim yap',
-                        min_values: 0,
-                        max_values: 1,
-                        required: false,
-                        ...(cfg.welcome_channel_id ? { default_values: [{ id: cfg.welcome_channel_id, type: 'channel' }] } : {})
-                    }
-                },
-                {
-                    type: 18,
-                    label: 'Mesaj',
-                    description: 'Değişken kullanabilirsin: {user} {server} {count}',
-                    required: false,
-                    component: {
-                        type: 4,
-                        custom_id: 'welcome_msg',
-                        style: 2,
-                        value: cfg.welcome_message || '{user} sunucumuza hoş geldin!',
-                        required: false,
-                        max_length: 1500
-                    }
-                },
-                {
-                    type: 18,
-                    label: 'DM mesajı',
-                    description: 'Katılan kişiye özelden gönderilir. Boş bırakırsan gönderilmez.',
-                    required: false,
-                    component: {
-                        type: 4,
-                        custom_id: 'welcome_dm',
-                        style: 2,
-                        value: cfg.welcome_dm_message || '',
-                        required: false,
-                        max_length: 1500
-                    }
-                }
-            ]
-        };
-
-        try {
-            await showRawModal(interaction, client, modalData);
-        } catch (e) {
-            console.error("Welcome setup modal error:", e);
-        }
-        return true;
+        await interaction.deferUpdate();
+        const view = await buildWelcomeSetupView(guildId);
+        return await interaction.editReply(view);
     }
 
-    // 2. Uğurlama Ayarları Modalını Aç
+    // Uğurlama Ayarları Ekranına Geç
     if (customId === 'goodbye_btn_setup') {
-        const cfg = await getWelcomeConfig(guildId) || {};
-
-        const modalData = {
-            title: 'Uğurlama Ayarları',
-            custom_id: 'modal_goodbye_setup',
-            components: [
-                {
-                    type: 18,
-                    label: 'Kanal',
-                    description: 'Boş bırakırsan bu sistem kapanır.',
-                    required: false,
-                    component: {
-                        type: 8,
-                        custom_id: 'goodbye_channel',
-                        channel_types: [0], // GuildText
-                        placeholder: 'Seçim yap',
-                        min_values: 0,
-                        max_values: 1,
-                        required: false,
-                        ...(cfg.goodbye_channel_id ? { default_values: [{ id: cfg.goodbye_channel_id, type: 'channel' }] } : {})
-                    }
-                },
-                {
-                    type: 18,
-                    label: 'Mesaj',
-                    description: 'Değişken kullanabilirsin: {user} {server} {count}',
-                    required: false,
-                    component: {
-                        type: 4,
-                        custom_id: 'goodbye_msg',
-                        style: 2,
-                        value: cfg.goodbye_message || '{user} sunucumuzdan ayrıldı.',
-                        required: false,
-                        max_length: 1500
-                    }
-                }
-            ]
-        };
-
-        try {
-            await showRawModal(interaction, client, modalData);
-        } catch (e) {
-            console.error("Goodbye setup modal error:", e);
-        }
-        return true;
+        await interaction.deferUpdate();
+        const view = await buildGoodbyeSetupView(guildId);
+        return await interaction.editReply(view);
     }
 
-    // 3. Görünüm Ayarları Modalını Aç
+    // Görünüm & Biçim Ayarları Ekranına Geç
     if (customId === 'welcome_btn_view') {
-        const cfg = await getWelcomeConfig(guildId) || {};
-
-        const modalData = {
-            title: 'Görünüm Ayarları',
-            custom_id: 'modal_welcome_view',
-            components: [
-                {
-                    type: 18,
-                    label: 'Karşılama başlığı',
-                    description: 'Boş bırakırsan varsayılan kullanılır. Değişken yazabilirsin.',
-                    required: false,
-                    component: {
-                        type: 4,
-                        custom_id: 'welcome_title',
-                        style: 1,
-                        value: cfg.welcome_title || '',
-                        required: false,
-                        max_length: 255
-                    }
-                },
-                {
-                    type: 18,
-                    label: 'Karşılama görünümü',
-                    required: false,
-                    component: {
-                        type: 22,
-                        custom_id: 'welcome_view_options',
-                        min_values: 0,
-                        max_values: 3,
-                        required: false,
-                        options: [
-                            {
-                                label: 'Başlığı göster',
-                                description: 'Kutunun üstündeki kalın satır.',
-                                value: 'show_title',
-                                default: cfg.welcome_show_title !== false && cfg.welcome_show_title !== 0
-                            },
-                            {
-                                label: 'Görsel kart üret',
-                                description: 'Avatarlı karşılama görseli çizilir.',
-                                value: 'gen_image',
-                                default: !!cfg.welcome_gen_image
-                            },
-                            {
-                                label: 'Düz metin olarak gönder',
-                                description: 'Kutu olmadan, normal mesaj gibi gider.',
-                                value: 'plain_text',
-                                default: !!cfg.welcome_plain_text
-                            }
-                        ]
-                    }
-                },
-                {
-                    type: 18,
-                    label: 'Uğurlama başlığı',
-                    description: 'Boş bırakırsan varsayılan kullanılır. Değişken yazabilirsin.',
-                    required: false,
-                    component: {
-                        type: 4,
-                        custom_id: 'goodbye_title',
-                        style: 1,
-                        value: cfg.goodbye_title || '',
-                        required: false,
-                        max_length: 255
-                    }
-                },
-                {
-                    type: 18,
-                    label: 'Uğurlama görünümü',
-                    required: false,
-                    component: {
-                        type: 22,
-                        custom_id: 'goodbye_view_options',
-                        min_values: 0,
-                        max_values: 3,
-                        required: false,
-                        options: [
-                            {
-                                label: 'Başlığı göster',
-                                description: 'Kutunun üstündeki kalın satır.',
-                                value: 'show_title',
-                                default: cfg.goodbye_show_title !== false && cfg.goodbye_show_title !== 0
-                            },
-                            {
-                                label: 'Görsel kart üret',
-                                description: 'Avatarlı uğurlama görseli çizilir.',
-                                value: 'gen_image',
-                                default: !!cfg.goodbye_gen_image
-                            },
-                            {
-                                label: 'Düz metin olarak gönder',
-                                description: 'Kutu olmadan, normal mesaj gibi gider.',
-                                value: 'plain_text',
-                                default: !!cfg.goodbye_plain_text
-                            }
-                        ]
-                    }
-                }
-            ]
-        };
-
-        try {
-            await showRawModal(interaction, client, modalData);
-        } catch (e) {
-            console.error("View modal error:", e);
-        }
-        return true;
+        await interaction.deferUpdate();
+        const view = await buildWelcomeViewSettings(guildId);
+        return await interaction.editReply(view);
     }
 
-    // 4. Test Et Butonu
+    // Ana Menüye Dön
+    if (customId === 'welcome_btn_home') {
+        await interaction.deferUpdate();
+        const panel = await buildWelcomeMainPanel(guildId, interaction.guild);
+        return await interaction.editReply(panel);
+    }
+
+    // =========================================================================
+    // 2. KANAL SEÇİCİLER & DEVRE DIŞI BIRAKMA
+    // =========================================================================
+
+    // Karşılama Kanalı Seçildi
+    if (customId === 'welcome_sel_channel') {
+        await interaction.deferUpdate();
+        const chanId = interaction.values[0];
+        try {
+            await pool.query(
+                `INSERT INTO welcome_config (guild_id, welcome_channel_id)
+                 VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE welcome_channel_id = ?`,
+                [guildId, chanId, chanId]
+            );
+            const updatedCfg = await pool.query('SELECT * FROM welcome_config WHERE guild_id = ?', [guildId]);
+            if (updatedCfg.length > 0) updateWelcomeConfigCache(guildId, updatedCfg[0]);
+        } catch (err) {
+            console.error('welcome_sel_channel error:', err);
+        }
+        const view = await buildWelcomeSetupView(guildId);
+        return await interaction.editReply(view);
+    }
+
+    // Karşılama Kanalını Kapat
+    if (customId === 'welcome_btn_disable_channel') {
+        await interaction.deferUpdate();
+        try {
+            await pool.query('UPDATE welcome_config SET welcome_channel_id = NULL WHERE guild_id = ?', [guildId]);
+            const updatedCfg = await pool.query('SELECT * FROM welcome_config WHERE guild_id = ?', [guildId]);
+            if (updatedCfg.length > 0) updateWelcomeConfigCache(guildId, updatedCfg[0]);
+        } catch (err) {
+            console.error('welcome_btn_disable_channel error:', err);
+        }
+        const view = await buildWelcomeSetupView(guildId);
+        return await interaction.editReply(view);
+    }
+
+    // Uğurlama Kanalı Seçildi
+    if (customId === 'goodbye_sel_channel') {
+        await interaction.deferUpdate();
+        const chanId = interaction.values[0];
+        try {
+            await pool.query(
+                `INSERT INTO welcome_config (guild_id, goodbye_channel_id)
+                 VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE goodbye_channel_id = ?`,
+                [guildId, chanId, chanId]
+            );
+            const updatedCfg = await pool.query('SELECT * FROM welcome_config WHERE guild_id = ?', [guildId]);
+            if (updatedCfg.length > 0) updateWelcomeConfigCache(guildId, updatedCfg[0]);
+        } catch (err) {
+            console.error('goodbye_sel_channel error:', err);
+        }
+        const view = await buildGoodbyeSetupView(guildId);
+        return await interaction.editReply(view);
+    }
+
+    // Uğurlama Kanalını Kapat
+    if (customId === 'goodbye_btn_disable_channel') {
+        await interaction.deferUpdate();
+        try {
+            await pool.query('UPDATE welcome_config SET goodbye_channel_id = NULL WHERE guild_id = ?', [guildId]);
+            const updatedCfg = await pool.query('SELECT * FROM welcome_config WHERE guild_id = ?', [guildId]);
+            if (updatedCfg.length > 0) updateWelcomeConfigCache(guildId, updatedCfg[0]);
+        } catch (err) {
+            console.error('goodbye_btn_disable_channel error:', err);
+        }
+        const view = await buildGoodbyeSetupView(guildId);
+        return await interaction.editReply(view);
+    }
+
+    // =========================================================================
+    // 3. GÖRÜNÜM AYARLARI (FORMAT SEÇİMİ & BAŞLIK TOGGLE)
+    // =========================================================================
+
+    // Karşılama Biçimi Seçildi
+    if (customId === 'welcome_sel_format') {
+        await interaction.deferUpdate();
+        const formatVal = interaction.values[0];
+        let genImage = 0;
+        let plainText = 0;
+        if (formatVal === 'format_image') genImage = 1;
+        else if (formatVal === 'format_text') plainText = 1;
+
+        try {
+            await pool.query(
+                `INSERT INTO welcome_config (guild_id, welcome_gen_image, welcome_plain_text, goodbye_gen_image, goodbye_plain_text)
+                 VALUES (?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE welcome_gen_image = ?, welcome_plain_text = ?, goodbye_gen_image = ?, goodbye_plain_text = ?`,
+                [guildId, genImage, plainText, genImage, plainText, genImage, plainText, genImage, plainText]
+            );
+            const updatedCfg = await pool.query('SELECT * FROM welcome_config WHERE guild_id = ?', [guildId]);
+            if (updatedCfg.length > 0) updateWelcomeConfigCache(guildId, updatedCfg[0]);
+        } catch (err) {
+            console.error('welcome_sel_format error:', err);
+        }
+        const view = await buildWelcomeViewSettings(guildId);
+        return await interaction.editReply(view);
+    }
+
+    // Başlığı Göster / Gizle Toggle
+    if (customId === 'welcome_btn_toggle_title') {
+        await interaction.deferUpdate();
+        try {
+            const cfg = await getWelcomeConfig(guildId) || {};
+            const currentShow = cfg.welcome_show_title !== false && cfg.welcome_show_title !== 0;
+            const newShow = currentShow ? 0 : 1;
+
+            await pool.query(
+                `INSERT INTO welcome_config (guild_id, welcome_show_title, goodbye_show_title)
+                 VALUES (?, ?, ?)
+                 ON DUPLICATE KEY UPDATE welcome_show_title = ?, goodbye_show_title = ?`,
+                [guildId, newShow, newShow, newShow, newShow]
+            );
+            const updatedCfg = await pool.query('SELECT * FROM welcome_config WHERE guild_id = ?', [guildId]);
+            if (updatedCfg.length > 0) updateWelcomeConfigCache(guildId, updatedCfg[0]);
+        } catch (err) {
+            console.error('welcome_btn_toggle_title error:', err);
+        }
+        const view = await buildWelcomeViewSettings(guildId);
+        return await interaction.editReply(view);
+    }
+
+    // =========================================================================
+    // 4. METİN DÜZENLEME MODALLARI (%100 STANDART DISCORD MODALLARI)
+    // =========================================================================
+
+    // Karşılama Mesajı Modalını Aç
+    if (customId === 'welcome_btn_msg_modal') {
+        const cfg = await getWelcomeConfig(guildId) || {};
+        const modal = new ModalBuilder()
+            .setCustomId('modal_welcome_msg')
+            .setTitle('Karşılama Mesajı');
+
+        const input = new TextInputBuilder()
+            .setCustomId('welcome_msg_input')
+            .setLabel('Karşılama Mesajı')
+            .setStyle(TextInputStyle.Paragraph)
+            .setValue(cfg.welcome_message || '{user} sunucumuza hoş geldin!')
+            .setRequired(true)
+            .setMaxLength(1500);
+
+        modal.addComponents(new ActionRowBuilder().addComponents(input));
+        return await interaction.showModal(modal);
+    }
+
+    // DM Mesajı Modalını Aç
+    if (customId === 'welcome_btn_dm_modal') {
+        const cfg = await getWelcomeConfig(guildId) || {};
+        const modal = new ModalBuilder()
+            .setCustomId('modal_welcome_dm')
+            .setTitle('DM Karşılama Mesajı');
+
+        const input = new TextInputBuilder()
+            .setCustomId('welcome_dm_input')
+            .setLabel('Özel DM Mesajı (Boş = Kapalı)')
+            .setPlaceholder('Boş bırakırsanız DM karşılama mesajı gönderilmez.')
+            .setStyle(TextInputStyle.Paragraph)
+            .setValue(cfg.welcome_dm_message || '')
+            .setRequired(false)
+            .setMaxLength(1500);
+
+        modal.addComponents(new ActionRowBuilder().addComponents(input));
+        return await interaction.showModal(modal);
+    }
+
+    // Uğurlama Mesajı Modalını Aç
+    if (customId === 'goodbye_btn_msg_modal') {
+        const cfg = await getWelcomeConfig(guildId) || {};
+        const modal = new ModalBuilder()
+            .setCustomId('modal_goodbye_msg')
+            .setTitle('Uğurlama Mesajı');
+
+        const input = new TextInputBuilder()
+            .setCustomId('goodbye_msg_input')
+            .setLabel('Uğurlama Mesajı')
+            .setStyle(TextInputStyle.Paragraph)
+            .setValue(cfg.goodbye_message || '{user} sunucumuzdan ayrıldı.')
+            .setRequired(true)
+            .setMaxLength(1500);
+
+        modal.addComponents(new ActionRowBuilder().addComponents(input));
+        return await interaction.showModal(modal);
+    }
+
+    // Başlık Metni Modalını Aç
+    if (customId === 'welcome_btn_title_modal') {
+        const cfg = await getWelcomeConfig(guildId) || {};
+        const modal = new ModalBuilder()
+            .setCustomId('modal_welcome_title')
+            .setTitle('Kutu Başlık Metni');
+
+        const input = new TextInputBuilder()
+            .setCustomId('welcome_title_input')
+            .setLabel('Başlık Metni (Boş = Varsayılan)')
+            .setPlaceholder('Örn: Hoş Geldin, {user}!')
+            .setStyle(TextInputStyle.Short)
+            .setValue(cfg.welcome_title || '')
+            .setRequired(false)
+            .setMaxLength(255);
+
+        modal.addComponents(new ActionRowBuilder().addComponents(input));
+        return await interaction.showModal(modal);
+    }
+
+    // =========================================================================
+    // 5. MODAL SUBMIT HANDLERS
+    // =========================================================================
+
+    // Karşılama Mesajı Kaydet
+    if (customId === 'modal_welcome_msg') {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        const newMsg = interaction.fields.getTextInputValue('welcome_msg_input')?.trim() || '{user} sunucumuza hoş geldin!';
+        try {
+            await pool.query(
+                `INSERT INTO welcome_config (guild_id, welcome_message)
+                 VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE welcome_message = ?`,
+                [guildId, newMsg, newMsg]
+            );
+            const updatedCfg = await pool.query('SELECT * FROM welcome_config WHERE guild_id = ?', [guildId]);
+            if (updatedCfg.length > 0) updateWelcomeConfigCache(guildId, updatedCfg[0]);
+        } catch (err) {
+            console.error('modal_welcome_msg save error:', err);
+        }
+
+        const payload = createContainerMessage(
+            'Karşılama Mesajı Kaydedildi',
+            `Yeni karşılama mesajı başarıyla güncellendi:\n\n> ${newMsg}`,
+            '#000000'
+        );
+        return await interaction.editReply(payload);
+    }
+
+    // DM Mesajı Kaydet
+    if (customId === 'modal_welcome_dm') {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        const dmVal = interaction.fields.getTextInputValue('welcome_dm_input')?.trim() || null;
+        try {
+            await pool.query(
+                `INSERT INTO welcome_config (guild_id, welcome_dm_message)
+                 VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE welcome_dm_message = ?`,
+                [guildId, dmVal, dmVal]
+            );
+            const updatedCfg = await pool.query('SELECT * FROM welcome_config WHERE guild_id = ?', [guildId]);
+            if (updatedCfg.length > 0) updateWelcomeConfigCache(guildId, updatedCfg[0]);
+        } catch (err) {
+            console.error('modal_welcome_dm save error:', err);
+        }
+
+        const payload = createContainerMessage(
+            'DM Mesajı Güncellendi',
+            dmVal ? `Yeni özel DM karşılama mesajı kaydedildi:\n\n> ${dmVal}` : 'Özel DM karşılama mesajı **kapatıldı**.',
+            '#000000'
+        );
+        return await interaction.editReply(payload);
+    }
+
+    // Uğurlama Mesajı Kaydet
+    if (customId === 'modal_goodbye_msg') {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        const newMsg = interaction.fields.getTextInputValue('goodbye_msg_input')?.trim() || '{user} sunucumuzdan ayrıldı.';
+        try {
+            await pool.query(
+                `INSERT INTO welcome_config (guild_id, goodbye_message)
+                 VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE goodbye_message = ?`,
+                [guildId, newMsg, newMsg]
+            );
+            const updatedCfg = await pool.query('SELECT * FROM welcome_config WHERE guild_id = ?', [guildId]);
+            if (updatedCfg.length > 0) updateWelcomeConfigCache(guildId, updatedCfg[0]);
+        } catch (err) {
+            console.error('modal_goodbye_msg save error:', err);
+        }
+
+        const payload = createContainerMessage(
+            'Uğurlama Mesajı Kaydedildi',
+            `Yeni uğurlama mesajı başarıyla güncellendi:\n\n> ${newMsg}`,
+            '#000000'
+        );
+        return await interaction.editReply(payload);
+    }
+
+    // Başlık Metni Kaydet
+    if (customId === 'modal_welcome_title') {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        const titleVal = interaction.fields.getTextInputValue('welcome_title_input')?.trim() || null;
+        try {
+            await pool.query(
+                `INSERT INTO welcome_config (guild_id, welcome_title)
+                 VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE welcome_title = ?`,
+                [guildId, titleVal, titleVal]
+            );
+            const updatedCfg = await pool.query('SELECT * FROM welcome_config WHERE guild_id = ?', [guildId]);
+            if (updatedCfg.length > 0) updateWelcomeConfigCache(guildId, updatedCfg[0]);
+        } catch (err) {
+            console.error('modal_welcome_title save error:', err);
+        }
+
+        const payload = createContainerMessage(
+            'Başlık Metni Güncellendi',
+            titleVal ? `Yeni kutu başlığı kaydedildi:\n\n> **${titleVal}**` : 'Kutu başlığı varsayılana döndürüldü.',
+            '#000000'
+        );
+        return await interaction.editReply(payload);
+    }
+
+    // =========================================================================
+    // 6. TEST ET BUTONU (TEST MESSAGE DISPATCH)
+    // =========================================================================
     if (customId === 'welcome_btn_test') {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         const cfg = await getWelcomeConfig(guildId) || {};
 
         if (!cfg.welcome_channel_id) {
             const warnContainer = new ContainerBuilder().addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(`### <:mono:${MONO_EMOJIS.warning || '1530917524609175562'}> Karşılama Kanalı Seçilmedi!\nTest mesajı gönderebilmek için lütfen önce **[Karşılama]** butonundan bir kanal belirleyin.`)
+                new TextDisplayBuilder().setContent(`### <:mono:${MONO_EMOJIS.warning || '1530917524609175562'}> Karşılama Kanalı Seçilmedi!\nTest mesajı gönderebilmek için lütfen önce **[Karşılama]** menüsünden bir kanal belirleyin.`)
             );
             return await interaction.editReply({ components: [warnContainer], flags: MessageFlags.IsComponentsV2 });
         }
@@ -308,14 +397,14 @@ async function handleWelcomeInteraction(interaction, client) {
         const targetChannel = interaction.guild?.channels?.cache?.get(cfg.welcome_channel_id);
         if (!targetChannel) {
             const warnContainer = new ContainerBuilder().addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(`### <:mono:${MONO_EMOJIS.warning || '1530917524609175562'}> Kanal Bulunamadı!\nAyarlanan karşılama kanalı sunucuda bulunamadı veya silinmiş. Lütfen **[Karşılama]** butonundan tekrar kanal seçin.`)
+                new TextDisplayBuilder().setContent(`### <:mono:${MONO_EMOJIS.warning || '1530917524609175562'}> Kanal Bulunamadı!\nAyarlanan karşılama kanalı sunucuda bulunamadı veya silinmiş. Lütfen **[Karşılama]** menüsünden tekrar kanal seçin.`)
             );
             return await interaction.editReply({ components: [warnContainer], flags: MessageFlags.IsComponentsV2 });
         }
 
         const testInviter = { id: interaction.guild.ownerId || interaction.user.id, username: 'Kurucu', tag: 'Kurucu#0001' };
         const testInviteCount = 14;
-        const testInviteCode = interaction.guild.vanityURLCode || 'turklion';
+        const testInviteCode = interaction.guild.vanityURLCode || 'nyx';
         const testInviteDuration = 'Süresiz (Kalıcı)';
         const testInviteMaxUses = 'Sınırsız';
 
@@ -435,124 +524,6 @@ async function handleWelcomeInteraction(interaction, client) {
             components: [confirmContainer],
             flags: MessageFlags.IsComponentsV2
         });
-    }
-
-    // =========================================================================
-    // MODAL SUBMITS
-    // =========================================================================
-
-    // 1. Karşılama Ayarları Submit
-    if (customId === 'modal_welcome_setup') {
-        if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferUpdate();
-        }
-
-        const values = extractModalValues(interaction);
-        const channelArr = values['welcome_channel'];
-        const channelId = Array.isArray(channelArr) ? channelArr[0] : (channelArr || null);
-        const msg = values['welcome_msg'] || '{user} sunucumuza hoş geldin!';
-        const dmMsg = values['welcome_dm'] || null;
-
-        try {
-            await pool.query(
-                `INSERT INTO welcome_config (guild_id, welcome_channel_id, welcome_message, welcome_dm_message)
-                 VALUES (?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE welcome_channel_id = ?, welcome_message = ?, welcome_dm_message = ?`,
-                [guildId, channelId, msg, dmMsg, channelId, msg, dmMsg]
-            );
-
-            const updatedCfg = await pool.query('SELECT * FROM welcome_config WHERE guild_id = ?', [guildId]);
-            if (updatedCfg.length > 0) updateWelcomeConfigCache(guildId, updatedCfg[0]);
-        } catch (err) {
-            console.error('Modal welcome setup error:', err);
-        }
-
-        const panel = await buildWelcomeMainPanel(guildId, interaction.guild);
-        panel.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
-        return await interaction.editReply(panel);
-    }
-
-    // 2. Uğurlama Ayarları Submit
-    if (customId === 'modal_goodbye_setup') {
-        if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferUpdate();
-        }
-
-        const values = extractModalValues(interaction);
-        const channelArr = values['goodbye_channel'];
-        const channelId = Array.isArray(channelArr) ? channelArr[0] : (channelArr || null);
-        const msg = values['goodbye_msg'] || '{user} sunucumuzdan ayrıldı.';
-
-        try {
-            await pool.query(
-                `INSERT INTO welcome_config (guild_id, goodbye_channel_id, goodbye_message)
-                 VALUES (?, ?, ?)
-                 ON DUPLICATE KEY UPDATE goodbye_channel_id = ?, goodbye_message = ?`,
-                [guildId, channelId, msg, channelId, msg]
-            );
-
-            const updatedCfg = await pool.query('SELECT * FROM welcome_config WHERE guild_id = ?', [guildId]);
-            if (updatedCfg.length > 0) updateWelcomeConfigCache(guildId, updatedCfg[0]);
-        } catch (err) {
-            console.error('Modal goodbye setup error:', err);
-        }
-
-        const panel = await buildWelcomeMainPanel(guildId, interaction.guild);
-        panel.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
-        return await interaction.editReply(panel);
-    }
-
-    // 3. Görünüm Ayarları Submit
-    if (customId === 'modal_welcome_view') {
-        if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferUpdate();
-        }
-
-        const values = extractModalValues(interaction);
-        const welcomeTitle = values['welcome_title'] || null;
-        const goodbyeTitle = values['goodbye_title'] || null;
-
-        const welcomeOpts = values['welcome_view_options'] || [];
-        const goodbyeOpts = values['goodbye_view_options'] || [];
-
-        const welcomeShowTitle = welcomeOpts.includes('show_title') ? 1 : 0;
-        const welcomeGenImage = welcomeOpts.includes('gen_image') ? 1 : 0;
-        const welcomePlainText = welcomeOpts.includes('plain_text') ? 1 : 0;
-
-        const goodbyeShowTitle = goodbyeOpts.includes('show_title') ? 1 : 0;
-        const goodbyeGenImage = goodbyeOpts.includes('gen_image') ? 1 : 0;
-        const goodbyePlainText = goodbyeOpts.includes('plain_text') ? 1 : 0;
-
-        try {
-            await pool.query(
-                `INSERT INTO welcome_config (
-                    guild_id, welcome_title, goodbye_title,
-                    welcome_show_title, welcome_gen_image, welcome_plain_text,
-                    goodbye_show_title, goodbye_gen_image, goodbye_plain_text
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    welcome_title = ?, goodbye_title = ?,
-                    welcome_show_title = ?, welcome_gen_image = ?, welcome_plain_text = ?,
-                    goodbye_show_title = ?, goodbye_gen_image = ?, goodbye_plain_text = ?`,
-                [
-                    guildId, welcomeTitle, goodbyeTitle,
-                    welcomeShowTitle, welcomeGenImage, welcomePlainText,
-                    goodbyeShowTitle, goodbyeGenImage, goodbyePlainText,
-                    welcomeTitle, goodbyeTitle,
-                    welcomeShowTitle, welcomeGenImage, welcomePlainText,
-                    goodbyeShowTitle, goodbyeGenImage, goodbyePlainText
-                ]
-            );
-
-            const updatedCfg = await pool.query('SELECT * FROM welcome_config WHERE guild_id = ?', [guildId]);
-            if (updatedCfg.length > 0) updateWelcomeConfigCache(guildId, updatedCfg[0]);
-        } catch (err) {
-            console.error('Modal view setup error:', err);
-        }
-
-        const panel = await buildWelcomeMainPanel(guildId, interaction.guild);
-        panel.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
-        return await interaction.editReply(panel);
     }
 
     return false;

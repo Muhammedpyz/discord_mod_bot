@@ -170,7 +170,15 @@ async function handleAutoModInteraction(interaction, client) {
 
         try {
             await pool.query(
-                'INSERT INTO automod_config (guild_id, anti_swear, anti_invite, anti_link, caps_percent, mention_limit, spam_limit) VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE anti_swear = VALUES(anti_swear), anti_invite = VALUES(anti_invite), anti_link = VALUES(anti_link), caps_percent = VALUES(caps_percent), mention_limit = VALUES(mention_limit), spam_limit = VALUES(spam_limit)',
+                `INSERT INTO automod_config (guild_id, anti_swear, anti_invite, anti_link, caps_percent, mention_limit, spam_limit)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    anti_swear = VALUES(anti_swear),
+                    anti_invite = VALUES(anti_invite),
+                    anti_link = VALUES(anti_link),
+                    caps_percent = VALUES(caps_percent),
+                    mention_limit = VALUES(mention_limit),
+                    spam_limit = VALUES(spam_limit)`,
                 [guildId, swearVal ? 1 : 0, inviteVal ? 1 : 0, linkVal ? 1 : 0, capsVal, mentionVal, spamVal]
             );
             
@@ -183,6 +191,132 @@ async function handleAutoModInteraction(interaction, client) {
             if (updatedCfg.length > 0) updateAutoModConfigCache(guildId, updatedCfg[0]);
         } catch(e) {
             console.error("AutoMod filtre kaydetme hatası:", e);
+        }
+
+        const mainPanel = await buildAutoModMainPanel(guildId);
+        mainPanel.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+        await interaction.editReply(mainPanel);
+        return true;
+    }
+
+    // ==========================================
+    // 1.2 SOHBET KALKANI BUTONU -> MODAL (FLOOD & BASKIN)
+    // ==========================================
+    if (customId === 'automod_flood_btn') {
+        const cfg = await getAutoModConfig(guildId) || {};
+
+        const modalData = {
+            title: 'Sohbet Kalkanı & Flood',
+            custom_id: 'automod_flood_modal',
+            components: [
+                {
+                    type: 18, // LABEL
+                    label: 'Açık Kalkanlar',
+                    description: 'Aktif etmek istediğiniz kalkanları işaretleyin.',
+                    required: false,
+                    component: {
+                        type: 22, // CHECKBOX_GROUP
+                        custom_id: 'flood_filters',
+                        required: false,
+                        options: [
+                            { label: 'Zalgo bozuk metin engeli', value: 'zalgo', default: Boolean(cfg.anti_zalgo) },
+                            { label: 'Çapraz kanal baskın (raid) engeli', value: 'cross_spam', default: Boolean(cfg.cross_spam_enabled) }
+                        ],
+                        min_values: 0,
+                        max_values: 2
+                    }
+                },
+                {
+                    type: 18, // LABEL
+                    label: 'Emoji Flood Sınırı',
+                    description: 'Tek mesajda max emoji sayısı. Kapatmak için 0. Örn: 10',
+                    required: false,
+                    component: {
+                        type: 4, // TEXT_INPUT
+                        custom_id: 'emoji_input',
+                        style: 1,
+                        value: String(cfg.emoji_limit || 0),
+                        max_length: 3,
+                        required: false
+                    }
+                },
+                {
+                    type: 18, // LABEL
+                    label: 'Satır Atlama Sınırı',
+                    description: 'Tek mesajda max Enter/satır sayısı. Kapatmak için 0. Örn: 15',
+                    required: false,
+                    component: {
+                        type: 4, // TEXT_INPUT
+                        custom_id: 'line_input',
+                        style: 1,
+                        value: String(cfg.line_limit || 0),
+                        max_length: 3,
+                        required: false
+                    }
+                },
+                {
+                    type: 18, // LABEL
+                    label: 'Harf Uzatma / Tekrar Sınırı',
+                    description: 'Bir kelimede ardışık harf tekrarı (saaaaa gibi). Kapatmak için 0. Örn: 8',
+                    required: false,
+                    component: {
+                        type: 4, // TEXT_INPUT
+                        custom_id: 'repeat_input',
+                        style: 1,
+                        value: String(cfg.repeat_limit || 0),
+                        max_length: 3,
+                        required: false
+                    }
+                }
+            ]
+        };
+
+        try {
+            await showRawModal(interaction, client, modalData);
+        } catch (e) {
+            console.error("Sohbet kalkanı modal gösterme hatası:", e);
+        }
+        return true;
+    }
+
+    // 1.3 SOHBET KALKANI MODAL SUBMIT
+    if (customId === 'automod_flood_modal') {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferUpdate();
+        }
+
+        const values = extractModalValues(interaction);
+        const floodFilters = Array.isArray(values['flood_filters']) ? values['flood_filters'] : (values['flood_filters'] ? [values['flood_filters']] : []);
+        
+        const zalgoVal = floodFilters.includes('zalgo');
+        const crossSpamVal = floodFilters.includes('cross_spam');
+
+        let emojiVal = parseInt(values['emoji_input'] || '0', 10) || 0;
+        if (emojiVal < 0) emojiVal = 0;
+
+        let lineVal = parseInt(values['line_input'] || '0', 10) || 0;
+        if (lineVal < 0) lineVal = 0;
+
+        let repeatVal = parseInt(values['repeat_input'] || '0', 10) || 0;
+        if (repeatVal < 0) repeatVal = 0;
+
+        try {
+            await pool.query(
+                `INSERT INTO automod_config (guild_id, anti_zalgo, cross_spam_enabled, emoji_limit, line_limit, repeat_limit)
+                 VALUES (?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    anti_zalgo = VALUES(anti_zalgo),
+                    cross_spam_enabled = VALUES(cross_spam_enabled),
+                    emoji_limit = VALUES(emoji_limit),
+                    line_limit = VALUES(line_limit),
+                    repeat_limit = VALUES(repeat_limit)`,
+                [guildId, zalgoVal ? 1 : 0, crossSpamVal ? 1 : 0, emojiVal, lineVal, repeatVal]
+            );
+
+            const updatedCfg = await pool.query('SELECT * FROM automod_config WHERE guild_id = ?', [guildId]);
+            if (updatedCfg.length > 0) updateAutoModConfigCache(guildId, updatedCfg[0]);
+        } catch(e) {
+            console.error("Sohbet kalkanı kaydetme hatası:", e);
         }
 
         const mainPanel = await buildAutoModMainPanel(guildId);
@@ -657,6 +791,67 @@ async function handleAutoModInteraction(interaction, client) {
     }
 
     // ==========================================
+    // 6.2 İZİNLİ LİNKLER BUTONU -> MODAL
+    // ==========================================
+    if (customId === 'automod_links_btn') {
+        const cfg = await getAutoModConfig(guildId) || {};
+        const modalData = {
+            title: 'İzinli Siteler (Beyaz Liste)',
+            custom_id: 'automod_links_modal',
+            components: [
+                {
+                    type: 18, // LABEL
+                    label: 'İzinli Domain ve Linkler',
+                    description: 'Her satıra izin verilecek bir site/domain yazın.',
+                    required: false,
+                    component: {
+                        type: 4, // TEXT_INPUT
+                        custom_id: 'allowed_links_input',
+                        style: 2, // Paragraph
+                        value: (cfg.allowed_links || '').slice(0, 3900),
+                        max_length: 4000,
+                        placeholder: 'youtube.com\nspotify.com\ntwitch.tv\ngithub.com',
+                        required: false
+                    }
+                }
+            ]
+        };
+
+        try {
+            await showRawModal(interaction, client, modalData);
+        } catch (e) {
+            console.error("İzinli linkler modal gösterme hatası:", e);
+        }
+        return true;
+    }
+
+    // 6.3 İZİNLİ LİNKLER MODAL SUBMIT
+    if (customId === 'automod_links_modal') {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferUpdate();
+        }
+
+        const values = extractModalValues(interaction);
+        const allowedLinks = (values['allowed_links_input'] || '').trim();
+
+        try {
+            await pool.query(
+                'INSERT INTO automod_config (guild_id, allowed_links) VALUES (?, ?) ON DUPLICATE KEY UPDATE allowed_links = VALUES(allowed_links)',
+                [guildId, allowedLinks]
+            );
+            const updatedCfg = await pool.query('SELECT * FROM automod_config WHERE guild_id = ?', [guildId]);
+            if (updatedCfg.length > 0) updateAutoModConfigCache(guildId, updatedCfg[0]);
+        } catch(e) {
+            console.error("İzinli linkler kaydetme hatası:", e);
+        }
+
+        const mainPanel = await buildAutoModMainPanel(guildId);
+        mainPanel.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
+        await interaction.editReply(mainPanel);
+        return true;
+    }
+
+    // ==========================================
     // 7. KORUMA KALKANI (ANTI-NUKE) PANELİ
     // ==========================================
     if (customId === 'automod_antinuke_btn') {
@@ -792,12 +987,22 @@ async function handleAutoModInteraction(interaction, client) {
             const newState = !(cfg.anti_unban !== false);
             await setAntiNukeConfig(guildId, { ...cfg, anti_unban: newState });
             cfg.anti_unban = newState;
+        } else if (customId === 'automod_an_toggle_server_update') {
+            const newState = !(cfg.anti_server_update !== false);
+            await setAntiNukeConfig(guildId, { ...cfg, anti_server_update: newState });
+            cfg.anti_server_update = newState;
+        } else if (customId === 'automod_an_toggle_everyone_admin') {
+            const newState = !(cfg.anti_everyone_admin !== false);
+            await setAntiNukeConfig(guildId, { ...cfg, anti_everyone_admin: newState });
+            cfg.anti_everyone_admin = newState;
         }
 
         const botOn = cfg.anti_bot_add !== false;
         const webOn = cfg.anti_webhook !== false;
         const intOn = cfg.anti_integration !== false;
         const unbOn = cfg.anti_unban !== false;
+        const srvOn = cfg.anti_server_update !== false;
+        const evOn = cfg.anti_everyone_admin !== false;
 
         const container = new ContainerBuilder();
         container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### <:mono:${MONO_EMOJIS.shield || '1530917506867400775'}> Gelişmiş Koruma Modülleri`));
@@ -806,7 +1011,9 @@ async function handleAutoModInteraction(interaction, client) {
             `- **Anti-Bot Add:** ${botOn ? '`Açık` (İzinsiz bot sokulamaz)' : '`Kapalı`'}\n` +
             `- **Anti-Webhook:** ${webOn ? '`Açık` (Yetkisiz webhook silinir)' : '`Kapalı`'}\n` +
             `- **Anti-Integration:** ${intOn ? '`Açık` (Yetkisiz uygulama engellenir)' : '`Kapalı`'}\n` +
-            `- **Anti-Unban (Re-Ban):** ${unbOn ? '`Açık` (İzinsiz ban kaldırılırsa otomatik Re-Ban)' : '`Kapalı`'}`
+            `- **Anti-Unban (Re-Ban):** ${unbOn ? '`Açık` (İzinsiz ban kaldırılırsa otomatik Re-Ban)' : '`Kapalı`'}\n` +
+            `- **Anti-Sunucu Güncelleme:** ${srvOn ? '`Açık` (İzinsiz sunucu adı/iconu anında geri alınır)' : '`Kapalı`'}\n` +
+            `- **Anti-Everyone Admin:** ${evOn ? '`Açık` (@everyone tehlikeli izinleri anında kapatılır)' : '`Kapalı`'}`
         ));
         container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
@@ -838,6 +1045,19 @@ async function handleAutoModInteraction(interaction, client) {
 
         const row3 = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
+                .setCustomId('automod_an_toggle_server_update')
+                .setLabel(srvOn ? 'Anti-Sunucu: Açık' : 'Anti-Sunucu: Kapalı')
+                .setStyle(srvOn ? ButtonStyle.Success : ButtonStyle.Danger)
+                .setEmoji(srvOn ? (MONO_EMOJIS.check || '1530917534885478600') : (MONO_EMOJIS.cross || '1530917536806469783')),
+            new ButtonBuilder()
+                .setCustomId('automod_an_toggle_everyone_admin')
+                .setLabel(evOn ? 'Anti-Everyone: Açık' : 'Anti-Everyone: Kapalı')
+                .setStyle(evOn ? ButtonStyle.Success : ButtonStyle.Danger)
+                .setEmoji(evOn ? (MONO_EMOJIS.check || '1530917534885478600') : (MONO_EMOJIS.cross || '1530917536806469783'))
+        );
+
+        const row4 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
                 .setCustomId('automod_antinuke_btn')
                 .setLabel('Kalkan Paneline Dön')
                 .setStyle(ButtonStyle.Secondary)
@@ -847,6 +1067,7 @@ async function handleAutoModInteraction(interaction, client) {
         container.addActionRowComponents(row1);
         container.addActionRowComponents(row2);
         container.addActionRowComponents(row3);
+        container.addActionRowComponents(row4);
 
         await interaction.editReply({ flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2, components: [container] });
         return true;

@@ -309,7 +309,7 @@ async function handleCreatorInteraction(interaction, action) {
                 2: 'Kanal/Profil linkini paylaş',
                 3: 'Abone/Takipçi sayın kaç?',
                 4: 'Ne tür içerikler üretiyorsun?',
-                5: 'Neden Türklion\'da içerik üreticisi olmak istiyorsun?',
+                5: 'Neden Nyx\'te içerik üreticisi olmak istiyorsun?',
                 6: '', 7: '', 8: '', 9: '', 10: ''
             };
             return defaults[n] || '';
@@ -360,7 +360,7 @@ Discord her modalda en fazla **5** alan kabul ettiği için sorular iki gruba ay
             2: 'Kanal/Profil linkini paylaş',
             3: 'Abone/Takipçi sayın kaç?',
             4: 'Ne tür içerikler üretiyorsun?',
-            5: 'Neden Türklion\'da içerik üreticisi olmak istiyorsun?',
+            5: 'Neden Nyx\'te içerik üreticisi olmak istiyorsun?',
             6: '', 7: '', 8: '', 9: '', 10: ''
         };
         const mk = (n) => new TextInputBuilder()
@@ -418,7 +418,7 @@ Discord her modalda en fazla **5** alan kabul ettiği için sorular iki gruba ay
                 2: 'Kanal/Profil linkini paylaş',
                 3: 'Abone/Takipçi sayın kaç?',
                 4: 'Ne tür içerikler üretiyorsun?',
-                5: 'Neden Türklion\'da içerik üreticisi olmak istiyorsun?',
+                5: 'Neden Nyx\'te içerik üreticisi olmak istiyorsun?',
                 6: '', 7: '', 8: '', 9: '', 10: ''
             };
             return defaults[n] || '';

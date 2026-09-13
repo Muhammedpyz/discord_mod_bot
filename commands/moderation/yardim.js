@@ -51,6 +51,27 @@ function createHelpComponents(selected = 'home', member = null) {
             emoji: MONO_EMOJIS.smile || '1538517365011259483',
             description: 'Öneri, İtibar (+Rep), Çekiliş, AFK, Avatar',
             default: selected === 'community'
+        },
+        {
+            label: 'Eğlence & Oyunlar',
+            value: 'help_fun',
+            emoji: MONO_EMOJIS.gamepad || '1538517365011259483',
+            description: '8Ball, Zar, XOX, Düello, GIF, bilgi yarışması',
+            default: selected === 'fun'
+        },
+        {
+            label: 'Ekonomi & Casino',
+            value: 'help_eco',
+            emoji: MONO_EMOJIS.coins || '1538517365011259483',
+            description: 'Cüzdan, Market, Çalış, Slots, Blackjack, Crash',
+            default: selected === 'eco'
+        },
+        {
+            label: 'Bilgi & Araçlar',
+            value: 'help_bilgi',
+            emoji: MONO_EMOJIS.search || '1538517365011259483',
+            description: 'Hava, Çeviri, Kripto, Döviz, QR, Wiki',
+            default: selected === 'bilgi'
         }
     ];
 
@@ -103,13 +124,13 @@ function helpEmbedHome(guild, user, actionRows = [], member = null) {
     );
 
     const staffText = isStaff 
-        ? '\n🛡️ *Yetkili statüsündesiniz: Ceza, Güvenlik, Kanal ve Kadro kategorileri menüde açıktır.*' 
-        : '\n🎮 *Üye statüsündesiniz: Genel topluluk, müzik ve Minecraft komutları listelenmektedir.*';
+        ? `\n<:mono:${MONO_EMOJIS.shield}> *Yetkili statüsündesiniz: Ceza, Güvenlik, Kanal ve Kadro kategorileri menüde açıktır.*` 
+        : `\n<:mono:${MONO_EMOJIS.gamepad || MONO_EMOJIS.user}> *Üye statüsündesiniz: Genel topluluk, müzik ve Minecraft komutları listelenmektedir.*`;
 
     return buildModAPanel({
-        title: 'TurkLion Network - Komut Rehberi',
-        description: `Sayın <@${user.id}>, **TurkLion Moderasyon, Müzik & Topluluk Botu** yardım merkezine hoş geldiniz.\n\n` +
-                     `Sunucumuzda **65+ aktif komut ve interaktif sistem** çalışmaktadır.\n` +
+        title: 'Nyx - Komut Rehberi',
+        description: `Sayın <@${user.id}>, **Nyx Moderasyon, Müzik & Topluluk Botu** yardım merkezine hoş geldiniz.\n\n` +
+                      `Sunucumuzda **170+ aktif komut ve interaktif sistem** çalışmaktadır.\n` +
                      `Aşağıdaki menüden incelemek istediğiniz kategoriyi seçerek komutların kullanım formatlarını ve parametrelerini detaylıca görebilirsiniz.${staffText}`,
         navRow: actionRows[0],
         showSocials: true
@@ -121,7 +142,7 @@ function getCategoryHelpPayload(categoryKey, member = null) {
 
     if (categoryKey === 'help_minecraft') {
         const title = `Minecraft & Günlük Görev Sistemleri`;
-        const desc = `TurkLion Network seviye motoru, günlük görevler ve Minecraft oyuncu araçları:`;
+        const desc = `Nyx seviye motoru, günlük görevler ve Minecraft oyuncu araçları:`;
         const fields = [
             {
                 name: '1. /gorev',
@@ -180,8 +201,8 @@ function getCategoryHelpPayload(categoryKey, member = null) {
                 value: `\`\`\`/kick [kullanıcı: ZORUNLU] <sebep: İSTEĞE BAĞLI>\`\`\`Kullanıcıyı sunucudan atar.\n\`\`\`/mute [kullanıcı: ZORUNLU] [süre: ZORUNLU] <sebep: İSTEĞE BAĞLI>\`\`\`Zaman aşımı (Timeout) ile metin kanallarında susturur.\n\`\`\`/unmute [kullanıcı: ZORUNLU]\`\`\`Kullanıcının susturma cezasını kaldırır.`
             },
             {
-                name: '3. /warn & /warn-sil & /not',
-                value: `\`\`\`/warn [kullanıcı: ZORUNLU] [sebep: ZORUNLU]\`\`\`Kullanıcıya resmi uyarı verir ve sicile işler.\n\`\`\`/warn-sil [kullanıcı: ZORUNLU]\`\`\`Kullanıcının aktif uyarılarını sıfırlar.\n\`\`\`/not [ekle / listele / sil]\`\`\`Kullanıcı üzerine gizli yetkili notu bırakır.`
+                name: '3. /warn & /warn-sil & /not & /süreli-ban',
+                value: `\`\`\`/warn [kullanıcı: ZORUNLU] [sebep: ZORUNLU]\`\`\`Kullanıcıya resmi uyarı verir ve sicile işler.\n\`\`\`/warn-sil [kullanıcı: ZORUNLU]\`\`\`Kullanıcının aktif uyarılarını sıfırlar.\n\`\`\`/not [ekle / listele / sil]\`\`\`Kullanıcı üzerine gizli yetkili notu bırakır.\n\`\`\`/süreli-ban [uye] [sure] [sebep]\`\`\`Süre bitince otomatik açılan yasaklama.`
             }
         ];
         return createContainerMessage(title, desc, COLORS.PRIMARY || '#5865F2', [navMenu], fields, false);
@@ -200,8 +221,16 @@ function getCategoryHelpPayload(categoryKey, member = null) {
                 value: `\`\`\`/ticket\`\`\`Transkriptli bilet yönetim paneli.\n\`\`\`/automod\`\`\`Anti-Spam, Link, Küfür, CapsLock koruma merkezi.\n\`\`\`/log\`\`\`14 kategori & 51 olay detaylı kayıt paneli.`
             },
             {
-                name: '3. /hosgeldin & /otorol & /uyari-ayar',
-                value: `\`\`\`/hosgeldin\`\`\`Karşılama/Uğurlama kanalları ve kart ayarları.\n\`\`\`/otorol\`\`\`Otomatik üye ve bot rol dağıtımı.\n\`\`\`/uyari-ayar\`\`\`Belirli uyarı sayısına ulaşanlara otomatik ceza verme kuralları.`
+                name: '3. /hosgeldin & /otorol & /uyari-ayar & /oto-kurulum & /özelleştir',
+                value: `\`\`\`/hosgeldin\`\`\`Karşılama/Uğurlama kanalları ve kart ayarları.\n\`\`\`/otorol\`\`\`Otomatik üye ve bot rol dağıtımı.\n\`\`\`/uyari-ayar\`\`\`Belirli uyarı sayısına ulaşanlara otomatik ceza verme kuralları.\n\`\`\`/oto-kurulum\`\`\`Log + karşılama + sayaç + doğrulamayı tek tıkla kurar.\n\`\`\`/özelleştir\`\`\`Karşılama/ayrılış/DM mesajlarını düzenler + önizler.`
+            },
+            {
+                name: '4. /kayıt & /doğrulama & /sayaç & /etkinlik & /kurallar',
+                value: `\`\`\`/kayıt [uye] [isim] [yas]\`\`\`İsim-yaş kaydı + rol + log.\n\`\`\`/doğrulama kur\`\`\`Matematik sorulu doğrulama paneli.\n\`\`\`/sayaç ayarla\`\`\`Kanal isminde canlı üye sayacı.\n\`\`\`/etkinlik olustur\`\`\`Katılım butonlu etkinlik kartı.\n\`\`\`/kurallar\`\`\`Kabul Et butonlu kurallar paneli.`
+            },
+            {
+                name: '5. /rol-ver & /toplu-rol & /duyuru & /geri-sayım & /kanal-kilit',
+                value: `\`\`\`/rol-ver & /rol-al\`\`\`Hiyerarşi kontrollü rol işlemi.\n\`\`\`/toplu-rol\`\`\`Onaylı toplu rol dağıtımı.\n\`\`\`/duyuru yayınla\`\`\`Rol etiketli V2 duyuru kartı.\n\`\`\`/geri-sayım\`\`\`Aynı mesajda canlı sayaç.\n\`\`\`/kanal-kilit\`\`\`Metin kanalını kilitle/aç.`
             }
         ];
         return createContainerMessage(title, desc, COLORS.PRIMARY || '#5865F2', [navMenu], fields, false);
@@ -220,8 +249,8 @@ function getCategoryHelpPayload(categoryKey, member = null) {
                 value: `\`\`\`/lockdown [durum: ZORUNLU]\`\`\`Kanalı üye mesajlarına anında kilitler veya açar.\n\`\`\`/nuke\`\`\`Kanalı tüm izinleriyle klonlayıp mesajları sıfırlar.`
             },
             {
-                name: '3. /slowmode & /snipe',
-                value: `\`\`\`/slowmode [saniye: ZORUNLU]\`\`\`Kanala mesaj yazma bekleme süresi koyar.\n\`\`\`/snipe\`\`\`Kanalda silinen en son mesajı ve yazarını gösterir.`
+                name: '3. /slowmode & /snipe & /kanal-kilit',
+                value: `\`\`\`/slowmode [saniye: ZORUNLU]\`\`\`Kanala mesaj yazma bekleme süresi koyar.\n\`\`\`/snipe\`\`\`Kanalda silinen en son mesajı ve yazarını gösterir.\n\`\`\`/kanal-kilit [durum]\`\`\`Kanalı kilitler veya açar.`
             }
         ];
         return createContainerMessage(title, desc, COLORS.PRIMARY || '#5865F2', [navMenu], fields, false);
@@ -256,8 +285,84 @@ function getCategoryHelpPayload(categoryKey, member = null) {
                 value: `\`\`\`/sorgu [kullanici: ZORUNLU]\`\`\`Kullanıcının hesap yaşı, rolleri, uyarıları, cezaları ve sicil kartını tek ekranda sunar.\n\`\`\`/istatistik\`\`\`Sunucunun canlı aktivite ve ses yoğunluğu dökümünü listeler.`
             },
             {
-                name: '3. /davet & /davet-sıralama',
-                value: `\`\`\`/davet <kullanıcı: İSTEĞE BAĞLI>\`\`\`Kullanıcının gerçek, sahte ve ayrılan davet istatistiğini gösterir.\n\`\`\`/davet-sıralama\`\`\`Sunucuda en çok davet yapanların sıralamasını listeler.`
+                name: '3. /davet & /davet-sıralama & /profil & /evlen',
+                value: `\`\`\`/davet <kullanıcı: İSTEĞE BAĞLI>\`\`\`Kullanıcının gerçek, sahte ve ayrılan davet istatistiğini gösterir.\n\`\`\`/davet-sıralama\`\`\`Sunucuda en çok davet yapanların sıralamasını listeler.\n\`\`\`/profil\`\`\`Seviye + servet + rozet + itibar + evlilik tek kartta.\n\`\`\`/evlen & /boşan & /ailem\`\`\`Teklifli evlilik + aile ağacı.`
+            }
+        ];
+        return createContainerMessage(title, desc, COLORS.PRIMARY || '#5865F2', [navMenu], fields, false);
+    }
+
+    if (categoryKey === 'help_fun') {
+        const title = `Eğlence & Oyunlar`;
+        const desc = `Butonlu mini oyunlar ve eğlence komutları (hepsi tek-mesaj, anlık güncellemeli):`;
+        const fields = [
+            {
+                name: '1. /8ball & /zar & /yazı-tura & /aşk-ölçer & /espri & /gif',
+                value: `\`\`\`/8ball [soru]\`\`\`Sihirli topa sor, Tekrar Sor butonuyla yenile.\n\`\`\`/zar [adet] [yuz]\`\`\`\`\`\`/yazı-tura\`\`\`\`\`\`/aşk-ölçer [birinci] [ikinci]\`\`\`\`\`\`/espri\`\`\`\`\`\`/gif [konu] [hedef]\`\`\`Tenor destekli rastgele GIF + Yeni GIF butonu.`
+            },
+            {
+                name: '2. /xox & /düello & /zar-düello',
+                value: `\`\`\`/xox [rakip]\`\`\`Butonlu tahta, herkese açık, kazanan 100 Jeton.\n\`\`\`/düello [rakip]\`\`\`Sıra tabanlı savaş, kazanan 150 Jeton.\n\`\`\`/zar-düello [rakip]\`\`\`Büyük zar atan kazanır (100 Jeton).`
+            },
+            {
+                name: '3. /sayı-tahmin & /kelime-oyunu & /adam-asmaca & /hızlı-yaz',
+                value: `\`\`\`/sayı-tahmin\`\`\`10 hak, az deneme çok ödül.\n\`\`\`/kelime-oyunu\`\`\`Karışık harften kelime bul.\n\`\`\`/adam-asmaca\`\`\`6 hakla kelime kurtar.\n\`\`\`/hızlı-yaz\`\`\`Kelimeyi hızlı yaz, süreye göre ödül.`
+            },
+            {
+                name: '4. /taş-kağıt-makas & /bilgi-yarışması & /bunu-mu & /basar-mıydın',
+                value: `\`\`\`/taş-kağıt-makas\`\`\`Bota karşı 3 tur (25 Jeton).\n\`\`\`/bilgi-yarışması\`\`\`Doğru cevap +40 Jeton.\n\`\`\`/bunu-mu\`\`\`\`\`\`/basar-mıydın\`\`\`Canlı oylamalı ikilemler.`
+            },
+            {
+                name: '5. /sataş & /hack & /ilginç-bilgi & /dünya-saati & /kedi & /köpek',
+                value: `\`\`\`/sataş [hedef]\`\`\`Dostça şaka.\n\`\`\`/hack [hedef]\`\`\`Şaka amaçlı simülasyon.\n\`\`\`/kedi\`\`\`\`\`\`/köpek\`\`\`Rastgele foto + Yeni butonu.`
+            }
+        ];
+        return createContainerMessage(title, desc, COLORS.PRIMARY || '#5865F2', [navMenu], fields, false);
+    }
+
+    if (categoryKey === 'help_eco') {
+        const title = `Ekonomi & Casino`;
+        const desc = `Jeton ekonomisi, market, işler ve şans oyunları:`;
+        const fields = [
+            {
+                name: '1. /ekonomi & /market-yonet',
+                value: `\`\`\`/ekonomi cuzdan\`\`\`Nakit + banka + toplam bakiye.\n\`\`\`/ekonomi gunluk\`\`\`Seri bonuslu günlük ödül.\n\`\`\`/ekonomi transfer\`\`\`Onay butonlu para gönderme.\n\`\`\`/ekonomi market\`\`\`Menüden seç, aynı kartta satın al.`
+            },
+            {
+                name: '2. /çalış & /dilen & /saatlik & /hediye & /balık-tut & /suç-işle',
+                value: `\`\`\`/çalış\`\`\`5dk cooldown ile kazanç.\n\`\`\`/suç-işle [hedef]\`\`\`Riskli soygun: kazan ya da tazminat öde.\n\`\`\`/balık-tut\`\`\`Nadirlikli balık, otomatik satış.\n\`\`\`/hediye\`\`\`30dk'da bir sürpriz kutu.`
+            },
+            {
+                name: '3. /slots & /blackjack & /rulet & /crash',
+                value: `\`\`\`/slots [bahis]\`\`\`3 aynı = 3x, ikili = 1.2x.\n\`\`\`/blackjack [bahis]\`\`\`Kart Al / Dur butonlu 21 (2x).\n\`\`\`/rulet [bahis] [secim]\`\`\`Renk/sayı bahsi (14x\'e kadar).\n\`\`\`/crash [bahis]\`\`\`Patlamadan önce Çekil'e bas!`
+            },
+            {
+                name: '4. /basarim & /profil',
+                value: `\`\`\`/basarim\`\`\`Sayfalı rozet kartın, ödüller otomatik yatar.\n\`\`\`/profil\`\`\`Seviye + servet + rozet + itibar tek kartta.`
+            }
+        ];
+        return createContainerMessage(title, desc, COLORS.PRIMARY || '#5865F2', [navMenu], fields, false);
+    }
+
+    if (categoryKey === 'help_bilgi') {
+        const title = `Bilgi & Araçlar`;
+        const desc = `Arama, hesaplama ve günlük araçlar (hepsinde Yenile butonu):`;
+        const fields = [
+            {
+                name: '1. /hava-durumu & /döviz & /kripto',
+                value: `\`\`\`/hava-durumu [sehir]\`\`\`\`\`\`/döviz\`\`\`\`\`\`/kripto [coin]\`\`\`Canlı veri + Yenile butonu.`
+            },
+            {
+                name: '2. /çeviri & /wikipedia & /github & /npm',
+                value: `\`\`\`/çeviri [metin] [hedef]\`\`\`8 dil desteği.\n\`\`\`/wikipedia [terim]\`\`\`\`\`\`/github [repo]\`\`\`\`\`\`/npm [paket]\`\`\``
+            },
+            {
+                name: '3. /qr & /kısalt & /hesapla & /şifre-üret & /notlarım',
+                value: `\`\`\`/qr [metin]\`\`\`QR kod üretir.\n\`\`\`/kısalt [link]\`\`\`\`\`\`/hesapla [islem]\`\`\`\`\`\`/şifre-üret\`\`\`Güçlü şifre (sana özel).\n\`\`\`/notlarım\`\`\`Kişisel not defteri.`
+            },
+            {
+                name: '4. /emoji-büyüt & /mc-sunucu & /efekt & /hatırlat',
+                value: `\`\`\`/emoji-büyüt [emoji]\`\`\`\`\`\`/mc-sunucu [adres]\`\`\`Sunucu durumu + oyuncu sayısı.\n\`\`\`/efekt [tur]\`\`\`Avatara filtre uygular.`
             }
         ];
         return createContainerMessage(title, desc, COLORS.PRIMARY || '#5865F2', [navMenu], fields, false);
@@ -276,8 +381,8 @@ function getCategoryHelpPayload(categoryKey, member = null) {
                 value: `\`\`\`/afk <sebep: İSTEĞE BAĞLI>\`\`\`AFK moduna geçer, sizi etiketleyenlere bilgi verir.\n\`\`\`/hatirlat [sure: ZORUNLU] [not: ZORUNLU]\`\`\`Belirtilen süre sonra size özel hatırlatma mesajı atar.\n\`\`\`/cekilis baslat\`\`\`Gelişmiş çekiliş başlatma panelini açar.`
             },
             {
-                name: '3. /avatar & /banner & /spotify',
-                value: `\`\`\`/avatar <kullanici: İSTEĞE BAĞLI>\`\`\`Kullanıcının profil fotoğrafını HD büyütür.\n\`\`\`/banner <kullanici: İSTEĞE BAĞLI>\`\`\`Kullanıcının profil afişini görüntüler.\n\`\`\`/spotify <kullanici: İSTEĞE BAĞLI>\`\`\`Kullanıcının o an dinlediği Spotify şarkısını gösterir.`
+                name: '3. /avatar & /banner & /spotify & /etkinlik & /oy-ver',
+                value: `\`\`\`/avatar <kullanici: İSTEĞE BAĞLI>\`\`\`Kullanıcının profil fotoğrafını HD büyütür.\n\`\`\`/banner <kullanici: İSTEĞE BAĞLI>\`\`\`Kullanıcının profil afişini görüntüler.\n\`\`\`/spotify <kullanici: İSTEĞE BAĞLI>\`\`\`Kullanıcının o an dinlediği Spotify şarkısını gösterir.\n\`\`\`/etkinlik olustur\`\`\`Katılım butonlu etkinlik kartı.\n\`\`\`/oy-ver\`\`\`Oy ver, Jeton ödülü kazan.`
             }
         ];
         return createContainerMessage(title, desc, COLORS.PRIMARY || '#5865F2', [navMenu], fields, false);
@@ -307,11 +412,7 @@ module.exports = {
             await interaction.editReply(fullPayload);
         } catch (error) {
             console.error('Yardım komutu hatası:', error);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'Yardım menüsü açılırken hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            } else {
-                await interaction.reply({ content: 'Yardım menüsü açılırken hata oluştu.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
+            throw error;
         }
     }
 };
